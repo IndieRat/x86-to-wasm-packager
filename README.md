@@ -77,3 +77,43 @@ This repository is a **packaging layer**, not a universal Windows emulator. A ra
 For actual execution, `runtime.wasm` must contain the x86 execution/translation layer and support the Windows APIs, filesystem, graphics, audio, input, and other facilities required by the game. The generated `loader.js` exposes the package data so that a compatible runtime or bridge can consume it.
 
 The package format is intentionally simple so the browser side can be matched to the actual runtime ABI.
+
+## Runtime bundle and existing-port updates
+
+The packager does not generate an x86 CPU emulator/translator. `runtime.wasm` is an actual execution/translation engine supplied separately. A compatible `bridge.js` connects that runtime to the package.
+
+Put a compatible pair in one directory:
+
+```text
+runtime/
+├── runtime.wasm
+└── bridge.js
+```
+
+Build a package with that pair:
+
+```bash
+python3 tool/packager.py ./MyGame --output ./dist/MyGame --runtime-dir ./runtime
+```
+
+Or supply the files individually with `--runtime-wasm` and `--bridge`.
+
+### Update an existing port
+
+You can add the runtime later without rebuilding the game files:
+
+```bash
+python3 tool/packager.py --update-port ./dist/MyGame --runtime-dir ./runtime
+```
+
+This preserves `payload.bin` and `resources/`, copies/replaces `runtime.wasm` and `bridge.js`, updates `manifest.json`, and refreshes `loader.js`.
+
+The generated bridge expects the real runtime to expose:
+
+```js
+window.X86Runtime.start({ payload, manifest, readResource })
+```
+
+If a runtime uses another ABI, provide its matching bridge with `--bridge`.
+
+Important: a package containing a PE32 executable is not itself a browser-native WASM executable. The runtime must actually implement x86 execution/translation and the compatibility facilities required by the target game.
