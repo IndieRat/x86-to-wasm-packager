@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Fetch a v86 runtime bundle for local/offline profile testing.
 
-This downloads only the browser runtime pieces. It does not download an OS image.
+This downloads the browser runtime pieces plus a small FreeDOS guest image
+used only to verify that the v86 runtime can boot a real x86 guest.
 """
 import argparse
 import json
@@ -10,6 +11,10 @@ import urllib.request
 from pathlib import Path
 
 API = "https://api.github.com/repos/copy/v86/releases/tags/latest"
+GUEST_IMAGES = {
+    "freedos722.img": "https://i.copy.sh/freedos722.img",
+}
+
 BIOS = {
     "seabios.bin": "https://raw.githubusercontent.com/copy/v86/master/bios/seabios.bin",
     "vgabios.bin": "https://raw.githubusercontent.com/copy/v86/master/bios/vgabios.bin",
@@ -28,6 +33,8 @@ def get(url: str) -> bytes:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", type=Path, default=Path("runtime-v86"))
+    ap.add_argument("--no-guest-image", action="store_true",
+                    help="Do not download the FreeDOS guest test image.")
     args = ap.parse_args()
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -62,6 +69,12 @@ def main() -> int:
 
     for name, url in BIOS.items():
         (out / name).write_bytes(get(url))
+
+    guest_image = None
+    if not args.no_guest_image:
+        name, url = next(iter(GUEST_IMAGES.items()))
+        (out / name).write_bytes(get(url))
+        guest_image = name
 
     bridge = r'''/* v86 profile-test bridge.
  * This is for testing the x86/WASM profile itself.
@@ -142,14 +155,17 @@ def main() -> int:
         "source": "https://github.com/copy/v86",
         "release_tag": release.get("tag_name"),
         "release_name": release.get("name"),
-        "files": ["runtime.wasm", "libv86.js", "seabios.bin", "vgabios.bin", "bridge.js"],
-        "test_image": "supply-your-own.img",
-        "note": "A bootable x86 disk image is still required for an emulator profile test."
+        "files": ["runtime.wasm", "libv86.js", "seabios.bin", "vgabios.bin", "bridge.js"] + ([guest_image] if guest_image else []),
+        "test_image": guest_image,
+        "note": "The included FreeDOS image is a v86 runtime smoke-test guest. It is not a Windows environment for the packaged PE payload."
     }, indent=2), encoding="utf-8")
 
     print("v86 runtime bundle created:", out)
     print("Files: runtime.wasm, libv86.js, seabios.bin, vgabios.bin, bridge.js")
-    print("A bootable disk image is intentionally not downloaded.")
+    if guest_image:
+        print("Guest image:", guest_image)
+    else:
+        print("Guest image: disabled (--no-guest-image)")
     return 0
 
 
