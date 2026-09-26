@@ -308,7 +308,8 @@ def write_manifest(out: Path, manifest: dict) -> None:
 
 def package(game: Path, out: Path, exe_name: str | None,
             runtime: Path | None, bridge: Path | None,
-            runtime_dir: Path | None, name: str | None) -> dict:
+            runtime_dir: Path | None, name: str | None,
+            guest_hda: Path | None = None, guest_hdb: Path | None = None) -> dict:
     game = game.resolve()
     out = out.resolve()
     if not game.is_dir():
@@ -331,6 +332,21 @@ def package(game: Path, out: Path, exe_name: str | None,
         shutil.copy2(bridge, out / "bridge.js")
     runtime_files = copy_runtime_bundle(runtime_dir, out)
 
+    # Optional user-supplied guest disks. The packager never downloads or creates
+    # a Windows guest; it only carries an existing guest image into the package.
+    guest_hda_name = None
+    guest_hdb_name = None
+    if guest_hda:
+        if not guest_hda.is_file():
+            raise FileNotFoundError(f"Guest HDA not found: {guest_hda}")
+        shutil.copy2(guest_hda, out / "guest.hda")
+        guest_hda_name = "guest.hda"
+    if guest_hdb:
+        if not guest_hdb.is_file():
+            raise FileNotFoundError(f"Guest HDB not found: {guest_hdb}")
+        shutil.copy2(guest_hdb, out / "guest.hdb")
+        guest_hdb_name = "guest.hdb"
+
     write_loader(out)
     manifest = build_manifest(
         out, exe.name, info, count, name,
@@ -338,6 +354,10 @@ def package(game: Path, out: Path, exe_name: str | None,
         runtime_files
     )
     manifest["runtime_files"] = runtime_files
+    if guest_hda_name:
+        manifest["guest_hda"] = guest_hda_name
+    if guest_hdb_name:
+        manifest["guest_hdb"] = guest_hdb_name
     write_manifest(out, manifest)
     return manifest
 
@@ -406,6 +426,10 @@ def main() -> int:
     ap.add_argument("--runtime-dir", type=Path,
                     help="Directory containing runtime.wasm and bridge.js.")
     ap.add_argument("--name")
+    ap.add_argument("--guest-hda", type=Path,
+                    help="Optional existing bootable guest disk image to carry as guest.hda.")
+    ap.add_argument("--guest-hdb", type=Path,
+                    help="Optional existing second guest disk image to carry as guest.hdb.")
     ap.add_argument("--update-port", type=Path,
                     help="Update an existing port folder in place with runtime files.")
 
@@ -430,7 +454,9 @@ def main() -> int:
                 args.runtime_wasm,
                 args.bridge,
                 args.runtime_dir,
-                args.name
+                args.name,
+                args.guest_hda,
+                args.guest_hdb
             )
             print(f"Package: {args.output}")
 
