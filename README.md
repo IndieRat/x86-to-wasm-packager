@@ -1,6 +1,6 @@
 # x86-to-wasm-packager
 
-A packaging tool and browser bootloader for 32-bit x86 Windows applications. The project packages a PE32 executable into a browser-friendly bundle and exposes a lightweight HTML/JavaScript host that can load the packaged payload and present it as a bootable app shell.
+A packaging tool and browser bootloader for 32-bit x86 Windows applications. The project packages a PE32 executable into a browser-friendly bundle and exposes a lightweight HTML/JavaScript host that can load the packaged payload and display boot metadata.
 
 This is intentionally designed as a packaging and bridge layer rather than a universal x86 emulator. The project gives you a reproducible layout for turning a legacy x86 binary into a browser-hosted bundle, with a JS bootloader and metadata manifest so a custom emulator or WASM runtime can consume the payload.
 
