@@ -258,7 +258,19 @@ window.loadX86Package = loadX86Package;
 
 def build_manifest(out: Path, executable: str, info: dict,
                    resource_count: int, name: str | None,
-                   runtime: bool, bridge: bool) -> dict:
+                   runtime: bool, bridge: bool,
+                   runtime_files: list[str] | None = None) -> dict:
+    test_image = None
+    runtime_json = out / "runtime.json"
+    if runtime_json.is_file():
+        try:
+            runtime_meta = json.loads(runtime_json.read_text(encoding="utf-8"))
+            candidate = runtime_meta.get("test_image")
+            if candidate and (out / candidate).is_file():
+                test_image = candidate
+        except (OSError, json.JSONDecodeError):
+            pass
+
     manifest = {
         "bundle_version": "2.1",
         "format": "x86-wasm-package",
@@ -271,6 +283,7 @@ def build_manifest(out: Path, executable: str, info: dict,
         "runtime": "runtime.wasm" if runtime else None,
         "bridge": "bridge.js" if bridge else None,
         "runtime_required": True,
+        "test_image": test_image,
         "resource_root": "resources/",
         "resource_file_count": resource_count,
         "entry": "x86_run",
@@ -321,7 +334,8 @@ def package(game: Path, out: Path, exe_name: str | None,
     write_loader(out)
     manifest = build_manifest(
         out, exe.name, info, count, name,
-        runtime is not None, bridge is not None
+        runtime is not None, bridge is not None,
+        runtime_files
     )
     manifest["runtime_files"] = runtime_files
     write_manifest(out, manifest)
@@ -359,6 +373,15 @@ def update_port(out: Path, runtime: Path | None, bridge: Path | None,
     manifest["updated_bridge"] = bool(bridge)
     if runtime_files:
         manifest["runtime_files"] = runtime_files
+        runtime_json = out / "runtime.json"
+        if runtime_json.is_file():
+            try:
+                runtime_meta = json.loads(runtime_json.read_text(encoding="utf-8"))
+                candidate = runtime_meta.get("test_image")
+                if candidate and (out / candidate).is_file():
+                    manifest["test_image"] = candidate
+            except (OSError, json.JSONDecodeError):
+                pass
 
     write_manifest(out, manifest)
     write_loader(out)
