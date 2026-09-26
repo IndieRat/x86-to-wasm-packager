@@ -9,7 +9,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-API = "https://api.github.com/repos/copy/v86/releases/latest"
+API = "https://api.github.com/repos/copy/v86/releases/tags/latest"
 BIOS = {
     "seabios.bin": "https://raw.githubusercontent.com/copy/v86/master/bios/seabios.bin",
     "vgabios.bin": "https://raw.githubusercontent.com/copy/v86/master/bios/vgabios.bin",
