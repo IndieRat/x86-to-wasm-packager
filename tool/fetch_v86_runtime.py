@@ -135,7 +135,7 @@ def main() -> int:
       vga_bios: { buffer: await p.read("vgabios.bin") },
       hda: { buffer: await p.read(image) },
       autostart: true,
-      disable_audio: true
+      disable_speaker: true
     });
 
     return emulator;
