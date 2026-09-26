@@ -150,6 +150,21 @@ def resolve_runtime(runtime_wasm: Path | None, bridge: Path | None,
     return runtime_wasm, bridge
 
 
+def copy_runtime_bundle(runtime_dir: Path | None, out: Path) -> list[str]:
+    """Copy supporting runtime files from a runtime bundle directory."""
+    if not runtime_dir:
+        return []
+    runtime_dir = runtime_dir.resolve()
+    copied = []
+    for src in runtime_dir.iterdir():
+        if not src.is_file() or src.name in {"runtime.wasm", "bridge.js"}:
+            continue
+        dst = out / src.name
+        shutil.copy2(src, dst)
+        copied.append(src.name)
+    return sorted(copied)
+
+
 def write_loader(out: Path) -> None:
     (out / "loader.js").write_text(r'''async function loadX86Package() {
   const manifest = await fetch("./manifest.json").then(r => {
@@ -301,12 +316,14 @@ def package(game: Path, out: Path, exe_name: str | None,
         shutil.copy2(runtime, out / "runtime.wasm")
     if bridge:
         shutil.copy2(bridge, out / "bridge.js")
+    runtime_files = copy_runtime_bundle(runtime_dir, out)
 
     write_loader(out)
     manifest = build_manifest(
         out, exe.name, info, count, name,
         runtime is not None, bridge is not None
     )
+    manifest["runtime_files"] = runtime_files
     write_manifest(out, manifest)
     return manifest
 
@@ -323,6 +340,7 @@ def update_port(out: Path, runtime: Path | None, bridge: Path | None,
         shutil.copy2(runtime, out / "runtime.wasm")
     if bridge:
         shutil.copy2(bridge, out / "bridge.js")
+    runtime_files = copy_runtime_bundle(runtime_dir, out)
 
     manifest_path = out / "manifest.json"
     if not manifest_path.is_file():
@@ -339,6 +357,8 @@ def update_port(out: Path, runtime: Path | None, bridge: Path | None,
     manifest["bundle_version"] = "2.1"
     manifest["updated_runtime"] = bool(runtime)
     manifest["updated_bridge"] = bool(bridge)
+    if runtime_files:
+        manifest["runtime_files"] = runtime_files
 
     write_manifest(out, manifest)
     write_loader(out)
