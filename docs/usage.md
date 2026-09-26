@@ -44,3 +44,31 @@ resources/     # copied game files
 The packager converts the **folder layout** into the package format and validates/extracts PE metadata. It does not itself translate x86 instructions to WASM.
 
 The runtime must provide actual x86 execution and the compatibility layer needed by the target game.
+
+## Update an existing port with a runtime
+
+Create a runtime directory containing the actual compatible runtime and its bridge:
+
+```text
+runtime/
+├── runtime.wasm
+└── bridge.js
+```
+
+Then update an existing package in place:
+
+```bash
+python3 tool/packager.py --update-port ./dist/MyGame --runtime-dir ./runtime
+```
+
+You can also provide the files separately:
+
+```bash
+python3 tool/packager.py --update-port ./dist/MyGame --runtime-wasm ./runtime/runtime.wasm --bridge ./runtime/bridge.js
+```
+
+The command preserves the existing executable payload and resources.
+
+## Runtime limitation
+
+The packager does not synthesize `runtime.wasm`. It must be an actual x86 execution/translation runtime. The generated default `bridge.js` is only an adapter and expects `window.X86Runtime.start(...)`; a runtime with another API needs a custom bridge.
