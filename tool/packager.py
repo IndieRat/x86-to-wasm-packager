@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package a 32-bit x86 Windows game folder for a browser x86/WASM runtime."""
+"""Package or update a 32-bit x86 Windows game for a browser x86/WASM runtime."""
 
 import argparse
 import hashlib
@@ -7,7 +7,6 @@ import json
 import shutil
 import sys
 from pathlib import Path
-
 
 I386 = 0x014C
 
@@ -21,7 +20,9 @@ def pe32_info(path: Path) -> dict:
         raise ValueError("Input does not contain a valid PE header.")
     machine = int.from_bytes(data[pe + 4:pe + 6], "little")
     if machine != I386:
-        raise ValueError(f"Unsupported machine 0x{machine:04X}; expected PE32/i386 (0x014C).")
+        raise ValueError(
+            f"Unsupported machine 0x{machine:04X}; expected PE32/i386 (0x014C)."
+        )
     section_count = int.from_bytes(data[pe + 6:pe + 8], "little")
     optional_size = int.from_bytes(data[pe + 20:pe + 22], "little")
     optional = pe + 24
@@ -80,56 +81,214 @@ def copy_resources(game: Path, out: Path, exe: Path) -> int:
     return count
 
 
+def generated_bridge() -> str:
+    # This is a package/runtime adapter, not an x86 emulator. The actual runtime
+    # must expose the small API documented here or a supplied custom bridge can
+    # replace this file.
+    return r'''/* Generated package bridge.
+ * The actual x86 execution/translation engine is runtime.wasm.
+ *
+ * Expected runtime contract:
+ *   window.X86Runtime.start({
+ *     payload: Uint8Array,
+ *     manifest: object,
+ *     readResource(path): Promise<Uint8Array>
+ *   })
+ *
+ * A runtime may install X86Runtime before this bridge is loaded.
+ */
+(function () {
+  "use strict";
+
+  async function loadBytes(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Failed to load " + url);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
+  async function startX86Package() {
+    const pkg = window.__X86_WASM_PACKAGE__;
+    if (!pkg) throw new Error("X86 WASM package has not been loaded.");
+
+    if (!window.X86Runtime || typeof window.X86Runtime.start !== "function") {
+      throw new Error(
+        "No compatible X86Runtime was supplied. runtime.wasm must be paired " +
+        "with a bridge/runtime implementation that supports the package ABI."
+      );
+    }
+
+    return window.X86Runtime.start({
+      payload: pkg.payload,
+      manifest: pkg.manifest,
+      readResource: pkg.readResource
+    });
+  }
+
+  window.X86WasmBridge = {
+    start: startX86Package,
+    loadBytes
+  };
+  window.initializeX86Wasm = startX86Package;
+})();
+'''
+
+
+def resolve_runtime(runtime_wasm: Path | None, bridge: Path | None,
+                    runtime_dir: Path | None) -> tuple[Path | None, Path | None]:
+    if runtime_dir:
+        runtime_dir = runtime_dir.resolve()
+        if not runtime_dir.is_dir():
+            raise FileNotFoundError(f"Runtime directory not found: {runtime_dir}")
+        runtime_wasm = runtime_wasm or (runtime_dir / "runtime.wasm")
+        bridge = bridge or (runtime_dir / "bridge.js")
+
+    if runtime_wasm and not runtime_wasm.is_file():
+        raise FileNotFoundError(f"Runtime WASM not found: {runtime_wasm}")
+    if bridge and not bridge.is_file():
+        raise FileNotFoundError(f"Bridge not found: {bridge}")
+
+    return runtime_wasm, bridge
+
+
 def write_loader(out: Path) -> None:
     (out / "loader.js").write_text(r'''async function loadX86Package() {
   const manifest = await fetch("./manifest.json").then(r => {
     if (!r.ok) throw new Error("manifest.json could not be loaded");
     return r.json();
   });
+
   const payload = manifest.payload
     ? new Uint8Array(await fetch("./" + manifest.payload).then(r => r.arrayBuffer()))
     : null;
+
   const runtime = manifest.runtime
     ? new Uint8Array(await fetch("./" + manifest.runtime).then(r => r.arrayBuffer()))
     : null;
+
+  const bridge = manifest.bridge
+    ? "./" + manifest.bridge
+    : null;
+
   const resourceUrl = path =>
-    "./resources/" + String(path).replace(/^\/+/, "").split("/").map(encodeURIComponent).join("/");
+    "./resources/" + String(path).replace(/^\/+/, "")
+      .split("/").map(encodeURIComponent).join("/");
+
   window.__X86_WASM_PACKAGE__ = {
-    manifest, payload, runtime, resourceUrl,
-    readResource: async path => new Uint8Array(await fetch(resourceUrl(path)).then(r => r.arrayBuffer()))
+    manifest,
+    payload,
+    runtime,
+    bridge,
+    resourceUrl,
+    readResource: async path =>
+      new Uint8Array(await fetch(resourceUrl(path)).then(r => r.arrayBuffer()))
   };
+
+  if (bridge) {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = bridge;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error("Failed to load " + bridge));
+      document.head.appendChild(script);
+    });
+  }
+
   return window.__X86_WASM_PACKAGE__;
 }
+
 window.loadX86Package = loadX86Package;
 ''', encoding="utf-8")
 
     (out / "index.html").write_text(r'''<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>x86 WASM Port</title></head>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>x86 WASM Port</title>
+</head>
 <body style="font-family:system-ui;background:#0b1020;color:#e5e7eb;padding:24px">
-<h2 id="title">Loading package…</h2><pre id="status"></pre>
-<script src="./loader.js"></script><script>
-(async()=>{try{
- const p=await loadX86Package();
- document.getElementById("title").textContent=p.manifest.name;
- document.getElementById("status").textContent=
- "Package loaded.\\nExecutable: "+p.manifest.executable+
- "\\nResources: "+p.manifest.resource_file_count+
- "\\nRuntime: "+(p.manifest.runtime||"none")+
- "\\n\\nA runtime.wasm must actually execute/translate x86; packaging alone does not run a Windows EXE.";
-}catch(e){document.getElementById("status").textContent="Load failed: "+e.message;console.error(e)}})();
-</script></body></html>
+<h2 id="title">Loading package…</h2>
+<pre id="status"></pre>
+<script src="./loader.js"></script>
+<script>
+(async () => {
+  try {
+    const p = await loadX86Package();
+    document.getElementById("title").textContent = p.manifest.name;
+
+    if (window.X86WasmBridge &&
+        typeof window.X86WasmBridge.start === "function" &&
+        p.manifest.runtime) {
+      await window.X86WasmBridge.start();
+      document.getElementById("status").textContent = "Runtime started.";
+    } else {
+      document.getElementById("status").textContent =
+        "Package loaded.\n" +
+        "Executable: " + p.manifest.executable + "\n" +
+        "Resources: " + p.manifest.resource_file_count + "\n" +
+        "Runtime: " + (p.manifest.runtime || "none") + "\n" +
+        "Bridge: " + (p.manifest.bridge || "none") + "\n\n" +
+        "A compatible x86 execution runtime is required to execute the Windows EXE.";
+    }
+  } catch (e) {
+    document.getElementById("status").textContent = "Load failed: " + e.message;
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
 ''', encoding="utf-8")
 
 
+def build_manifest(out: Path, executable: str, info: dict,
+                   resource_count: int, name: str | None,
+                   runtime: bool, bridge: bool) -> dict:
+    manifest = {
+        "bundle_version": "2.1",
+        "format": "x86-wasm-package",
+        "name": name or out.name,
+        "architecture": "x86",
+        "machine": "i386",
+        "source_type": "game-folder",
+        "executable": executable,
+        "payload": "payload.bin",
+        "runtime": "runtime.wasm" if runtime else None,
+        "bridge": "bridge.js" if bridge else None,
+        "runtime_required": True,
+        "resource_root": "resources/",
+        "resource_file_count": resource_count,
+        "entry": "x86_run",
+        "entry_point": info["entry_point"],
+        "file_size": info["file_size"],
+        "sections": info["sections"],
+        "sha256": sha256(out / "payload.bin"),
+        "execution_note": (
+            "The package contains the x86 PE payload and resources. "
+            "runtime.wasm must provide actual x86 execution/translation; "
+            "bridge.js must implement the runtime package ABI."
+        )
+    }
+    return manifest
+
+
+def write_manifest(out: Path, manifest: dict) -> None:
+    (out / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
+
+
 def package(game: Path, out: Path, exe_name: str | None,
-            runtime: Path | None, bridge: Path | None, name: str | None) -> dict:
+            runtime: Path | None, bridge: Path | None,
+            runtime_dir: Path | None, name: str | None) -> dict:
     game = game.resolve()
     out = out.resolve()
     if not game.is_dir():
         raise ValueError("Input must be a game folder.")
     if out == game or game in out.parents:
         raise ValueError("Output must not be inside the source game folder.")
+
+    runtime, bridge = resolve_runtime(runtime, bridge, runtime_dir)
 
     exe = find_exe(game, exe_name)
     info = pe32_info(exe)
@@ -139,59 +298,107 @@ def package(game: Path, out: Path, exe_name: str | None,
     count = copy_resources(game, out, exe)
 
     if runtime:
-        if not runtime.is_file():
-            raise FileNotFoundError(f"Runtime not found: {runtime}")
         shutil.copy2(runtime, out / "runtime.wasm")
     if bridge:
-        if not bridge.is_file():
-            raise FileNotFoundError(f"Bridge not found: {bridge}")
         shutil.copy2(bridge, out / "bridge.js")
 
     write_loader(out)
-    manifest = {
-        "bundle_version": "2.0",
-        "format": "x86-wasm-package",
-        "name": name or game.name,
-        "architecture": "x86",
-        "machine": "i386",
-        "source_type": "game-folder",
-        "executable": exe.name,
-        "payload": "payload.bin",
-        "runtime": "runtime.wasm" if runtime else None,
-        "bridge": "bridge.js" if bridge else None,
-        "runtime_required": bool(runtime),
-        "resource_root": "resources/",
-        "resource_file_count": count,
-        "entry": "x86_run",
-        "entry_point": info["entry_point"],
-        "file_size": info["file_size"],
-        "sections": info["sections"],
-        "sha256": sha256(exe),
-        "execution_note": "runtime.wasm must provide the actual x86 execution/translation layer; this tool only packages the PE32 and its resources."
-    }
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    manifest = build_manifest(
+        out, exe.name, info, count, name,
+        runtime is not None, bridge is not None
+    )
+    write_manifest(out, manifest)
+    return manifest
+
+
+def update_port(out: Path, runtime: Path | None, bridge: Path | None,
+                runtime_dir: Path | None) -> dict:
+    out = out.resolve()
+    if not out.is_dir():
+        raise ValueError(f"Existing port folder not found: {out}")
+
+    runtime, bridge = resolve_runtime(runtime, bridge, runtime_dir)
+
+    if runtime:
+        shutil.copy2(runtime, out / "runtime.wasm")
+    if bridge:
+        shutil.copy2(bridge, out / "bridge.js")
+
+    manifest_path = out / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError("Existing port has no manifest.json.")
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    if runtime:
+        manifest["runtime"] = "runtime.wasm"
+        manifest["runtime_required"] = True
+    if bridge:
+        manifest["bridge"] = "bridge.js"
+
+    manifest["bundle_version"] = "2.1"
+    manifest["updated_runtime"] = bool(runtime)
+    manifest["updated_bridge"] = bool(bridge)
+
+    write_manifest(out, manifest)
+    write_loader(out)
+
     return manifest
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Turn an x86 Windows game folder into an x86/WASM package.")
-    ap.add_argument("game_folder", type=Path)
+    ap = argparse.ArgumentParser(
+        description="Build or update an x86/WASM game package."
+    )
+
+    ap.add_argument("game_folder", nargs="?", type=Path,
+                    help="Game folder for a new package.")
     ap.add_argument("--output", type=Path, default=Path("dist/game"))
-    ap.add_argument("--exe", help="Executable path relative to the game folder when auto-detection is not desired.")
-    ap.add_argument("--runtime-wasm", type=Path, help="Compatible x86 execution/translation runtime.")
-    ap.add_argument("--bridge", type=Path, help="Optional JavaScript bridge.")
+    ap.add_argument("--exe",
+                    help="Executable path relative to the game folder.")
+    ap.add_argument("--runtime-wasm", type=Path,
+                    help="Actual compatible x86 execution/translation runtime.")
+    ap.add_argument("--bridge", type=Path,
+                    help="JavaScript bridge matching the runtime ABI.")
+    ap.add_argument("--runtime-dir", type=Path,
+                    help="Directory containing runtime.wasm and bridge.js.")
     ap.add_argument("--name")
+    ap.add_argument("--update-port", type=Path,
+                    help="Update an existing port folder in place with runtime files.")
+
     args = ap.parse_args()
+
     try:
-        m = package(args.game_folder, args.output, args.exe, args.runtime_wasm, args.bridge, args.name)
+        if args.update_port:
+            m = update_port(
+                args.update_port,
+                args.runtime_wasm,
+                args.bridge,
+                args.runtime_dir
+            )
+            print(f"Updated port: {args.update_port}")
+        else:
+            if not args.game_folder:
+                ap.error("game_folder is required unless --update-port is used.")
+            m = package(
+                args.game_folder,
+                args.output,
+                args.exe,
+                args.runtime_wasm,
+                args.bridge,
+                args.runtime_dir,
+                args.name
+            )
+            print(f"Package: {args.output}")
+
+        print(f"Runtime: {m.get('runtime') or 'none'}")
+        print(f"Bridge: {m.get('bridge') or 'none'}")
+        print("Note: the runtime must actually execute/translate x86; the packager does not generate an emulator.")
+        return 0
+
     except Exception as e:
-        print(f"Packaging failed: {e}", file=sys.stderr)
+        print(f"Operation failed: {e}", file=sys.stderr)
         return 1
-    print(f"Package: {args.output}")
-    print(f"Executable: {m['executable']}")
-    print(f"Resources: {m['resource_file_count']} files")
-    print(f"Runtime: {m['runtime'] or 'none'}")
-    return 0
 
 
 if __name__ == "__main__":
