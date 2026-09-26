@@ -80,8 +80,8 @@ def main() -> int:
 
     bridge = r'''/* v86 profile-test bridge.
  * This is for testing the x86/WASM profile itself.
- * It boots a supplied disk image using v86; it does NOT turn a PE32
- * executable into a bootable disk image.
+ * It boots a supplied guest disk using v86. The bundled FreeDOS image is only
+ * a smoke test; a PE32 payload is not automatically installed into that guest.
  */
 (function () {
   "use strict";
@@ -117,12 +117,18 @@ def main() -> int:
         return e;
       })();
 
-    const image = p.manifest.test_image || p.manifest.hda || p.manifest.cdrom;
+    // A real guest disk takes precedence over the bundled FreeDOS smoke-test disk.
+    const image = p.manifest.guest_hda || p.manifest.test_image || p.manifest.hda || p.manifest.cdrom;
     if (!image) {
       throw new Error(
-        "Profile runtime test is ready, but no test disk image was supplied. " +
-        "Add a bootable image and set manifest.test_image."
+        "No guest disk image is supplied. The x86 runtime is loaded, but a PE payload " +
+        "cannot run by itself; provide a bootable guest disk as guest.hda."
       );
+    }
+    if (p.manifest.guest_hda) {
+      console.log("[X86] Booting real guest disk:", p.manifest.guest_hda);
+    } else if (p.manifest.test_image) {
+      console.warn("[X86] Booting FreeDOS smoke-test guest; Isaac payload is NOT installed in this guest.");
     }
 
     const emulator = window.emulator = new V86({
@@ -134,6 +140,7 @@ def main() -> int:
       bios: { buffer: await p.read("seabios.bin") },
       vga_bios: { buffer: await p.read("vgabios.bin") },
       hda: { buffer: await p.read(image) },
+      ...(p.manifest.guest_hdb ? { hdb: { buffer: await p.read(p.manifest.guest_hdb) } } : {}),
       autostart: true,
       disable_speaker: true
     });
