@@ -2,7 +2,9 @@
 """Fetch a v86 runtime bundle for local/offline profile testing.
 
 This downloads the browser runtime pieces plus a small FreeDOS guest image
-used only to verify that the v86 runtime can boot a real x86 guest.
+used only to verify that the v86 runtime can boot a real x86 guest. The generated
+bridge uses v86's in-memory wasm_fn/buffer APIs so packages can be consumed from
+an offline file:// page without URL-based ROM/disk fetches.
 """
 import argparse
 import json
@@ -124,14 +126,16 @@ def main() -> int:
     }
 
     const emulator = window.emulator = new V86({
-      wasm_path: "./runtime.wasm",
+      wasm_fn: async (imports) =>
+        (await WebAssembly.instantiate(await p.read("runtime.wasm"), imports)).instance.exports,
       memory_size: p.manifest.memory_size || 128 * 1024 * 1024,
       vga_memory_size: p.manifest.vga_memory_size || 4 * 1024 * 1024,
       screen_container: screen,
-      bios: { url: "./seabios.bin" },
-      vga_bios: { url: "./vgabios.bin" },
-      hda: { url: "./" + image },
-      autostart: true
+      bios: { buffer: await p.read("seabios.bin") },
+      vga_bios: { buffer: await p.read("vgabios.bin") },
+      hda: { buffer: await p.read(image) },
+      autostart: true,
+      disable_audio: true
     });
 
     return emulator;
