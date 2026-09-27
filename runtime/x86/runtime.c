@@ -38,6 +38,8 @@ static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_coun
 static uint32_t import_resolved=0,import_failed=0;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 
+static uint32_t rd32(uint32_t p);
+
 static uint32_t al4(uint32_t x){return(x+3u)&~3u;}
 static int streq_ascii(uint32_t p,const char*s){
  uint32_t i=0; while(s[i]){if(MEM8(p+i)!=(uint8_t)s[i])return 0;i++;}
