@@ -149,3 +149,33 @@ python3 tool/guest_builder.py \
 ```
 
 This removes the need to use `qemu-img` merely to create an empty disk. It does not turn a blank disk into a Windows installation, and it does not automatically install a game into the guest OS.
+
+## XWASM format and host ABI
+
+The repository now defines XWASM, a project-specific package and host convention built on standard WebAssembly. It does not modify the WebAssembly instruction set.
+
+See `XWASM.md` for the format and ABI specification.
+
+A first native-WASM package can be created with:
+
+    python3 tool/xwasm_pack.py ./game.wasm --output ./dist/game.xwasm --resources ./resources
+
+Inspect it with:
+
+    python3 tool/xwasm_inspect.py ./dist/game.xwasm
+
+The reference browser host lives at `runtime/reference/host.js`.
+
+The migration plan is:
+
+    XWASM package
+        ↓
+    XWASM host ABI
+        ↓
+    native WASM runtime
+        OR
+    x86 compatibility runtime compiled to WASM
+        ↓
+    HTML shell
+
+The existing x86/v86 package tools remain available during this migration. They are not treated as the XWASM ABI itself.
