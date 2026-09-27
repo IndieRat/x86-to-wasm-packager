@@ -34,6 +34,7 @@ static uint32_t halted=0,cpu_error=0;
 static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t guest_vm=0x02000000u;
 static uint32_t guest_vm_limit=0x06000000u;
+static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_count=0;
 static uint32_t import_resolved=0,import_failed=0;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 
@@ -75,11 +76,14 @@ static uint32_t call_builtin(uint32_t target){
   uint32_t a=al4(guest_vm),end=a+size;
   if(end<a||end>guest_vm_limit){regs[R_EAX]=0;return 1;}
   guest_vm=end;
+  last_virtual_alloc=a;
+  last_virtual_alloc_size=size;
   regs[R_EAX]=a;
   return 1;
  }
  if(target==API_VIRTUALFREE){
-  regs[R_EAX]=(regs[R_EDX]==0)?0:1;
+  regs[R_EAX]=(regs[R_ECX]!=0)?1u:0u;
+  if(regs[R_ECX]!=0)virtual_free_count++;
   return 1;
  }
  return 0;
@@ -323,7 +327,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 }
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
- heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
+ heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
  for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.5");loglit("PE32 + imports + guest heap + VirtualAlloc/VirtualFree + browser host bridge");return 0;
 }
 __attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00050000u;}
@@ -377,6 +381,9 @@ __attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return 
 __attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(void){return guest_heap;}
 __attribute__((export_name("x86_virtual_alloc"))) uint32_t x86_virtual_alloc(uint32_t size){uint32_t a=al4(guest_vm),end=a+al4(size);if(!size||end<a||end>guest_vm_limit)return 0;guest_vm=end;return a;}
 __attribute__((export_name("x86_get_virtual_heap"))) uint32_t x86_get_virtual_heap(void){return guest_vm;}
+__attribute__((export_name("x86_get_last_virtual_alloc"))) uint32_t x86_get_last_virtual_alloc(void){return last_virtual_alloc;}
+__attribute__((export_name("x86_get_last_virtual_alloc_size"))) uint32_t x86_get_last_virtual_alloc_size(void){return last_virtual_alloc_size;}
+__attribute__((export_name("x86_get_virtual_free_count"))) uint32_t x86_get_virtual_free_count(void){return virtual_free_count;}
 __attribute__((export_name("x86_get_loaded"))) uint32_t x86_get_loaded(void){return loaded;}
 __attribute__((export_name("x86_get_load_error"))) uint32_t x86_get_load_error(void){return load_error;}
 __attribute__((export_name("x86_get_load_ptr"))) uint32_t x86_get_load_ptr(void){return last_load_ptr;}
