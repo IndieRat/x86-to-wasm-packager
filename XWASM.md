@@ -142,3 +142,19 @@ Generate a standalone browser runner for that package:
     python3 tool/xwasm_reference_runner.py ./dist/xwasm-reference.xwasm --output ./dist/xwasm-reference.html
 
 The runner is intentionally a reference shell rather than a game runtime. Its purpose is to establish observable boot behavior that OWB can reproduce later.
+
+## X86 runtime v0.1 test pipeline
+
+Build the runtime WebAssembly module:
+
+    python3 tool/xwasm_build_x86_runtime.py --output ./dist/x86-runtime-v0.1/runtime.wasm
+
+Build a deterministic XWASM x86 test package containing that runtime, a tiny synthetic PE32 payload, and a manifest:
+
+    python3 tool/xwasm_build_x86_test.py --output ./dist/x86-runtime-test.xwasm
+
+Inspect the package before using the browser runner:
+
+    python3 tool/xwasm_inspect.py ./dist/x86-runtime-test.xwasm
+
+The synthetic payload is only a loader/runtime fixture; it is not a Windows game. A real game is the next test stage and is exported with tool/xwasm_pack_x86.py.
