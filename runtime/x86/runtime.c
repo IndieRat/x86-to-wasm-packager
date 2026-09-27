@@ -71,19 +71,28 @@ static uint32_t call_builtin(uint32_t target){
   return 1;
  }
  if(target==API_VIRTUALALLOC){
-  uint32_t size=al4(regs[R_EDX]);
-  if(!size){regs[R_EAX]=0;return 1;}
+  /* Win32 stdcall: lpAddress, dwSize, flAllocationType, flProtect. */
+  uint32_t sp=regs[R_ESP];
+  uint32_t size=al4(rd32(sp+8u));
+  if(!size){regs[R_EAX]=0;regs[R_ESP]+=16u;return 1;}
   uint32_t a=al4(guest_vm),end=a+size;
-  if(end<a||end>guest_vm_limit){regs[R_EAX]=0;return 1;}
+  if(end<a||end>guest_vm_limit){regs[R_EAX]=0;regs[R_ESP]+=16u;return 1;}
   guest_vm=end;
   last_virtual_alloc=a;
   last_virtual_alloc_size=size;
   regs[R_EAX]=a;
+  regs[R_ESP]+=16u;
   return 1;
  }
  if(target==API_VIRTUALFREE){
-  regs[R_EAX]=(regs[R_ECX]!=0)?1u:0u;
-  if(regs[R_ECX]!=0)virtual_free_count++;
+  /* Win32 stdcall: lpAddress, dwSize, dwFreeType. */
+  uint32_t sp=regs[R_ESP];
+  uint32_t address=rd32(sp+4u),size=rd32(sp+8u),free_type=rd32(sp+12u);
+  (void)size;
+  (void)free_type;
+  regs[R_EAX]=(address!=0)?1u:0u;
+  if(address!=0)virtual_free_count++;
+  regs[R_ESP]+=12u;
   return 1;
  }
  return 0;
