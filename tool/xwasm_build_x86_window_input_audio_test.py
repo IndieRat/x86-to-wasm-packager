@@ -134,9 +134,13 @@ def make_pe():
     struct.pack_into("<I", b, base + (kernel_oft_rva - SECTION_RVA), names[6])
     struct.pack_into("<I", b, base + (kernel_iat_rva - SECTION_RVA), names[6])
 
-    b[base + (user_dll - SECTION_RVA):base + (user_dll - SECTION_RVA) + 11] = b"USER32.dll\0"
-    b[base + (gdi_dll - SECTION_RVA):base + (gdi_dll - SECTION_RVA) + 10] = b"GDI32.dll\0"
-    b[base + (kernel_dll - SECTION_RVA):base + (kernel_dll - SECTION_RVA) + 12] = b"KERNEL32.dll\0"
+    for rva, dll in (
+        (user_dll, b"USER32.dll\0"),
+        (gdi_dll, b"GDI32.dll\0"),
+        (kernel_dll, b"KERNEL32.dll\0"),
+    ):
+        off = base + (rva - SECTION_RVA)
+        b[off:off + len(dll)] = dll
     for rva, func in zip(names, funcs):
         off = base + (rva - SECTION_RVA)
         b[off:off + 2] = b"\0\0"
