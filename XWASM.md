@@ -213,3 +213,26 @@ Microsoft documents CreateWindowEx/ShowWindow as the normal Win32 window creatio
 This milestone deliberately does not claim complete Windows window management, message dispatch, painting, device contexts, brushes, pens, DirectX/OpenGL, or compositor behavior. Those will be added only as the target game's actual imports and runtime behavior require them.
 
 The next graphics work should establish a persistent frame buffer/presentation path, basic window-message/input plumbing, and then the APIs needed by the real target executable.
+
+## X86 runtime v0.7 window/message, input, and audio foundation
+
+The v0.7 runtime extends the browser-backed USER32/GDI32 seed with a first Win32-style window/message and input layer plus a minimal audio bridge.
+
+The v0.7 seed resolves:
+
+- USER32.dll!GetMessageA
+- USER32.dll!PeekMessageA
+- USER32.dll!TranslateMessage
+- USER32.dll!DispatchMessageA
+- USER32.dll!DefWindowProcA
+- USER32.dll!PostQuitMessage
+- KERNEL32.dll!Beep
+
+The browser host maintains a small event queue and can translate browser keyboard/mouse activity into the 32-bit Win32 MSG layout. The runtime's PeekMessageA/GetMessageA compatibility calls consume or inspect that queue and expose the message to guest memory. TranslateMessage/DispatchMessageA/DefWindowProcA are deliberately minimal compatibility seeds; they do not implement a complete Windows window procedure subsystem yet.
+
+KERNEL32!Beep is bridged to the browser Web Audio API as a first audio proof. This establishes the x86 -> Win32 API -> browser event/audio path before attempting the much larger multimedia APIs used by real games.
+
+The deterministic v0.7 browser fixture creates the existing Canvas-backed logical window, draws through GDI, plays a short browser tone, waits for a real browser input event, converts it to WM_KEYDOWN/WM_LBUTTONDOWN-style message data, and exercises PeekMessageA.
+
+This milestone deliberately does not claim complete USER32 message dispatch, focus/capture, raw input, DirectSound/XAudio2, mixing, device enumeration, or Windows audio-device semantics. Those should be implemented from the target executable's actual imports and behavior.
+

@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""Build a deterministic XWASM v0.7 window/message/input/audio fixture."""
+from pathlib import Path
+import json
+import struct
+import argparse
+
+IMAGE_BASE = 0x00400000
+SECTION_RVA = 0x1000
+SECTION_RAW = 0x200
+SECTION_SIZE = 0x1000
+
+def make_pe():
+    b = bytearray(0x200 + 0x1000)
+    b[0:2] = b"MZ"
+    struct.pack_into("<I", b, 0x3C, 0x80)
+    b[0x80:0x84] = b"PE\0\0"
+    struct.pack_into("<H", b, 0x84, 0x014C)
+    struct.pack_into("<H", b, 0x86, 1)
+    struct.pack_into("<H", b, 0x94, 0xE0)
+
+    oh = 0x98
+    struct.pack_into("<H", b, oh, 0x10B)
+    struct.pack_into("<I", b, oh + 16, SECTION_RVA)
+    struct.pack_into("<I", b, oh + 20, SECTION_RVA)
+    struct.pack_into("<I", b, oh + 24, SECTION_RVA)
+    struct.pack_into("<I", b, oh + 28, IMAGE_BASE)
+    struct.pack_into("<I", b, oh + 32, 0x1000)
+    struct.pack_into("<I", b, oh + 36, 0x200)
+    struct.pack_into("<I", b, oh + 56, 0x2000)
+    struct.pack_into("<I", b, oh + 60, 0x200)
+    struct.pack_into("<I", b, oh + 92, 16)
+
+    sh = oh + 0xE0
+    b[sh:sh + 8] = b".text\0\0\0"
+    struct.pack_into("<I", b, sh + 8, SECTION_SIZE)
+    struct.pack_into("<I", b, sh + 12, SECTION_RVA)
+    struct.pack_into("<I", b, sh + 16, SECTION_SIZE)
+    struct.pack_into("<I", b, sh + 20, SECTION_RAW)
+    struct.pack_into("<I", b, sh + 36, 0xE0000020)
+
+    code = bytearray()
+
+    # CreateWindowExA(NULL x 12), then ShowWindow(hwnd, SW_SHOW).
+    code.extend(b"\x6A\x00" * 12)
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1180))
+    code.extend(b"\x89\xC6")                 # ESI = HWND
+    code.extend(b"\x6A\x01\x56")
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1184))
+
+    # GetDC(hwnd), then draw through the existing GDI bridge.
+    code.extend(b"\x56")
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1188))
+    code.extend(b"\x89\xC3")                 # EBX = HDC
+    for value in (280, 520, 80, 120):
+        code.extend(b"\x68" + struct.pack("<I", value))
+    code.extend(b"\x53")
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1194))  # Rectangle
+    for value in (0x000000FF, 180, 320):
+        code.extend(b"\x68" + struct.pack("<I", value))
+    code.extend(b"\x53")
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1190))  # SetPixel
+    code.extend(b"\x53\x56")
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x118C))  # ReleaseDC
+
+    # KERNEL32!Beep(660, 120): browser Web Audio proof.
+    code.extend(b"\x68" + struct.pack("<I", 120))
+    code.extend(b"\x68" + struct.pack("<I", 660))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B0))
+
+    # PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE).
+    # The browser runner waits for a real key event before executing the PE.
+    code.extend(b"\xBF" + struct.pack("<I", 0x00800000))
+    for value in (1, 0, 0, 0):
+        code.extend(b"\x6A" + struct.pack("<B", value))
+    code.extend(b"\x57")
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1198))
+    code.extend(b"\x3D\x00\x00\x00\x00")
+    code.extend(b"\x74\x0E")                 # no message -> skip translate/dispatch
+    code.extend(b"\x57")
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x119C))  # TranslateMessage
+    code.extend(b"\x57")
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A0))  # DispatchMessageA
+    code.extend(b"\xF4")
+
+    b[SECTION_RAW:SECTION_RAW + len(code)] = code
+
+    import_rva = 0x1100
+    oft_rva = 0x1140
+    iat_rva = 0x1180
+    user_dll = 0x11C0
+    kernel_dll = 0x11D0
+    names = [0x1200 + i * 0x20 for i in range(12)]
+    funcs = [
+        b"CreateWindowExA\0", b"ShowWindow\0", b"GetDC\0", b"ReleaseDC\0",
+        b"SetPixel\0", b"Rectangle\0",
+        b"Beep\0",
+        b"PeekMessageA\0", b"TranslateMessage\0", b"DispatchMessageA\0",
+        b"GetMessageA\0", b"DefWindowProcA\0"
+    ]
+
+    base = SECTION_RAW
+    # USER32 imports: six graphics/window functions + five message functions.
+    struct.pack_into("<IIIII", b, base + 0x100, oft_rva, 0, 0, user_dll, iat_rva)
+    # KERNEL32: Beep.
+    struct.pack_into("<IIIII", b, base + 0x114, oft_rva + 0x30, 0, 0, kernel_dll, iat_rva + 0x30)
+    struct.pack_into("<IIIII", b, base + 0x128, 0, 0, 0, 0, 0)
+
+    # USER32 has 11 imports; KERNEL32 has one import (Beep).
+    user_names = names[:6] + names[7:]
+    for i, rva in enumerate(user_names):
+        struct.pack_into("<I", b, base + 0x140 + i * 4, rva)
+        struct.pack_into("<I", b, base + 0x1A0 + i * 4, rva)
+    struct.pack_into("<I", b, base + 0x16C, 0)
+    struct.pack_into("<I", b, base + 0x170, names[6])
+    struct.pack_into("<I", b, base + 0x174, 0)
+    struct.pack_into("<I", b, base + 0x1CC, 0)
+    struct.pack_into("<I", b, base + 0x1D0, names[6])
+    struct.pack_into("<I", b, base + 0x1D4, 0)
+
+    b[base + (user_dll - SECTION_RVA):base + (user_dll - SECTION_RVA) + 11] = b"USER32.dll\0"
+    b[base + (kernel_dll - SECTION_RVA):base + (kernel_dll - SECTION_RVA) + 12] = b"KERNEL32.dll\0"
+    for rva, func in zip(names, funcs):
+        off = base + (rva - SECTION_RVA)
+        b[off:off + 2] = b"\0\0"
+        b[off + 2:off + 2 + len(func)] = func
+
+    # Data directory import RVA/size.
+    struct.pack_into("<II", b, oh + 96 + 8, import_rva, 0x3C)
+    return bytes(b)
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--output", type=Path, required=True)
+    args = ap.parse_args()
+    root = args.output
+    payload = root / "resources" / "__x86__" / "payload.exe"
+    runtime = root / "runtime.wasm"
+    payload.parent.mkdir(parents=True, exist_ok=True)
+
+    runtime_source = Path("dist/x86-runtime-v0.7/runtime.wasm")
+    if not runtime_source.exists():
+        raise SystemExit("missing dist/x86-runtime-v0.7/runtime.wasm; build the runtime first")
+    runtime.parent.mkdir(parents=True, exist_ok=True)
+    runtime.write_bytes(runtime_source.read_bytes())
+    payload.write_bytes(make_pe())
+
+    manifest = {
+        "format": "xwasm-package",
+        "format_version": 1,
+        "name": "XWASM-X86-Window-Input-Audio-Test",
+        "architecture": "x86",
+        "runtime_kind": "x86-compatibility",
+        "runtime": "runtime.wasm",
+        "abi": "xwasm.host/1",
+        "resource_root": "resources/",
+        "payload": "resources/__x86__/payload.exe",
+        "payload_format": "PE32",
+        "payload_architecture": "i386",
+        "entry": {"init": "xwasm_init", "tick": "xwasm_tick", "shutdown": "xwasm_shutdown"},
+        "bundled_dlls": ["USER32.dll", "GDI32.dll", "KERNEL32.dll"],
+        "execution_status": "v0.7_window_input_audio_fixture"
+    }
+    (root / "manifest.xwasm.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print(root)
+
+if __name__ == "__main__":
+    main()
