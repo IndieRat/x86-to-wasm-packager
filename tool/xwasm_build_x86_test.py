@@ -60,40 +60,37 @@ def make_test_pe() -> bytes:
     b[sh + 16:sh + 20] = u32(text_raw_size)
     b[sh + 20:sh + 24] = u32(headers)
 
-    # Deterministic CPU program:
-    #   MOV EAX,5
-    #   MOV EBX,0x00400800
-    #   MOV [EBX],EAX
-    #   MOV ECX,[EBX]
-    #   MOV EAX,ECX
-    #   CMP EAX,5
-    #   JE  +5             ; skip the failing EBX assignment
-    #   MOV EBX,0xDEADBEEF
-    #   CALL +0x11         ; call function at offset 0x32
-    #   HLT
-    #   padding
-    # function:
-    #   MOV EAX,42
-    #   RET
-    code = bytes((
-        0xB8, 0x05, 0x00, 0x00, 0x00,
-        0xBB, 0x00, 0x08, 0x40, 0x00,
-        0x89, 0x03,
-        0x8B, 0x0B,
-        0x8B, 0xC1,
-        0x3D, 0x05, 0x00, 0x00, 0x00,
-        0x74, 0x05,
-        0xBB, 0xEF, 0xBE, 0xAD, 0xDE,
-        0xE8, 0x11, 0x00, 0x00, 0x00,
-        0xF4,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0xB8, 0x2A, 0x00, 0x00, 0x00,
-        0xC3,
+    # Deterministic CPU program. Build the CALL displacement from the
+    # actual function location so the fixture cannot drift when instructions
+    # are added or removed above it.
+    code = bytearray((
+        0xB8, 0x05, 0x00, 0x00, 0x00,             # MOV EAX,5
+        0xBB, 0x00, 0x08, 0x40, 0x00,             # MOV EBX,0x00400800
+        0x89, 0x03,                                # MOV [EBX],EAX
+        0x8B, 0x0B,                                # MOV ECX,[EBX]
+        0x8B, 0xC1,                                # MOV EAX,ECX
+        0x3D, 0x05, 0x00, 0x00, 0x00,             # CMP EAX,5
+        0x74, 0x05,                                # JE skip next MOV
+        0xBB, 0xEF, 0xBE, 0xAD, 0xDE,             # MOV EBX,0xDEADBEEF
+        0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL function (patched below)
+        0xF4,                                      # HLT
     ))
+    function_offset = len(code) + 16                 # 16-byte padding
+    code.extend(b"\\0" * 16)
+    code.extend((0xB8, 0x2A, 0x00, 0x00, 0x00,     # MOV EAX,42
+                 0xC3))                             # RET
+
+    call_offset = 28
+    next_ip = call_offset + 5
+    displacement = function_offset - next_ip
+    code[call_offset + 1:call_offset + 5] = u32(displacement)
+    if function_offset != 0x32:
+        raise AssertionError(f"unexpected test function offset: 0x{function_offset:x}")
+    if bytes(code[function_offset:function_offset + 6]) != bytes((0xB8, 0x2A, 0, 0, 0, 0xC3)):
+        raise AssertionError("synthetic function bytes are not where the CALL targets")
+    if displacement != 0x11:
+        raise AssertionError(f"unexpected CALL displacement: 0x{displacement:x}")
+
     b[headers:headers + len(code)] = code
 
     payload = bytes(b)
