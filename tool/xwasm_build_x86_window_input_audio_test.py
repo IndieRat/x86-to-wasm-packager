@@ -86,10 +86,15 @@ def make_pe():
     b[SECTION_RAW:SECTION_RAW + len(code)] = code
 
     import_rva = 0x1100
-    oft_rva = 0x1140
-    iat_rva = 0x1180
+    user_oft_rva = 0x1140
+    gdi_oft_rva = 0x1168
+    kernel_oft_rva = 0x1174
+    user_iat_rva = 0x1180
+    gdi_iat_rva = 0x11A8
+    kernel_iat_rva = 0x11B4
     user_dll = 0x11C0
-    kernel_dll = 0x11D0
+    gdi_dll = 0x11D0
+    kernel_dll = 0x11E0
     names = [0x1200 + i * 0x20 for i in range(12)]
     funcs = [
         b"CreateWindowExA\0", b"ShowWindow\0", b"GetDC\0", b"ReleaseDC\0",
@@ -100,33 +105,45 @@ def make_pe():
     ]
 
     base = SECTION_RAW
-    # USER32 imports: six graphics/window functions + five message functions.
-    struct.pack_into("<IIIII", b, base + 0x100, oft_rva, 0, 0, user_dll, iat_rva)
+    # USER32: CreateWindowExA, ShowWindow, GetDC, ReleaseDC, and five
+    # message-loop functions.
+    struct.pack_into("<IIIII", b, base + 0x100,
+                     user_oft_rva, 0, 0, user_dll, user_iat_rva)
+    # GDI32: SetPixel and Rectangle.
+    struct.pack_into("<IIIII", b, base + 0x114,
+                     gdi_oft_rva, 0, 0, gdi_dll, gdi_iat_rva)
     # KERNEL32: Beep.
-    struct.pack_into("<IIIII", b, base + 0x114, oft_rva + 0x30, 0, 0, kernel_dll, iat_rva + 0x30)
-    struct.pack_into("<IIIII", b, base + 0x128, 0, 0, 0, 0, 0)
+    struct.pack_into("<IIIII", b, base + 0x128,
+                     kernel_oft_rva, 0, 0, kernel_dll, kernel_iat_rva)
+    # Null import descriptor terminator.
+    struct.pack_into("<IIIII", b, base + 0x13C, 0, 0, 0, 0, 0)
 
-    # USER32 has 11 imports; KERNEL32 has one import (Beep).
-    user_names = names[:6] + names[7:]
+    user_names = [names[0], names[1], names[2], names[3],
+                  names[7], names[8], names[9], names[10], names[11]]
+    gdi_names = [names[4], names[5]]
+
+    # USER32 OFT/IAT.
     for i, rva in enumerate(user_names):
-        # OFT is 0x1140; IAT is 0x1180.
-        struct.pack_into("<I", b, base + 0x140 + i * 4, rva)
-        struct.pack_into("<I", b, base + 0x180 + i * 4, rva)
-    # KERNEL32 OFT is 0x1170; IAT is 0x11B0.
-    struct.pack_into("<I", b, base + 0x170, names[6])
-    struct.pack_into("<I", b, base + 0x174, 0)
-    struct.pack_into("<I", b, base + 0x1B0, names[6])
-    struct.pack_into("<I", b, base + 0x1B4, 0)
+        struct.pack_into("<I", b, base + (user_oft_rva - SECTION_RVA) + i * 4, rva)
+        struct.pack_into("<I", b, base + (user_iat_rva - SECTION_RVA) + i * 4, rva)
+    # GDI32 OFT/IAT.
+    for i, rva in enumerate(gdi_names):
+        struct.pack_into("<I", b, base + (gdi_oft_rva - SECTION_RVA) + i * 4, rva)
+        struct.pack_into("<I", b, base + (gdi_iat_rva - SECTION_RVA) + i * 4, rva)
+    # KERNEL32 OFT/IAT.
+    struct.pack_into("<I", b, base + (kernel_oft_rva - SECTION_RVA), names[6])
+    struct.pack_into("<I", b, base + (kernel_iat_rva - SECTION_RVA), names[6])
 
     b[base + (user_dll - SECTION_RVA):base + (user_dll - SECTION_RVA) + 11] = b"USER32.dll\0"
+    b[base + (gdi_dll - SECTION_RVA):base + (gdi_dll - SECTION_RVA) + 10] = b"GDI32.dll\0"
     b[base + (kernel_dll - SECTION_RVA):base + (kernel_dll - SECTION_RVA) + 12] = b"KERNEL32.dll\0"
     for rva, func in zip(names, funcs):
         off = base + (rva - SECTION_RVA)
         b[off:off + 2] = b"\0\0"
         b[off + 2:off + 2 + len(func)] = func
 
-    # Data directory import RVA/size.
-    struct.pack_into("<II", b, oh + 96 + 8, import_rva, 0x3C)
+    # Data directory import RVA/size: three descriptors plus terminator.
+    struct.pack_into("<II", b, oh + 96 + 8, import_rva, 0x50)
     return bytes(b)
 
 def main():
