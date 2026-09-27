@@ -46,7 +46,7 @@ def copy_tree(source: Path, dest: Path, exe: Path) -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Package a PE32 game as XWASM x86-runtime input.")
+    ap = argparse.ArgumentParser(description="Package a 32-bit PE game as XWASM x86-runtime input.")
     ap.add_argument("game_folder", type=Path)
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--exe", type=Path, default=None,
