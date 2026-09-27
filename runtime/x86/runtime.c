@@ -26,7 +26,7 @@ static int load_pe(uint32_t f,uint32_t sz){
  if(mach!=0x14cu){load_error=6;return-3;}
  if(optsz<224u){load_error=7;return-3;}
  uint32_t oh=f+pe+24u;
- if(oh+optsz>sz){load_error=8;return-3;}
+ if(oh+optsz>f+sz){load_error=8;return-3;}
  if(rd16(oh)!=0x10bu){load_error=9;return-3;}
  uint32_t szimg=rd32(oh+56u),szhdr=rd32(oh+60u),ep=rd32(oh+16u);
  if(szimg<0x1000u||szimg>0x10000000u){load_error=10;return-4;}
