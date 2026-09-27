@@ -73,6 +73,7 @@ def make_test_pe() -> bytes:
         0x74, 0x05,                                # JE skip next MOV
         0xBB, 0xEF, 0xBE, 0xAD, 0xDE,             # MOV EBX,0xDEADBEEF
         0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL target (patched below)
+        0xFF, 0x15, 0x40, 0x11, 0x40, 0x00,       # CALL [0x00401140] -> KERNEL32!GetTickCount
         0xF4,                                      # HLT
     ))
     call_instruction_file_offset = code.find(b"\xE8\x00\x00\x00\x00")
@@ -101,6 +102,25 @@ def make_test_pe() -> bytes:
         f"CALL target does not begin with MOV EAX,imm32: "
         f"target=0x{decoded_target:X}, opcode=0x{code[decoded_target]:02X}"
     )
+    # Minimal PE import directory for KERNEL32.dll!GetTickCount.
+    # The runtime resolves this through its builtin Win32 seed table and
+    # patches the IAT with an emulated API address.
+    import_rva = 0x1100
+    oft_rva = 0x1120
+    iat_rva = 0x1140
+    dll_name_rva = 0x1160
+    hint_name_rva = 0x1170
+    struct.pack_into("<IIIII", b, headers + 0x100, oft_rva, 0, 0, dll_name_rva, iat_rva)
+    struct.pack_into("<IIIII", b, headers + 0x114, 0, 0, 0, 0, 0)
+    struct.pack_into("<II", b, headers + 0x120, hint_name_rva, 0)
+    struct.pack_into("<II", b, headers + 0x140, hint_name_rva, 0)
+    b[headers + 0x160:headers + 0x160 + len(b"KERNEL32.dll\\0")] = b"KERNEL32.dll\\0"
+    b[headers + 0x170:headers + 0x170 + 2] = b"\\0\\0"
+    b[headers + 0x172:headers + 0x172 + len(b"GetTickCount\\0")] = b"GetTickCount\\0"
+
+    # Import directory RVA/size.
+    struct.pack_into("<II", b, oh + 96 + 8, import_rva, 0x28)
+
     b[headers:headers + len(code)] = code
 
     payload = bytes(b)
@@ -198,7 +218,7 @@ def main() -> int:
         f"rel={decoded_rel:+d} target=0x{decoded_target:X} "
         f"opcode=0x{code[decoded_target]:02X}"
     )
-    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK")
+    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK imports=KERNEL32!GetTickCount")
     return 0
 
 
