@@ -211,6 +211,7 @@ document.querySelector("#files").onchange=async e=>{
         "CPU FAILURE: "+
         "EIP=0x"+eip.toString(16).padStart(8,"0")+
         " opcode=0x"+opcode.toString(16).padStart(2,"0")+
+        " imm32=0x"+imm32.toString(16).padStart(8,"0")+
         " cpu_error=0x"+cpuError.toString(16).padStart(8,"0")
       );
       throw Error("x86 CPU execution failed");
