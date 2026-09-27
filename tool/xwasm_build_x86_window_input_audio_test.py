@@ -66,7 +66,7 @@ def make_pe():
     # KERNEL32!Beep(660, 120): browser Web Audio proof.
     code.extend(b"\x68" + struct.pack("<I", 120))
     code.extend(b"\x68" + struct.pack("<I", 660))
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A0))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B0))
 
     # PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE).
     # The browser runner waits for a real key event before executing the PE.
@@ -74,13 +74,13 @@ def make_pe():
     for value in (1, 0, 0, 0):
         code.extend(b"\x6A" + struct.pack("<B", value))
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A8))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1198))
     code.extend(b"\x3D\x00\x00\x00\x00")
     code.extend(b"\x74\x0E")                 # no message -> skip translate/dispatch
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11AC))  # TranslateMessage
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x119C))  # TranslateMessage
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B0))  # DispatchMessageA
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A0))  # DispatchMessageA
     code.extend(b"\xF4")
 
     b[SECTION_RAW:SECTION_RAW + len(code)] = code
@@ -106,11 +106,17 @@ def make_pe():
     struct.pack_into("<IIIII", b, base + 0x114, oft_rva + 0x30, 0, 0, kernel_dll, iat_rva + 0x30)
     struct.pack_into("<IIIII", b, base + 0x128, 0, 0, 0, 0, 0)
 
-    for i, rva in enumerate(names):
+    # USER32 has 11 imports; KERNEL32 has one import (Beep).
+    user_names = names[:6] + names[7:]
+    for i, rva in enumerate(user_names):
         struct.pack_into("<I", b, base + 0x140 + i * 4, rva)
         struct.pack_into("<I", b, base + 0x1A0 + i * 4, rva)
-    struct.pack_into("<I", b, base + 0x170, 0)
-    struct.pack_into("<I", b, base + 0x1D0, 0)
+    struct.pack_into("<I", b, base + 0x16C, 0)
+    struct.pack_into("<I", b, base + 0x170, names[6])
+    struct.pack_into("<I", b, base + 0x174, 0)
+    struct.pack_into("<I", b, base + 0x1CC, 0)
+    struct.pack_into("<I", b, base + 0x1D0, names[6])
+    struct.pack_into("<I", b, base + 0x1D4, 0)
 
     b[base + (user_dll - SECTION_RVA):base + (user_dll - SECTION_RVA) + 11] = b"USER32.dll\0"
     b[base + (kernel_dll - SECTION_RVA):base + (kernel_dll - SECTION_RVA) + 12] = b"KERNEL32.dll\0"
