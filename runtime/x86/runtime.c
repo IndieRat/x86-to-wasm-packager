@@ -60,7 +60,7 @@ static uint32_t guest_vm=0x02000000u;
 static uint32_t guest_vm_limit=0x06000000u;
 static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_count=0;
 static uint32_t import_resolved=0,import_failed=0;
-static uint32_t message_count=0,message_last=0,message_quit=0;
+static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 static uint32_t last_failed_import_dll=0,last_failed_import_func=0;
 
@@ -176,6 +176,16 @@ static uint32_t call_builtin(uint32_t target){
   regs[R_EAX]=1u; regs[R_ESP]+=4u; return 1;
  }
  if(target==API_USER32_DISPATCHMESSAGEA){
+  uint32_t sp=regs[R_ESP],msg=rd32(sp+4u),type=msg?rd32(msg+4u):0;
+  if(msg&&type==0x0201u){
+   uint32_t lp=rd32(msg+12u);
+   int32_t x=(int16_t)(lp&0xFFFFu),y=(int16_t)((lp>>16)&0xFFFFu);
+   mouse_clicks++;
+   xwasm_gfx_rect(x-4,y-4,x+5,y+5,0x0000FF00);
+   xwasm_gfx_pixel(x,y,0x00FFFFFF);
+   xwasm_gfx_present();
+   xwasm_audio_beep(880,70);
+  }
   regs[R_EAX]=0u; regs[R_ESP]+=4u; return 1;
  }
  if(target==API_USER32_DEFWINDOWPROCA){
@@ -449,7 +459,7 @@ static void scan_imports(void){
 
 static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
- requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;
+ requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;mouse_clicks=0;
  if(sz<0x40u){load_error=1;return-1;} if(rd16(f)!=0x5a4du){load_error=2;return-1;}
  uint32_t pe=rd32(f+0x3cu); if(pe>sz-4u){load_error=3;return-2;} if(pe+24u>sz){load_error=4;return-2;}
  if(rd32(f+pe)!=0x4550u){load_error=5;return-2;}
@@ -485,7 +495,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
- for(int i=0;i<8;i++)regs[i]=0; message_count=0;message_last=0;message_quit=0;
+ for(int i=0;i<8;i++)regs[i]=0; message_count=0;message_last=0;message_quit=0;mouse_clicks=0;
 loglit("XWASM X86 Runtime v0.7");
 loglit("PE32 + imports + memory + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
@@ -552,4 +562,5 @@ __attribute__((export_name("x86_get_load_size"))) uint32_t x86_get_load_size(voi
 __attribute__((export_name("x86_get_message_count"))) uint32_t x86_get_message_count(void){return message_count;}
 __attribute__((export_name("x86_get_last_message"))) uint32_t x86_get_last_message(void){return message_last;}
 __attribute__((export_name("x86_get_message_quit"))) uint32_t x86_get_message_quit(void){return message_quit;}
+__attribute__((export_name("x86_get_mouse_clicks"))) uint32_t x86_get_mouse_clicks(void){return mouse_clicks;}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
