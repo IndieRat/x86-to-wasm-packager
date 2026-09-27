@@ -1,10 +1,11 @@
 // XWASM X86 Runtime v0.1
 #include <stdint.h>
 extern void xwasm_log(int32_t level,int32_t ptr,int32_t len);
-#define HEAP_BASE 0x10000u
+#define HEAP_BASE_FALLBACK 0x100000u
+extern unsigned char __heap_base[];
 #define IMAGE_BASE 0x00400000u
 #define MEM8(p) (*(volatile uint8_t *)(uintptr_t)(p))
-static uint32_t heap=HEAP_BASE,image_base=0,image_size=0,entry=0,eip=0,steps=0,loaded=0,dll_count=0,import_count=0,load_error=0;
+static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,eip=0,steps=0,loaded=0,dll_count=0,import_count=0,load_error=0;
 static uint32_t last_load_ptr=0,last_load_size=0;
 static uint32_t regs[8];
 static uint16_t rd16(uint32_t p){return (uint16_t)MEM8(p)|((uint16_t)MEM8(p+1)<<8);}
@@ -43,7 +44,7 @@ static int load_pe(uint32_t f,uint32_t sz){
  }
  loaded=1;eip=image_base+entry;regs[4]=image_base+image_size-0x1000u;loghex("X86 entry=",eip);return 0;
 }
-__attribute__((export_name("xwasm_init"))) int xwasm_init(void){heap=HEAP_BASE;loaded=0;dll_count=0;import_count=0;steps=0;load_error=0;loglit("XWASM X86 Runtime v0.1");loglit("PE32 loader + imported-memory test runtime");return 0;}
+__attribute__((export_name("xwasm_init"))) int xwasm_init(void){heap=al4((uint32_t)(uintptr_t)__heap_base);loaded=0;dll_count=0;import_count=0;steps=0;load_error=0;loglit("XWASM X86 Runtime v0.1");loglit("PE32 loader + imported-memory test runtime");return 0;}
 __attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00010002u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
