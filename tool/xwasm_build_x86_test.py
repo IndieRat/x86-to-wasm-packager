@@ -114,9 +114,9 @@ def make_test_pe() -> bytes:
     struct.pack_into("<IIIII", b, headers + 0x114, 0, 0, 0, 0, 0)
     struct.pack_into("<II", b, headers + 0x120, hint_name_rva, 0)
     struct.pack_into("<II", b, headers + 0x140, hint_name_rva, 0)
-    b[headers + 0x160:headers + 0x160 + len(b"KERNEL32.dll\0")] = b"KERNEL32.dll\\0"
+    b[headers + 0x160:headers + 0x160 + len(b"KERNEL32.dll\0")] = b"KERNEL32.dll\0"
     b[headers + 0x170:headers + 0x170 + 2] = b"\0\0"
-    b[headers + 0x172:headers + 0x172 + len(b"GetTickCount\0")] = b"GetTickCount\\0"
+    b[headers + 0x172:headers + 0x172 + len(b"GetTickCount\0")] = b"GetTickCount\0"
 
     # Import directory RVA/size.
     struct.pack_into("<II", b, oh + 96 + 8, import_rva, 0x28)
