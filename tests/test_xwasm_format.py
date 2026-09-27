@@ -21,6 +21,23 @@ class XwasmFormatTests(unittest.TestCase):
         }
         self.assertEqual(validate_manifest(manifest), [])
 
+    def test_x86_manifest(self):
+        manifest = {
+            "format": "xwasm-package",
+            "format_version": 1,
+            "name": "x86-test",
+            "architecture": "x86",
+            "runtime_kind": "x86-compatibility",
+            "runtime": None,
+            "abi": ABI,
+            "resource_root": "resources/",
+            "payload": "resources/__x86__/payload.exe",
+            "payload_format": "PE32",
+            "payload_architecture": "i386",
+            "entry": {"init": "xwasm_init", "tick": "xwasm_tick", "shutdown": "xwasm_shutdown"},
+        }
+        self.assertEqual(validate_manifest(manifest), [])
+
     def test_custom_metadata(self):
         meta = json.dumps({
             "format": "xwasm-meta",
