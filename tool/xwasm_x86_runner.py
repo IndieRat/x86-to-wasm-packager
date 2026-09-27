@@ -6,7 +6,7 @@ from pathlib import Path
 
 HTML = r'''<!doctype html>
 <meta charset="utf-8">
-<title>XWASM X86 Runtime v0.5</title>
+<title>XWASM X86 Runtime v0.6</title>
 <pre id="log">XWASM X86 Runtime v0.4
 Select the package directory.</pre>
 <input id="files" type="file" webkitdirectory multiple>
@@ -43,11 +43,22 @@ document.querySelector("#files").onchange=async e=>{
       readString:(ptr,len)=>new TextDecoder().decode(new Uint8Array(mem.buffer,ptr,len))
     };
 
+    const canvas=document.createElement("canvas");
+    canvas.width=640; canvas.height=360; canvas.style.imageRendering="pixelated"; canvas.style.border="1px solid #555";
+    document.body.insertBefore(canvas,document.getElementById("log"));
+    const gfx=canvas.getContext("2d");
+    const rgb=c=>"#"+(c&0xff).toString(16).padStart(2,"0")+((c>>>8)&0xff).toString(16).padStart(2,"0")+((c>>>16)&0xff).toString(16).padStart(2,"0");
     const imports={env:{
       memory:mem,
       xwasm_log:(level,ptr,len)=>{
         say(new TextDecoder().decode(new Uint8Array(mem.buffer,ptr,len)));
       },
+      xwasm_gfx_create:(w,h)=>{canvas.width=w;canvas.height=h;},
+      xwasm_gfx_clear:(c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(0,0,canvas.width,canvas.height);},
+      xwasm_gfx_pixel:(x,y,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(x,y,1,1);},
+      xwasm_gfx_rect:(l,t,r,b,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(l,t,r-l,b-t);},
+      xwasm_gfx_present:()=>{},
+      
       xwasm_resource_size:(ptr,len)=>{
         const p=pkg.readString(ptr,len),f=pkg.get(p);
         return f?f.size:-1;
