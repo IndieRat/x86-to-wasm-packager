@@ -188,13 +188,30 @@ document.querySelector("#files").onchange=async e=>{
     const runResult=ex.x86_run(32);
     say("CPU run result: "+runResult);
     say("Instructions executed: "+ex.x86_get_steps());
-    say("EIP after execution: 0x"+ex.x86_get_eip().toString(16));
-    say("EAX: 0x"+ex.x86_get_eax().toString(16).padStart(8,"0"));
-    say("EFLAGS: 0x"+ex.x86_get_eflags().toString(16).padStart(8,"0"));
+
+    const eip=ex.x86_get_eip()>>>0;
+    say("EIP after execution: 0x"+eip.toString(16).padStart(8,"0"));
+    say("EAX: 0x"+(ex.x86_get_eax()>>>0).toString(16).padStart(8,"0"));
+    say("EFLAGS: 0x"+(ex.x86_get_eflags()>>>0).toString(16).padStart(8,"0"));
     say("CPU halted: "+ex.x86_get_halted());
 
-    if(runResult<0)
-      throw Error("x86 CPU execution failed; opcode/error=0x"+(ex.x86_get_cpu_error?ex.x86_get_cpu_error():0).toString(16));
+    if(runResult<0){
+      const opcode=ex.x86_get_current_opcode?(ex.x86_get_current_opcode()>>>0):0xFFFFFFFF;
+      const cpuError=ex.x86_get_cpu_error?(ex.x86_get_cpu_error()>>>0):0;
+      console.error(
+        "CPU FAILURE: "+
+        "EIP=0x"+eip.toString(16).padStart(8,"0")+
+        " opcode=0x"+opcode.toString(16).padStart(2,"0")+
+        " cpu_error=0x"+cpuError.toString(16).padStart(8,"0")
+      );
+      say(
+        "CPU FAILURE: "+
+        "EIP=0x"+eip.toString(16).padStart(8,"0")+
+        " opcode=0x"+opcode.toString(16).padStart(2,"0")+
+        " cpu_error=0x"+cpuError.toString(16).padStart(8,"0")
+      );
+      throw Error("x86 CPU execution failed");
+    }
     if(!ex.x86_get_halted())
       throw Error("x86 CPU did not reach HLT within the instruction budget");
     if(ex.x86_get_eax()!==42)
