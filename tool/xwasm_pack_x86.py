@@ -80,13 +80,18 @@ def main() -> int:
     count = copy_tree(game, resources, exe)
 
     runtime = args.runtime
+    runtime_source = None
+    if runtime:
+        runtime_source = (game / runtime).resolve()
+        if not runtime_source.is_file():
+            raise SystemExit(f"Runtime path does not exist inside game folder: {runtime}")
     manifest = {
         "format": "xwasm-package",
         "format_version": 1,
         "name": game.name,
         "architecture": "x86",
         "runtime_kind": "x86-compatibility",
-        "runtime": runtime,
+        "runtime": "runtime.wasm" if runtime else None,
         "abi": "xwasm.host/1",
         "resource_root": "resources/",
         "payload": "resources/__x86__/payload.exe",
@@ -102,11 +107,8 @@ def main() -> int:
         "sha256": hashlib.sha256(exe.read_bytes()).hexdigest(),
         "execution_status": "requires_x86_runtime",
     }
-    if runtime:
-        runtime_path = game / runtime
-        if not runtime_path.is_file():
-            raise SystemExit(f"Runtime path does not exist inside game folder: {runtime}")
-        shutil.copy2(runtime_path, out / "runtime.wasm")
+    if runtime_source is not None:
+        shutil.copy2(runtime_source, out / "runtime.wasm")
 
     (out / "manifest.xwasm.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
