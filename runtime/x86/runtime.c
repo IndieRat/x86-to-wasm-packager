@@ -27,14 +27,13 @@ static uint32_t halted=0,cpu_error=0;
 #define GUEST_HEAP_LIMIT 0x01F00000u
 #define API_BASE 0x70000000u
 #define API_GETTICKCOUNT (API_BASE+0x00001000u)
+#define API_XWASM_LOG (API_BASE+0x00002000u)
 
 static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t import_resolved=0,import_failed=0;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 
-static uint32_t cstrlen(uint32_t p){
- uint32_t n=0; while(n<0x10000u && MEM8(p+n))n++; return n;
-}
+static uint32_t al4(uint32_t x){return(x+3u)&~3u;}
 static int streq_ascii(uint32_t p,const char*s){
  uint32_t i=0; while(s[i]){if(MEM8(p+i)!=(uint8_t)s[i])return 0;i++;}
  return MEM8(p+i)==0;
@@ -51,17 +50,23 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
  if(streq_ascii(dll,"KERNEL32.dll")||streq_ascii(dll,"kernel32.dll")){
   if(streq_ascii(name,"GetTickCount"))return API_GETTICKCOUNT;
  }
+ if(streq_ascii(dll,"XWASMHOST.dll")||streq_ascii(dll,"xwasmhost.dll")){
+  if(streq_ascii(name,"xwasm_log"))return API_XWASM_LOG;
+ }
  return 0;
 }
 static uint32_t call_builtin(uint32_t target){
  if(target==API_GETTICKCOUNT){regs[R_EAX]=1234u;return 1;}
+ if(target==API_XWASM_LOG){
+  xwasm_log(1,(int32_t)regs[R_ECX],(int32_t)regs[R_EDX]);
+  return 1;
+ }
  return 0;
 }
 
 static uint16_t rd16(uint32_t p){return (uint16_t)MEM8(p)|((uint16_t)MEM8(p+1)<<8);}
 static uint32_t rd32(uint32_t p){return (uint32_t)MEM8(p)|((uint32_t)MEM8(p+1)<<8)|((uint32_t)MEM8(p+2)<<16)|((uint32_t)MEM8(p+3)<<24);}
 static void wr32(uint32_t p,uint32_t v){MEM8(p)=(uint8_t)v;MEM8(p+1)=(uint8_t)(v>>8);MEM8(p+2)=(uint8_t)(v>>16);MEM8(p+3)=(uint8_t)(v>>24);}
-static uint32_t al4(uint32_t x){return(x+3u)&~3u;}
 static void wr8(uint32_t p,uint8_t v){MEM8(p)=v;}
 static void copy_bytes(uint32_t d,uint32_t s,uint32_t n){for(uint32_t i=0;i<n;i++)wr8(d+i,MEM8(s+i));}
 static void loglit(const char*s){uint32_t p=heap;while(*s)wr8(p++,(uint8_t)*s++);xwasm_log(1,(int32_t)heap,(int32_t)(p-heap));heap=al4(p+1);}
@@ -298,7 +303,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
- for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.4");loglit("PE32 mapping + DLL import resolution + guest memory foundation + x86 ModRM");return 0;
+ for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.4");loglit("PE32 mapping + DLL import resolution + guest memory foundation + x86 ModRM + browser host bridge");return 0;
 }
 __attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00040000u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
