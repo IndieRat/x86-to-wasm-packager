@@ -139,7 +139,7 @@ static uint32_t call_builtin(uint32_t target){
  if(target==API_USER32_CREATEWINDOWEXA){
   /* Win32 stdcall: 12 arguments, width/height are args 6/7. */
   uint32_t sp=regs[R_ESP];
-  uint32_t width=rd32(sp+24u),height=rd32(sp+28u);
+  uint32_t width=rd32(sp+28u),height=rd32(sp+32u);
   if(width<64u||width>1920u)width=640u;
   if(height<64u||height>1080u)height=360u;
   xwasm_gfx_create((int32_t)width,(int32_t)height);
