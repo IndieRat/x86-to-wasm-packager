@@ -65,6 +65,7 @@ static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_im
 static uint32_t last_failed_import_dll=0,last_failed_import_func=0;
 
 static uint32_t rd32(uint32_t p);
+static void wr32(uint32_t p,uint32_t v);
 
 static uint32_t al4(uint32_t x){return(x+3u)&~3u;}
 static int streq_ascii(uint32_t p,const char*s){
@@ -341,7 +342,7 @@ static int cpu_step(void){
   case 0x23: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t v=regs[d]&modrm_read32(m,&ip);regs[d]=v;set_logic_flags(v);eip=ip;return 0; } /* AND r32,r/m32 */
   case 0x2B: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t a=regs[d],b=modrm_read32(m,&ip),v=a-b;set_sub_flags(a,b,v);regs[d]=v;eip=ip;return 0; } /* SUB r32,r/m32 */
   case 0x3B: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t a=regs[d],b=modrm_read32(m,&ip);set_sub_flags(a,b,a-b);eip=ip;return 0; } /* CMP r32,r/m32 */
-  case 0x81: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,a; if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);} uint32_t b=rd32(ip);ip+=4,v;
+  case 0x81: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,a; if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);} uint32_t b=rd32(ip);ip+=4; uint32_t v;
    if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8100u|sub;return -13;}
    if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);eip=ip;return 0; } /* ADD/SUB/CMP r/m32,imm32 */
   case 0x83: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,a; if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);} int32_t sb=(int8_t)MEM8(ip++);uint32_t b=(uint32_t)sb,v;
@@ -374,10 +375,10 @@ static int cpu_step(void){
    regs[op-0x58]=rd32(regs[R_ESP]);regs[R_ESP]+=4;eip=ip;return 0;
   case 0x50:case 0x51:case 0x52:case 0x53:case 0x54:case 0x55:case 0x56:case 0x57:
    regs[R_ESP]-=4;wr32(regs[R_ESP],regs[op-0x50]);eip=ip;return 0;
-  case 0xC1: { uint8_t m=MEM8(ip++),sub=(m>>3)&7,count=MEM8(ip++)&31u,ea=0;uint32_t v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea)),r=v;
+  case 0xC1: { uint8_t m=MEM8(ip++),sub=(m>>3)&7,count=MEM8(ip++)&31u; uint32_t ea=0;uint32_t v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea)),r=v;
    if(sub==4)r=v<<count;else if(sub==5)r=v>>count;else if(sub==7)r=(uint32_t)((int32_t)v>>count);else{cpu_error=0xC100u|sub;return -15;}
    if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);set_logic_flags(r);eip=ip;return 0; } /* SHL/SHR/SAR */
-  case 0xD1: { uint8_t m=MEM8(ip++),sub=(m>>3)&7,ea=0;uint32_t v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea)),r;
+  case 0xD1: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0;uint32_t v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea)),r;
    if(sub==4)r=v<<1;else if(sub==5)r=v>>1;else if(sub==7)r=(uint32_t)((int32_t)v>>1);else{cpu_error=0xD100u|sub;return -16;}
    if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);set_logic_flags(r);eip=ip;return 0; }
   case 0x0F: {
