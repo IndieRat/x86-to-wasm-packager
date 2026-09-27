@@ -176,3 +176,18 @@ The x86 compatibility runtime now has the first executable Win32 compatibility l
 The deterministic x86 test fixture now contains a real PE32 import directory and calls the resolved KERNEL32!GetTickCount entry through its IAT. The browser runner verifies both the import resolution and the guest allocator before executing the CPU/import test.
 
 This is deliberately a seed compatibility layer rather than a complete Windows DLL implementation. Additional KERNEL32, CRT/C++ runtime, USER32, graphics, file, audio, and input APIs should be added from the target executable's actual import table as later milestones.
+
+
+## X86 runtime v0.5 Win32 memory foundation
+
+The x86 runtime now extends the v0.4 import/memory seed with a small virtual-memory compatibility layer:
+
+- KERNEL32.dll!VirtualAlloc resolved through the builtin import table;
+- KERNEL32.dll!VirtualFree resolved through the builtin import table;
+- Win32-style stack arguments for these APIs (stdcall-shaped guest calls);
+- page-aligned guest virtual-memory allocation from a dedicated arena at 0x02000000..0x06000000;
+- deterministic allocation diagnostics including last allocation address/size and free-call count;
+- a synthetic PE32 test that imports XWASMHOST!xwasm_log, KERNEL32!VirtualAlloc, KERNEL32!VirtualFree, and KERNEL32!GetTickCount;
+- the browser runner verifies the allocation, release call, final GetTickCount result, and 23-instruction execution path.
+
+This is intentionally a compatibility seed, not a complete Windows virtual-memory implementation. Real Windows VirtualAlloc/VirtualFree support includes page state, reservation/commit semantics, protection flags, and additional failure conditions; the runtime currently models the subset needed to establish the guest memory ABI and execution path. Microsoft documents VirtualAlloc as reserving/committing pages and VirtualFree as releasing or decommitting regions.
