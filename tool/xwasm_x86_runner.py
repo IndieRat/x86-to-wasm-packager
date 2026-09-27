@@ -31,7 +31,9 @@ document.querySelector("#files").onchange=async e=>{
 
     say("Package: "+manifest.name);
     say("Payload: "+manifest.payload);
+    const isWindowAudio = manifest.name==="XWASM-X86-Window-Input-Audio-Test" || manifest.execution_status==="v0.7_window_input_audio_fixture";
     say("Bundled DLLs: "+((manifest.bundled_dlls||[]).length));
+    say("Test profile: "+(isWindowAudio?"v0.7 window/input/audio":"generic x86"));
 
     const rt=files.get(manifest.runtime||"runtime.wasm");
     if(!rt) throw Error("runtime.wasm is missing");
@@ -204,10 +206,13 @@ document.querySelector("#files").onchange=async e=>{
       say("Virtual allocation state: base=0x"+ex.x86_get_last_virtual_alloc().toString(16)+
           " size=0x"+(ex.x86_get_last_virtual_alloc_size?ex.x86_get_last_virtual_alloc_size():0).toString(16));
     }
-    if(ex.x86_get_import_resolved && ex.x86_get_import_resolved()!==12)
-      throw Error("v0.7 window/input/audio test expected exactly twelve resolved builtin imports");
-    if(ex.x86_get_import_failed && ex.x86_get_import_failed()!==0)
-      throw Error("v0.7 window/input/audio test expected zero unresolved imports");
+    const importCount=ex.x86_get_import_count?ex.x86_get_import_count():0;
+    const resolvedCount=ex.x86_get_import_resolved?ex.x86_get_import_resolved():0;
+    const failedCount=ex.x86_get_import_failed?ex.x86_get_import_failed():0;
+    if(failedCount!==0) throw Error("x86 test expected zero unresolved imports");
+    if(resolvedCount!==importCount) throw Error("x86 test expected every imported symbol to resolve ("+resolvedCount+"/"+importCount+")");
+    say("Import resolution: "+resolvedCount+"/"+importCount+" imported symbols resolved.");
+    if(isWindowAudio && resolvedCount!==12) throw Error("v0.7 window/input/audio test expected exactly twelve resolved builtin imports");
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
     const entryBytes=new Uint8Array(mem.buffer,ex.x86_get_eip(),8);
     say("Entry bytes: "+hex(entryBytes,8));
