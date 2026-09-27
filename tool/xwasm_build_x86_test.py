@@ -60,9 +60,9 @@ def make_test_pe() -> bytes:
     b[sh + 16:sh + 20] = u32(text_raw_size)
     b[sh + 20:sh + 24] = u32(headers)
 
-    # Deterministic CPU program. Build the CALL displacement from the
-    # actual function location so the fixture cannot drift when instructions
-    # are added or removed above it.
+    # Deterministic CPU program. Keep the CALL displacement derived from
+    # the actual instruction and target positions so this fixture cannot
+    # silently break when instructions are added or removed.
     code = bytearray((
         0xB8, 0x05, 0x00, 0x00, 0x00,             # MOV EAX,5
         0xBB, 0x00, 0x08, 0x40, 0x00,             # MOV EBX,0x00400800
@@ -72,25 +72,33 @@ def make_test_pe() -> bytes:
         0x3D, 0x05, 0x00, 0x00, 0x00,             # CMP EAX,5
         0x74, 0x05,                                # JE skip next MOV
         0xBB, 0xEF, 0xBE, 0xAD, 0xDE,             # MOV EBX,0xDEADBEEF
-        0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL function (patched below)
+        0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL target (patched below)
         0xF4,                                      # HLT
     ))
-    function_offset = len(code) + 16                 # 16-byte padding
-    code.extend(b"\\0" * 16)
+    call_instruction_file_offset = len(code) - 5
+    code.extend(b"\\x00" * 16)
+    call_target_file_offset = len(code)
     code.extend((0xB8, 0x2A, 0x00, 0x00, 0x00,     # MOV EAX,42
                  0xC3))                             # RET
 
-    call_offset = 28
-    next_ip = call_offset + 5
-    displacement = function_offset - next_ip
-    code[call_offset + 1:call_offset + 5] = u32(displacement)
-    if function_offset != 0x32:
-        raise AssertionError(f"unexpected test function offset: 0x{function_offset:x}")
-    if bytes(code[function_offset:function_offset + 6]) != bytes((0xB8, 0x2A, 0, 0, 0, 0xC3)):
-        raise AssertionError("synthetic function bytes are not where the CALL targets")
-    if displacement != 0x11:
-        raise AssertionError(f"unexpected CALL displacement: 0x{displacement:x}")
+    call_rel = call_target_file_offset - (call_instruction_file_offset + 5)
+    code[call_instruction_file_offset] = 0xE8
+    code[call_instruction_file_offset + 1:call_instruction_file_offset + 5] = int(call_rel).to_bytes(4, "little", signed=True)
 
+    decoded_rel = int.from_bytes(
+        code[call_instruction_file_offset + 1:call_instruction_file_offset + 5],
+        "little",
+        signed=True,
+    )
+    decoded_target = call_instruction_file_offset + 5 + decoded_rel
+    assert decoded_target == call_target_file_offset, (
+        f"CALL generated wrong target: expected 0x{call_target_file_offset:X}, "
+        f"got 0x{decoded_target:X}"
+    )
+    assert code[decoded_target] == 0xB8, (
+        f"CALL target does not begin with MOV EAX,imm32: "
+        f"target=0x{decoded_target:X}, opcode=0x{code[decoded_target]:02X}"
+    )
     b[headers:headers + len(code)] = code
 
     payload = bytes(b)
@@ -156,6 +164,11 @@ def main() -> int:
         raise SystemExit("packaged synthetic payload is not MZ")
 
     print(f"Created deterministic XWASM x86 test package: {out}")
+    print(
+        f"Fixture CALL: from=0x{call_instruction_file_offset:X} "
+        f"rel={decoded_rel:+d} target=0x{decoded_target:X} "
+        f"opcode=0x{payload[headers + decoded_target]:02X}"
+    )
     print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK")
     return 0
 
