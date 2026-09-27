@@ -5,7 +5,8 @@ extern void xwasm_log(int32_t level,int32_t ptr,int32_t len);
 extern int32_t xwasm_resource_size(int32_t ptr,int32_t len);
 extern int32_t xwasm_resource_read(int32_t ptr,int32_t len,int32_t dst,int32_t dst_len,int32_t off);
 #define HEAP_BASE 0x10000u
-#define IMAGE_BASE 0x00400000u\n#define PAYLOAD_STAGE 0x02000000u
+#define IMAGE_BASE 0x00400000u
+#define PAYLOAD_STAGE 0x02000000u
 static uint8_t *mem=(uint8_t*)0; static uint32_t heap=HEAP_BASE,image_base=0,image_size=0,entry=0,eip=0,steps=0,loaded=0,dll_count=0,import_count=0; static uint32_t regs[8];
 static uint16_t rd16(uint32_t p){return mem[p]|((uint16_t)mem[p+1]<<8);} static uint32_t rd32(uint32_t p){return mem[p]|((uint32_t)mem[p+1]<<8)|((uint32_t)mem[p+2]<<16)|((uint32_t)mem[p+3]<<24);} static uint32_t al4(uint32_t x){return(x+3)&~3u;}
 static uint32_t slen(uint32_t p){uint32_t n=0;while(n<4096&&mem[p+n])n++;return n;} static void loglit(const char*s){uint32_t p=heap;while(*s)mem[p++]=(uint8_t)*s++;xwasm_log(1,heap,p-heap);heap=al4(p+1);}
