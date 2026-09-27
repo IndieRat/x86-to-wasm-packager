@@ -89,7 +89,8 @@ def make_pe():
     # two-byte hint plus the complete function name and NUL terminator.
     # CreateWindowExA is 16 bytes including NUL, so the old 0x10 spacing
     # overlapped its final bytes with the next record.
-    names = [0x11A0, 0x11C0, 0x11E0, 0x1200, 0x1220, 0x1240]\n    funcs = [
+    names = [0x11A0, 0x11C0, 0x11E0, 0x1200, 0x1220, 0x1240]
+    funcs = [
         b"CreateWindowExA\0", b"ShowWindow\0", b"GetDC\0",
         b"ReleaseDC\0", b"SetPixel\0", b"Rectangle\0"
     ]
