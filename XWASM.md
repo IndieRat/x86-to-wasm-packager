@@ -158,3 +158,21 @@ Inspect the package before using the browser runner:
     python3 tool/xwasm_inspect.py ./dist/x86-runtime-test.xwasm
 
 The synthetic payload is only a loader/runtime fixture; it is not a Windows game. A real game is the next test stage and is exported with tool/xwasm_pack_x86.py.
+
+
+## X86 runtime v0.4 import + memory foundation
+
+The x86 compatibility runtime now has the first executable Win32 compatibility layer primitives:
+
+- a guest heap arena at 0x00800000..0x01F00000, separate from the diagnostic/WASM allocator;
+- exported x86_alloc(size) for guest-visible allocations;
+- PE import-directory parsing that walks import descriptors and thunk tables;
+- builtin DLL/function resolution for the initial compatibility seed: KERNEL32.dll!GetTickCount;
+- IAT patching with runtime-owned API addresses;
+- indirect CALL r/m32 (FF /2) support for resolved imports;
+- a host-call bridge that can execute the builtin API without pretending the browser contains a native Windows DLL;
+- import diagnostics for resolved/unresolved counts and the last resolved target.
+
+The deterministic x86 test fixture now contains a real PE32 import directory and calls the resolved KERNEL32!GetTickCount entry through its IAT. The browser runner verifies both the import resolution and the guest allocator before executing the CPU/import test.
+
+This is deliberately a seed compatibility layer rather than a complete Windows DLL implementation. Additional KERNEL32, CRT/C++ runtime, USER32, graphics, file, audio, and input APIs should be added from the target executable's actual import table as later milestones.
