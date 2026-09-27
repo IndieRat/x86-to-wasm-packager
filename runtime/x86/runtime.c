@@ -154,7 +154,7 @@ static uint32_t call_builtin(uint32_t target){
   }else{
    regs[R_EAX]=0u;
   }
-  regs[R_ESP]+=16u;
+  regs[R_ESP]+=20u;
   return 1;
  }
  if(target==API_USER32_TRANSLATEMESSAGE){
