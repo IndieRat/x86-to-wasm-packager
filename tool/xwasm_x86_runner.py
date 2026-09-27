@@ -75,7 +75,7 @@ document.querySelector("#files").onchange=async e=>{
         13:"section destination exceeds guest image limit",
         14:"section raw data extends outside the payload"
       };
-      say("ERROR: x86_load_pe failed: "+loadResult);
+      say("ERROR: x86_load_pe failed: "+loadResult);\n      if(ex.x86_get_load_ptr) say("Runtime received ptr: 0x"+ex.x86_get_load_ptr().toString(16));\n      if(ex.x86_get_load_size) say("Runtime received size: "+ex.x86_get_load_size());
       say("Loader diagnostic "+code+": "+(reasons[code]||"unknown loader error"));
       say("Runtime loaded flag: "+ex.x86_get_loaded());
       throw Error("PE loader rejected payload");
