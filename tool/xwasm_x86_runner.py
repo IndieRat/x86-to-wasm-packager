@@ -25,12 +25,12 @@ document.querySelector("#files").onchange=async e=>{
     say("Bundled DLLs: "+((manifest.bundled_dlls||[]).length));
     const rt=files.get(manifest.runtime||"runtime.wasm");
     if(!rt) throw Error("runtime.wasm is missing");
-    const mem=new WebAssembly.Memory({initial:256,maximum:4096});
+    const mem=new WebAssembly.Memory({initial:1024,maximum:4096});
     const bytes=await rt.arrayBuffer();
     const pkg={
       memory:mem,
       get:p=>files.get(p)||files.get("resources/"+p),
-      bytes:f=>new Uint8Array(f),
+      bytes:async f=>new Uint8Array(await f.arrayBuffer()),
       readString:(ptr,len)=>new TextDecoder().decode(new Uint8Array(mem.buffer,ptr,len))
     };
     const imports={
@@ -54,7 +54,7 @@ document.querySelector("#files").onchange=async e=>{
     if(dv.getUint16(0,true)!==0x5a4d) throw Error("payload is not MZ");
     const pe=dv.getUint32(0x3c,true);
     if(dv.getUint32(pe,true)!==0x4550) throw Error("payload is not PE");
-    say("PE32 payload accepted: "+buf.length+" bytes.");
+    const stage=0x02000000;\n    new Uint8Array(mem.buffer,stage,buf.length).set(buf);\n    const loadResult=ex.x86_load_pe(stage,buf.length);\n    if(loadResult!==0) throw Error("x86_load_pe failed: "+loadResult);\n    say("PE32 payload loaded into guest memory.");\n    say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
     say("DLL inventory:");
     for(const d of (manifest.bundled_dlls||[])) say("  "+d);
     say("READY — v0.1 loader foundation reached.");
