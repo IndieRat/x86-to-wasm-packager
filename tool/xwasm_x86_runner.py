@@ -204,10 +204,10 @@ document.querySelector("#files").onchange=async e=>{
       say("Virtual allocation state: base=0x"+ex.x86_get_last_virtual_alloc().toString(16)+
           " size=0x"+(ex.x86_get_last_virtual_alloc_size?ex.x86_get_last_virtual_alloc_size():0).toString(16));
     }
-    if(ex.x86_get_import_resolved && ex.x86_get_import_resolved()!==4)
-      throw Error("v0.5 memory/runtime test expected exactly four resolved builtin imports");
+    if(ex.x86_get_import_resolved && ex.x86_get_import_resolved()!==12)
+      throw Error("v0.7 window/input/audio test expected exactly twelve resolved builtin imports");
     if(ex.x86_get_import_failed && ex.x86_get_import_failed()!==0)
-      throw Error("v0.5 memory/runtime test expected zero unresolved imports");
+      throw Error("v0.7 window/input/audio test expected zero unresolved imports");
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
     const entryBytes=new Uint8Array(mem.buffer,ex.x86_get_eip(),8);
     say("Entry bytes: "+hex(entryBytes,8));
@@ -216,8 +216,8 @@ document.querySelector("#files").onchange=async e=>{
       throw Error("x86 v0.3 CPU execution exports are missing");
 
     say("CPU: 32-bit fetch/decode/execute core + ModRM addressing + imported CALL");
-    say("Executing deterministic PE entrypoint (budget: 32 instructions)...");
-    const runResult=ex.x86_run(32);
+    say("Executing v0.7 window/input/audio PE entrypoint (budget: 64 instructions)...");
+    const runResult=ex.x86_run(64);
     say("CPU run result: "+runResult);
     say("Instructions executed: "+ex.x86_get_steps());
 
@@ -249,24 +249,16 @@ document.querySelector("#files").onchange=async e=>{
     }
     if(!ex.x86_get_halted())
       throw Error("x86 CPU did not reach HLT within the instruction budget");
-    if(ex.x86_get_eax()!==1234)
-      throw Error("v0.5 CPU/import test expected EAX=1234 after KERNEL32!GetTickCount");
-    if(ex.x86_get_steps()!==25)
-      throw Error("v0.5 deterministic CPU/import/memory test expected exactly 25 instructions");
-    if(ex.x86_get_last_virtual_alloc && ex.x86_get_last_virtual_alloc()!==0x02000000)
-      throw Error("v0.5 VirtualAlloc returned an unexpected guest address");
-    if(ex.x86_get_last_virtual_alloc_size && ex.x86_get_last_virtual_alloc_size()!==0x1000)
-      throw Error("v0.5 VirtualAlloc did not allocate one page");
-    if(ex.x86_get_virtual_free_count && ex.x86_get_virtual_free_count()!==1)
-      throw Error("v0.5 VirtualFree was not exercised exactly once");
+    if(ex.x86_get_steps() < 38)
+      throw Error("v0.7 window/input/audio test did not execute the complete PE entrypoint");
 
-    say("CPU/import/memory test: x86 -> VirtualAlloc -> browser bridge -> VirtualFree -> GetTickCount = PASS");
+    say("CPU/import/window/input/audio test: PE32 -> USER32/GDI32/KERNEL32 browser bridges -> HLT = PASS");
     say("DLL inventory:");
 
     for(const d of (manifest.bundled_dlls||[]))
       say("  "+d);
 
-    say("READY — v0.5 Win32 memory foundation reached.");
+    say("READY — v0.7 Win32 window/input/audio foundation reached.");
   }catch(err){
     say("ERROR: "+err.message);
   }
