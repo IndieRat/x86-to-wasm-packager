@@ -6,8 +6,8 @@ from pathlib import Path
 
 HTML = r'''<!doctype html>
 <meta charset="utf-8">
-<title>XWASM X86 Runtime v0.6</title>
-<pre id="log">XWASM X86 Runtime v0.4
+<title>XWASM X86 Runtime v0.7</title>
+<pre id="log">XWASM X86 Runtime v0.7
 Select the package directory.</pre>
 <input id="files" type="file" webkitdirectory multiple>
 <script>
@@ -58,6 +58,9 @@ document.querySelector("#files").onchange=async e=>{
       xwasm_gfx_pixel:(x,y,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(x,y,1,1);},
       xwasm_gfx_rect:(l,t,r,b,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(l,t,r-l,b-t);},
       xwasm_gfx_present:()=>{},
+      xwasm_input_poll:(ptr,remove)=>0,
+      xwasm_input_quit:()=>{},
+      xwasm_audio_beep:(frequency,duration)=>{},
       
       xwasm_resource_size:(ptr,len)=>{
         const p=pkg.readString(ptr,len),f=pkg.get(p);
