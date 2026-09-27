@@ -36,7 +36,7 @@ static int load_pe(uint32_t f,uint32_t sz){
   image_base=IMAGE_BASE;image_size=szimg;entry=ep;
   for(uint32_t i=0;i<szhdr;i++)mem[image_base+i]=mem[f+i];
   uint32_t sh=oh+optsz;
-  if((uint64_t)sh+(uint64_t)nsec*40u>f+sz){load_error=12;return-5;}
+  if(sh<f || sh>f+sz || (uint64_t)nsec*40u>(uint64_t)(f+sz-sh)){load_error=12;return-5;}
   for(uint16_t i=0;i<nsec;i++,sh+=40){
     uint32_t va=rd32(sh+12),raw=rd32(sh+20),rawsz=rd32(sh+16);
     if((uint64_t)image_base+va+rawsz>0x10000000ULL){load_error=13;return-5;}
