@@ -180,7 +180,7 @@ document.querySelector("#files").onchange=async e=>{
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
 
     if(!ex.x86_run||!ex.x86_get_eax||!ex.x86_get_eflags||!ex.x86_get_halted)
-      throw Error("x86 v0.2 CPU execution exports are missing");
+      throw Error("x86 v0.3 CPU execution exports are missing");
 
     say("CPU: 32-bit fetch/decode/execute core + ModRM addressing");
     say("Executing deterministic PE entrypoint (budget: 32 instructions)...");
