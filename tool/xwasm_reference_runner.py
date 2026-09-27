@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Generate a self-contained HTML XWASM reference runner."""
+"""Generate a self-contained HTML XWASM native-WASM reference runner.
+
+The reference runner intentionally supports only architecture=wasm32.
+An x86 XWASM package contains a PE payload, not a browser-native WASM module;
+it must be run by a separate x86 compatibility runtime.
+"""
 from __future__ import annotations
 
 import argparse
@@ -16,7 +21,22 @@ def main() -> int:
 
     root = args.package.resolve()
     manifest = json.loads((root / "manifest.xwasm.json").read_text(encoding="utf-8"))
-    wasm = base64.b64encode((root / manifest["module"]).read_bytes()).decode()
+    architecture = manifest.get("architecture")
+    if architecture != "wasm32":
+        raise SystemExit(
+            "xwasm_reference_runner only runs native wasm32 packages. "
+            f"This package is architecture={architecture!r}; use an x86 XWASM runtime/runner instead."
+        )
+
+    module_name = manifest.get("module")
+    if not isinstance(module_name, str) or not module_name:
+        raise SystemExit("Native wasm32 package is missing manifest.module.")
+
+    module_path = root / module_name
+    if not module_path.is_file():
+        raise SystemExit(f"Native wasm32 module not found: {module_name}")
+
+    wasm = base64.b64encode(module_path.read_bytes()).decode()
     manifest_json = json.dumps(manifest)
 
     html = r'''<!doctype html>
@@ -47,17 +67,13 @@ function bytes(){
   for(let i=0;i<raw.length;i++) out[i]=raw.charCodeAt(i);
   return out;
 }
-function writeString(memory, text){
-  const b=new TextEncoder().encode(text);
-  const ptr=0;
-  new Uint8Array(memory.buffer).set(b,ptr);
-  return [ptr,b.length];
-}
 async function boot(){
   log("Package signature: "+MANIFEST.format);
   if(MANIFEST.format!=="xwasm-package") throw new Error("Not an XWASM package");
   if(MANIFEST.format_version!==1) throw new Error("Unsupported XWASM format version");
   log("Format version: "+MANIFEST.format_version);
+  log("Architecture: "+MANIFEST.architecture);
+  if(MANIFEST.architecture!=="wasm32") throw new Error("Reference runner only supports wasm32 packages");
   log("ABI: "+MANIFEST.abi);
   if(MANIFEST.abi!==ABI) throw new Error("Unsupported ABI: "+MANIFEST.abi);
 
