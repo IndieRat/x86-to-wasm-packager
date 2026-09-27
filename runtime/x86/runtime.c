@@ -1,4 +1,4 @@
-// XWASM X86 Runtime v0.4
+// XWASM X86 Runtime v0.6
 #include <stdint.h>
 
 extern void xwasm_log(int32_t level,int32_t ptr,int32_t len);
@@ -30,6 +30,17 @@ static uint32_t halted=0,cpu_error=0;
 #define API_XWASM_LOG (API_BASE+0x00002000u)
 #define API_VIRTUALALLOC (API_BASE+0x00003000u)
 #define API_VIRTUALFREE (API_BASE+0x00003004u)
+#define API_USER32_CREATEWINDOWEXA (API_BASE+0x00004000u)
+#define API_USER32_SHOWWINDOW (API_BASE+0x00004004u)
+#define API_USER32_GETDC (API_BASE+0x00004008u)
+#define API_USER32_RELEASEDC (API_BASE+0x0000400Cu)
+#define API_GDI32_SETPIXEL (API_BASE+0x00005000u)
+#define API_GDI32_RECTANGLE (API_BASE+0x00005004u)
+extern void xwasm_gfx_create(int32_t width,int32_t height);
+extern void xwasm_gfx_clear(int32_t color);
+extern void xwasm_gfx_pixel(int32_t x,int32_t y,int32_t color);
+extern void xwasm_gfx_rect(int32_t left,int32_t top,int32_t right,int32_t bottom,int32_t color);
+extern void xwasm_gfx_present(void);
 
 static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t guest_vm=0x02000000u;
@@ -64,6 +75,16 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"VirtualAlloc"))return API_VIRTUALALLOC;
   if(streq_ascii(name,"VirtualFree"))return API_VIRTUALFREE;
  }
+ if(streq_ascii(dll,"USER32.dll")||streq_ascii(dll,"user32.dll")){
+  if(streq_ascii(name,"CreateWindowExA"))return API_USER32_CREATEWINDOWEXA;
+  if(streq_ascii(name,"ShowWindow"))return API_USER32_SHOWWINDOW;
+  if(streq_ascii(name,"GetDC"))return API_USER32_GETDC;
+  if(streq_ascii(name,"ReleaseDC"))return API_USER32_RELEASEDC;
+ }
+ if(streq_ascii(dll,"GDI32.dll")||streq_ascii(dll,"gdi32.dll")){
+  if(streq_ascii(name,"SetPixel"))return API_GDI32_SETPIXEL;
+  if(streq_ascii(name,"Rectangle"))return API_GDI32_RECTANGLE;
+ }
  return 0;
 }
 static uint32_t call_builtin(uint32_t target){
@@ -85,6 +106,20 @@ static uint32_t call_builtin(uint32_t target){
   regs[R_EAX]=a;
   regs[R_ESP]+=16u;
   return 1;
+ }
+ if(target==API_USER32_CREATEWINDOWEXA){
+  xwasm_gfx_create(640,360); xwasm_gfx_clear(0x00101820); regs[R_EAX]=1u; regs[R_ESP]+=48u; return 1;
+ }
+ if(target==API_USER32_SHOWWINDOW){ regs[R_EAX]=1u; regs[R_ESP]+=8u; return 1; }
+ if(target==API_USER32_GETDC){ regs[R_EAX]=1u; regs[R_ESP]+=4u; return 1; }
+ if(target==API_USER32_RELEASEDC){ regs[R_EAX]=1u; regs[R_ESP]+=8u; return 1; }
+ if(target==API_GDI32_SETPIXEL){
+  uint32_t sp=regs[R_ESP]; uint32_t hdc=rd32(sp+4u),x=rd32(sp+8u),y=rd32(sp+12u),color=rd32(sp+16u);
+  if(hdc) xwasm_gfx_pixel((int32_t)x,(int32_t)y,(int32_t)color); regs[R_EAX]=color; regs[R_ESP]+=16u; return 1;
+ }
+ if(target==API_GDI32_RECTANGLE){
+  uint32_t sp=regs[R_ESP]; uint32_t hdc=rd32(sp+4u),left=rd32(sp+8u),top=rd32(sp+12u),right=rd32(sp+16u),bottom=rd32(sp+20u);
+  if(hdc) xwasm_gfx_rect((int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom,0x00FFFFFF); regs[R_EAX]=1u; regs[R_ESP]+=20u; return 1;
  }
  if(target==API_VIRTUALFREE){
   /* Win32 stdcall: lpAddress, dwSize, dwFreeType. */
@@ -339,9 +374,9 @@ static int load_pe(uint32_t f,uint32_t sz){
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
- for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.5");loglit("PE32 + imports + guest heap + VirtualAlloc/VirtualFree + browser host bridge");return 0;
+ for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.6");loglit("PE32 + imports + memory + USER32/GDI32 browser graphics bridge");return 0;
 }
-__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00050000u;}
+__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00060000u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
 __attribute__((export_name("x86_run"))) int x86_run(int32_t max_steps){
