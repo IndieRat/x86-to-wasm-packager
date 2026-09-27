@@ -164,10 +164,37 @@ def main() -> int:
         raise SystemExit("packaged synthetic payload is not MZ")
 
     print(f"Created deterministic XWASM x86 test package: {out}")
+
+    # Re-read the packaged fixture so the diagnostic describes the exact
+    # bytes that were actually written to payload.exe.
+    pe_off = struct.unpack_from("<I", payload, 0x3C)[0]
+    optional_size = struct.unpack_from("<H", payload, pe_off + 20)[0]
+    section = pe_off + 24 + optional_size
+    headers = struct.unpack_from("<I", payload, section + 20)[0]
+    raw_size = struct.unpack_from("<I", payload, section + 16)[0]
+    code = payload[headers:headers + raw_size]
+
+    call_instruction_file_offset = code.find(b"\xE8")
+    if call_instruction_file_offset < 0:
+        raise SystemExit("packaged synthetic payload has no CALL rel32 instruction")
+    decoded_rel = int.from_bytes(
+        code[call_instruction_file_offset + 1:call_instruction_file_offset + 5],
+        "little",
+        signed=True,
+    )
+    decoded_target = call_instruction_file_offset + 5 + decoded_rel
+    if not (0 <= decoded_target < len(code)):
+        raise SystemExit("packaged synthetic CALL target is outside the section")
+    if code[decoded_target] != 0xB8:
+        raise SystemExit(
+            f"packaged synthetic CALL target opcode is 0x{code[decoded_target]:02X}, "
+            "expected 0xB8"
+        )
+
     print(
         f"Fixture CALL: from=0x{call_instruction_file_offset:X} "
         f"rel={decoded_rel:+d} target=0x{decoded_target:X} "
-        f"opcode=0x{payload[headers + decoded_target]:02X}"
+        f"opcode=0x{code[decoded_target]:02X}"
     )
     print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK")
     return 0
