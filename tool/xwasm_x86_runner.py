@@ -6,7 +6,7 @@ from pathlib import Path
 
 HTML = r'''<!doctype html>
 <meta charset="utf-8">
-<title>XWASM X86 Runtime v0.4</title>
+<title>XWASM X86 Runtime v0.5</title>
 <pre id="log">XWASM X86 Runtime v0.4
 Select the package directory.</pre>
 <input id="files" type="file" webkitdirectory multiple>
@@ -184,12 +184,16 @@ document.querySelector("#files").onchange=async e=>{
       const probeAlloc=ex.x86_alloc(64);
       say("Guest allocation probe: 64 bytes at 0x"+probeAlloc.toString(16));
       if(probeAlloc<0x00800000||probeAlloc>=0x01F00000)
-        throw Error("guest memory allocator returned an address outside its v0.4 arena");
+        throw Error("guest memory allocator returned an address outside its v0.5 arena");
     }
-    if(ex.x86_get_import_resolved && ex.x86_get_import_resolved()!==2)
-      throw Error("v0.4 host-bridge test expected exactly two resolved builtin imports");
+    if(ex.x86_get_last_virtual_alloc){
+      say("Virtual allocation state: base=0x"+ex.x86_get_last_virtual_alloc().toString(16)+
+          " size=0x"+(ex.x86_get_last_virtual_alloc_size?ex.x86_get_last_virtual_alloc_size():0).toString(16));
+    }
+    if(ex.x86_get_import_resolved && ex.x86_get_import_resolved()!==4)
+      throw Error("v0.5 memory/runtime test expected exactly four resolved builtin imports");
     if(ex.x86_get_import_failed && ex.x86_get_import_failed()!==0)
-      throw Error("v0.4 import test expected zero unresolved imports");
+      throw Error("v0.5 memory/runtime test expected zero unresolved imports");
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
     const entryBytes=new Uint8Array(mem.buffer,ex.x86_get_eip(),8);
     say("Entry bytes: "+hex(entryBytes,8));
@@ -232,17 +236,23 @@ document.querySelector("#files").onchange=async e=>{
     if(!ex.x86_get_halted())
       throw Error("x86 CPU did not reach HLT within the instruction budget");
     if(ex.x86_get_eax()!==1234)
-      throw Error("v0.4 CPU/import test expected EAX=1234 after KERNEL32!GetTickCount");
-    if(ex.x86_get_steps()!==15)
-      throw Error("v0.4 deterministic CPU/import/host-bridge test expected exactly 15 instructions");
+      throw Error("v0.5 CPU/import test expected EAX=1234 after KERNEL32!GetTickCount");
+    if(ex.x86_get_steps()!==23)
+      throw Error("v0.5 deterministic CPU/import/memory test expected exactly 23 instructions");
+    if(ex.x86_get_last_virtual_alloc && ex.x86_get_last_virtual_alloc()!==0x02000000)
+      throw Error("v0.5 VirtualAlloc returned an unexpected guest address");
+    if(ex.x86_get_last_virtual_alloc_size && ex.x86_get_last_virtual_alloc_size()!==0x1000)
+      throw Error("v0.5 VirtualAlloc did not allocate one page");
+    if(ex.x86_get_virtual_free_count && ex.x86_get_virtual_free_count()!==1)
+      throw Error("v0.5 VirtualFree was not exercised exactly once");
 
-    say("CPU/import/host bridge test: x86 -> XWASMHOST!xwasm_log -> browser output + KERNEL32!GetTickCount = PASS");
+    say("CPU/import/memory test: x86 -> VirtualAlloc -> browser bridge -> VirtualFree -> GetTickCount = PASS");
     say("DLL inventory:");
 
     for(const d of (manifest.bundled_dlls||[]))
       say("  "+d);
 
-    say("READY — v0.4 PE imports + guest memory foundation reached.");
+    say("READY — v0.5 Win32 memory foundation reached.");
   }catch(err){
     say("ERROR: "+err.message);
   }

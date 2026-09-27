@@ -28,8 +28,13 @@ static uint32_t halted=0,cpu_error=0;
 #define API_BASE 0x70000000u
 #define API_GETTICKCOUNT (API_BASE+0x00001000u)
 #define API_XWASM_LOG (API_BASE+0x00002000u)
+#define API_VIRTUALALLOC (API_BASE+0x00003000u)
+#define API_VIRTUALFREE (API_BASE+0x00003004u)
 
 static uint32_t guest_heap=GUEST_HEAP_BASE;
+static uint32_t guest_vm=0x02000000u;
+static uint32_t guest_vm_limit=0x06000000u;
+static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_count=0;
 static uint32_t import_resolved=0,import_failed=0;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 
@@ -53,12 +58,41 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
  if(streq_ascii(dll,"XWASMHOST.dll")||streq_ascii(dll,"xwasmhost.dll")){
   if(streq_ascii(name,"xwasm_log"))return API_XWASM_LOG;
  }
+ if(streq_ascii(dll,"KERNEL32.dll")||streq_ascii(dll,"kernel32.dll")){
+  if(streq_ascii(name,"VirtualAlloc"))return API_VIRTUALALLOC;
+  if(streq_ascii(name,"VirtualFree"))return API_VIRTUALFREE;
+ }
  return 0;
 }
 static uint32_t call_builtin(uint32_t target){
  if(target==API_GETTICKCOUNT){regs[R_EAX]=1234u;return 1;}
  if(target==API_XWASM_LOG){
   xwasm_log(1,(int32_t)regs[R_ECX],(int32_t)regs[R_EDX]);
+  return 1;
+ }
+ if(target==API_VIRTUALALLOC){
+  /* Win32 stdcall: lpAddress, dwSize, flAllocationType, flProtect. */
+  uint32_t sp=regs[R_ESP];
+  uint32_t size=al4(rd32(sp+8u));
+  if(!size){regs[R_EAX]=0;regs[R_ESP]+=16u;return 1;}
+  uint32_t a=al4(guest_vm),end=a+size;
+  if(end<a||end>guest_vm_limit){regs[R_EAX]=0;regs[R_ESP]+=16u;return 1;}
+  guest_vm=end;
+  last_virtual_alloc=a;
+  last_virtual_alloc_size=size;
+  regs[R_EAX]=a;
+  regs[R_ESP]+=16u;
+  return 1;
+ }
+ if(target==API_VIRTUALFREE){
+  /* Win32 stdcall: lpAddress, dwSize, dwFreeType. */
+  uint32_t sp=regs[R_ESP];
+  uint32_t address=rd32(sp+4u),size=rd32(sp+8u),free_type=rd32(sp+12u);
+  (void)size;
+  (void)free_type;
+  regs[R_EAX]=(address!=0)?1u:0u;
+  if(address!=0)virtual_free_count++;
+  regs[R_ESP]+=12u;
   return 1;
  }
  return 0;
@@ -302,10 +336,10 @@ static int load_pe(uint32_t f,uint32_t sz){
 }
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
- heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
- for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.4");loglit("PE32 mapping + DLL import resolution + guest memory foundation + x86 ModRM + browser host bridge");return 0;
+ heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
+ for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.5");loglit("PE32 + imports + guest heap + VirtualAlloc/VirtualFree + browser host bridge");return 0;
 }
-__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00040000u;}
+__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00050000u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
 __attribute__((export_name("x86_run"))) int x86_run(int32_t max_steps){
@@ -354,6 +388,11 @@ __attribute__((export_name("x86_get_last_import_thunk_rva"))) uint32_t x86_get_l
 __attribute__((export_name("x86_get_last_import_target"))) uint32_t x86_get_last_import_target(void){return last_import_target;}
 __attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
 __attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(void){return guest_heap;}
+__attribute__((export_name("x86_virtual_alloc"))) uint32_t x86_virtual_alloc(uint32_t size){uint32_t a=al4(guest_vm),end=a+al4(size);if(!size||end<a||end>guest_vm_limit)return 0;guest_vm=end;return a;}
+__attribute__((export_name("x86_get_virtual_heap"))) uint32_t x86_get_virtual_heap(void){return guest_vm;}
+__attribute__((export_name("x86_get_last_virtual_alloc"))) uint32_t x86_get_last_virtual_alloc(void){return last_virtual_alloc;}
+__attribute__((export_name("x86_get_last_virtual_alloc_size"))) uint32_t x86_get_last_virtual_alloc_size(void){return last_virtual_alloc_size;}
+__attribute__((export_name("x86_get_virtual_free_count"))) uint32_t x86_get_virtual_free_count(void){return virtual_free_count;}
 __attribute__((export_name("x86_get_loaded"))) uint32_t x86_get_loaded(void){return loaded;}
 __attribute__((export_name("x86_get_load_error"))) uint32_t x86_get_load_error(void){return load_error;}
 __attribute__((export_name("x86_get_load_ptr"))) uint32_t x86_get_load_ptr(void){return last_load_ptr;}
