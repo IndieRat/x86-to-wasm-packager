@@ -8,7 +8,7 @@ extern int32_t xwasm_resource_read(int32_t ptr,int32_t len,int32_t dst,int32_t d
 #define IMAGE_BASE 0x00400000u
 #define PAYLOAD_STAGE 0x02000000u
 static uint8_t *mem=(uint8_t*)0; static uint32_t heap=HEAP_BASE,image_base=0,image_size=0,entry=0,eip=0,steps=0,loaded=0,dll_count=0,import_count=0,load_error=0;
-static uint32_t regs[8];
+static uint32_t regs[8]; static uint32_t last_load_ptr=0,last_load_size=0;
 static uint16_t rd16(uint32_t p){return mem[p]|((uint16_t)mem[p+1]<<8);}
 static uint32_t rd32(uint32_t p){return mem[p]|((uint32_t)mem[p+1]<<8)|((uint32_t)mem[p+2]<<16)|((uint32_t)mem[p+3]<<24);}
 static uint32_t al4(uint32_t x){return(x+3)&~3u;}
@@ -17,7 +17,7 @@ static void loglit(const char*s){uint32_t p=heap;while(*s)mem[p++]=(uint8_t)*s++
 static void loghex(const char*s,uint32_t v){uint32_t p=heap;while(*s)mem[p++]=(uint8_t)*s++;mem[p++]='0';mem[p++]='x';for(int i=7;i>=0;i--){uint8_t x=(v>>(i*4))&15;mem[p++]=(uint8_t)(x<10?'0'+x:'A'+x-10);}xwasm_log(1,heap,p-heap);heap=al4(p+1);}
 
 static int load_pe(uint32_t f,uint32_t sz){
-  load_error=0; loaded=0;
+  load_error=0; loaded=0; last_load_ptr=f; last_load_size=sz;
   if(sz<0x40){load_error=1;return-1;}
   if(rd16(f)!=0x5a4d){load_error=2;return-1;}
   uint32_t pe=rd32(f+0x3c);
@@ -57,4 +57,4 @@ __attribute__((export_name("x86_get_steps"))) uint32_t x86_get_steps(void){retur
 __attribute__((export_name("x86_get_dll_count"))) uint32_t x86_get_dll_count(void){return dll_count;}
 __attribute__((export_name("x86_get_import_count"))) uint32_t x86_get_import_count(void){return import_count;}
 __attribute__((export_name("x86_get_loaded"))) uint32_t x86_get_loaded(void){return loaded;}
-__attribute__((export_name("x86_get_load_error"))) uint32_t x86_get_load_error(void){return load_error;}
+__attribute__((export_name("x86_get_load_error"))) uint32_t x86_get_load_error(void){return load_error;} __attribute__((export_name("x86_get_load_ptr"))) uint32_t x86_get_load_ptr(void){return last_load_ptr;} __attribute__((export_name("x86_get_load_size"))) uint32_t x86_get_load_size(void){return last_load_size;}
