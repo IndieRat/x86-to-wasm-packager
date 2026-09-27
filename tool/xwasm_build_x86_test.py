@@ -62,7 +62,23 @@ def make_test_pe() -> bytes:
 
     # NOP; XOR EAX,EAX; HLT
     b[headers:headers + 4] = bytes((0x90, 0x31, 0xC0, 0xF4))
-    return bytes(b)
+
+    payload = bytes(b)
+
+    # Keep the synthetic fixture self-checking. If this ever changes, fail
+    # before packaging so the browser cannot silently test a stale/bad PE.
+    if payload[:2] != b"MZ":
+        raise AssertionError("synthetic PE missing MZ signature")
+    if struct.unpack_from("<I", payload, pe_off)[0] != 0x4550:
+        raise AssertionError("synthetic PE missing PE signature")
+    if struct.unpack_from("<H", payload, pe_off + 4)[0] != 0x14C:
+        raise AssertionError("synthetic PE machine is not i386")
+    if struct.unpack_from("<H", payload, pe_off + 24)[0] != 0x10B:
+        raise AssertionError("synthetic PE optional header is not PE32")
+    if struct.unpack_from("<H", payload, pe_off + 20)[0] != 0xE0:
+        raise AssertionError("synthetic PE optional header size is not 0xE0")
+
+    return payload
 
 
 def main() -> int:
@@ -80,10 +96,6 @@ def main() -> int:
         game.mkdir()
         (game / "Test.exe").write_bytes(make_test_pe())
 
-        # Build the runtime outside the package directory. On Windows, writing
-        # directly into `out` and then asking the packer to copy that same file
-        # can leave the source handle open long enough for CopyFile2 to fail
-        # with WinError 32. The packer should own the final package copy.
         runtime = Path(td) / "runtime.wasm"
         build = root / "tool" / "xwasm_build_x86_runtime.py"
         cmd = ["python", str(build), "--output", str(runtime)]
@@ -107,7 +119,14 @@ def main() -> int:
     if manifest.get("payload") != "resources/__x86__/payload.exe":
         raise SystemExit("test package payload path is incorrect")
 
+    payload = (out / "resources" / "__x86__" / "payload.exe").read_bytes()
+    if struct.unpack_from("<H", payload, 0x80 + 24)[0] != 0x10B:
+        raise SystemExit("packaged synthetic payload is not PE32; rebuild the package")
+    if payload[:2] != b"MZ":
+        raise SystemExit("packaged synthetic payload is not MZ")
+
     print(f"Created deterministic XWASM x86 test package: {out}")
+    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK")
     return 0
 
 
