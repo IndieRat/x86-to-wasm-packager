@@ -55,7 +55,7 @@ def validate_package(root: Path) -> dict:
                 runtime_path = _safe_package_path(root, runtime_name, "runtime")
                 if not runtime_path.is_file():
                     errors.append(f"missing runtime: {runtime_name!r}")
-                elif not runtime_path.read_bytes().startswith(b"\\x00asm"):
+                elif not runtime_path.read_bytes().startswith(b"\x00asm"):
                     errors.append("x86 runtime does not have a WebAssembly binary header")
             except ValueError as exc:
                 errors.append(str(exc))
