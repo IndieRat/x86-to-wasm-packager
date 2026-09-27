@@ -385,6 +385,11 @@ static void scan_imports(void){
     import_failed++;
     last_failed_import_dll=name_rva;
     last_failed_import_func=v;
+    uint32_t dl=0,fn=0;
+    while(dl<255u&&MEM8(image_base+name_rva+dl))dl++;
+    while(fn<255u&&MEM8(image_base+v+2u+fn))fn++;
+    xwasm_log(2,(int32_t)(image_base+name_rva),(int32_t)dl);
+    xwasm_log(2,(int32_t)(image_base+v+2u),(int32_t)fn);
    }
   }
   (void)resolved_this_dll;
