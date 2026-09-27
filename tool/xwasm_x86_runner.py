@@ -187,10 +187,10 @@ document.querySelector("#files").onchange=async e=>{
       throw Error("x86 CPU execution failed; opcode/error=0x"+(ex.x86_get_cpu_error?ex.x86_get_cpu_error():0).toString(16));
     if(!ex.x86_get_halted())
       throw Error("x86 CPU did not reach HLT within the instruction budget");
-    if(ex.x86_get_eax()!==0)
-      throw Error("deterministic CPU test expected EAX=0 after XOR EAX,EAX");
+    if(ex.x86_get_eax()!==42)
+      throw Error("deterministic CPU test expected EAX=42 after the CALL/RET test");
     if(ex.x86_get_steps()!==3)
-      throw Error("deterministic CPU test expected exactly 3 instructions");
+      throw Error("deterministic CPU test expected exactly 8 instructions");
 
     say("CPU test: NOP -> XOR EAX,EAX -> HLT = PASS");
     say("DLL inventory:");
