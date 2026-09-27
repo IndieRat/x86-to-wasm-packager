@@ -90,7 +90,7 @@ def make_test_pe() -> bytes:
     hello_string_file_offset = len(code)
     code.extend(b"Hello, XWASM!")
     hello_string_rva = 0x1000 + hello_string_file_offset
-    hello_mov = code.find(b"\xB9\x00\x00\x40\x00")
+    hello_mov = code.find(b"\xB9\x00\x10\x40\x00")
     if hello_mov < 0:
         raise AssertionError("hello-string MOV ECX placeholder is missing")
     struct.pack_into("<I", code, hello_mov + 1, 0x00400000 + hello_string_rva)
