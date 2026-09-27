@@ -373,7 +373,7 @@ static int cpu_step(void){
   case 0x0F: {
    uint8_t op2=MEM8(ip++);
    if(op2==0xAF){uint8_t m=MEM8(ip++);int64_t v=(int64_t)(int32_t)regs[m&7]*(int64_t)(int32_t)modrm_read32(m,&ip);regs[(m>>3)&7]=(uint32_t)v;set_logic_flags(regs[(m>>3)&7]);eip=ip;return 0;}
-   if(op2==0xB6||op2==0xBE){uint8_t m=MEM8(ip++),eaip=ip;uint32_t ea=0;if(!modrm_ea(m,&eaip,&ea)){cpu_error=0x0F00u|op2;return -17;}uint32_t v=MEM8(ea);if(op2==0xBE&&v&0x80u)v|=0xFFFFFF00u;regs[(m>>3)&7]=v;eip=eaip;return 0;}
+   if(op2==0xB6||op2==0xBE){uint8_t m=MEM8(ip++);uint32_t v;if((m>>6)==3){v=regs[m&7]&0xFFu;}else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0F00u|op2;return -17;}v=MEM8(ea);}if(op2==0xBE&&v&0x80u)v|=0xFFFFFF00u;regs[(m>>3)&7]=v;eip=ip;return 0;}
    if(op2==0x84||op2==0x85){int32_t d=(int32_t)rd32(ip);ip+=4;if((op2==0x84&& (eflags&ZF))||(op2==0x85&&!(eflags&ZF)))eip=ip+(uint32_t)d;else eip=ip;return 0;}
    cpu_error=0x0F00u|op2;return -18;
   }
