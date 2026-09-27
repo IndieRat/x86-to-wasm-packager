@@ -109,14 +109,14 @@ def make_pe():
     # USER32 has 11 imports; KERNEL32 has one import (Beep).
     user_names = names[:6] + names[7:]
     for i, rva in enumerate(user_names):
+        # OFT is 0x1140; IAT is 0x1180.
         struct.pack_into("<I", b, base + 0x140 + i * 4, rva)
-        struct.pack_into("<I", b, base + 0x1A0 + i * 4, rva)
-    struct.pack_into("<I", b, base + 0x16C, 0)
+        struct.pack_into("<I", b, base + 0x180 + i * 4, rva)
+    # KERNEL32 OFT is 0x1170; IAT is 0x11B0.
     struct.pack_into("<I", b, base + 0x170, names[6])
     struct.pack_into("<I", b, base + 0x174, 0)
-    struct.pack_into("<I", b, base + 0x1CC, 0)
-    struct.pack_into("<I", b, base + 0x1D0, names[6])
-    struct.pack_into("<I", b, base + 0x1D4, 0)
+    struct.pack_into("<I", b, base + 0x1B0, names[6])
+    struct.pack_into("<I", b, base + 0x1B4, 0)
 
     b[base + (user_dll - SECTION_RVA):base + (user_dll - SECTION_RVA) + 11] = b"USER32.dll\0"
     b[base + (kernel_dll - SECTION_RVA):base + (kernel_dll - SECTION_RVA) + 12] = b"KERNEL32.dll\0"
