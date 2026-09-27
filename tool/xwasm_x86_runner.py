@@ -189,10 +189,10 @@ document.querySelector("#files").onchange=async e=>{
       throw Error("x86 CPU did not reach HLT within the instruction budget");
     if(ex.x86_get_eax()!==42)
       throw Error("deterministic CPU test expected EAX=42 after the CALL/RET test");
-    if(ex.x86_get_steps()!==3)
+    if(ex.x86_get_steps()!==8)
       throw Error("deterministic CPU test expected exactly 8 instructions");
 
-    say("CPU test: NOP -> XOR EAX,EAX -> HLT = PASS");
+    say("CPU test: MOV -> ADD -> CMP -> JE -> CALL -> MOV -> RET -> HLT = PASS");
     say("DLL inventory:");
 
     for(const d of (manifest.bundled_dlls||[]))
