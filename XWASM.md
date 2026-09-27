@@ -191,3 +191,25 @@ The x86 runtime now extends the v0.4 import/memory seed with a small virtual-mem
 - the browser runner verifies the allocation, release call, final GetTickCount result, and 23-instruction execution path.
 
 This is intentionally a compatibility seed, not a complete Windows virtual-memory implementation. Real Windows VirtualAlloc/VirtualFree support includes page state, reservation/commit semantics, protection flags, and additional failure conditions; the runtime currently models the subset needed to establish the guest memory ABI and execution path. Microsoft documents VirtualAlloc as reserving/committing pages and VirtualFree as releasing or decommitting regions.
+
+
+## X86 runtime v0.6 graphics foundation
+
+The x86 runtime now has a first browser-backed Win32 graphics surface. This is intentionally a compatibility bridge, not a full USER32/GDI32 implementation.
+
+The v0.6 seed resolves:
+
+- USER32.dll!CreateWindowExA
+- USER32.dll!ShowWindow
+- USER32.dll!GetDC
+- USER32.dll!ReleaseDC
+- GDI32.dll!SetPixel
+- GDI32.dll!Rectangle
+
+The browser host exposes a Canvas 2D surface. CreateWindowExA creates the runtime's logical window surface, ShowWindow/GetDC provide compatible handles, and selected GDI calls are translated into Canvas drawing operations. The deterministic fixture draws a rectangle and a pixel through the x86 -> USER32/GDI32 -> browser path.
+
+Microsoft documents CreateWindowEx/ShowWindow as the normal Win32 window creation/showing path and GDI Rectangle/SetPixel as drawing APIs. citeturn2search0turn2search2turn1search0turn0search0
+
+This milestone deliberately does not claim complete Windows window management, message dispatch, painting, device contexts, brushes, pens, DirectX/OpenGL, or compositor behavior. Those will be added only as the target game's actual imports and runtime behavior require them.
+
+The next graphics work should establish a persistent frame buffer/presentation path, basic window-message/input plumbing, and then the APIs needed by the real target executable.
