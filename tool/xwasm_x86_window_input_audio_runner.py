@@ -85,12 +85,13 @@ async function runFixture(){
     const ex=runtimeExports;
     const result=ex.x86_run(512);
     if(result<0)throw Error("x86 CPU execution failed: EIP=0x"+ex.x86_get_eip().toString(16));
-    say("CPU slice: "+result+" | steps="+ex.x86_get_steps()+" | msg=0x"+ex.x86_get_last_message().toString(16).padStart(4,"0")+" | queue="+inputQueue.length);
+    say("CPU slice: "+result+" | steps="+ex.x86_get_steps()+" | msg=0x"+ex.x86_get_last_message().toString(16).padStart(4,"0")+" | clicks="+(ex.x86_get_mouse_clicks?.()??0)+" | queue="+inputQueue.length);
     if(ex.x86_get_import_resolved()!==12)throw Error("expected 12 resolved imports");
     if(ex.x86_get_import_failed()!==0)throw Error("fixture has unresolved imports");
     if(ex.x86_get_cpu_error()!==0)throw Error("CPU error opcode=0x"+ex.x86_get_cpu_error().toString(16));
     say("WINDOW PASS — USER32 surface reached browser Canvas.");
     say("INPUT PASS — browser pointer/keyboard -> Win32 MSG -> x86 PeekMessageA.");
+    if((ex.x86_get_mouse_clicks?.()??0)>0) say("MOUSE CLICK PASS — WM_LBUTTONDOWN reached x86 DispatchMessageA and drew a click marker.");
     say("AUDIO PASS — KERNEL32 Beep -> browser Web Audio.");
     say("LOOP PASS — CPU remains live between browser events.");
   }catch(err){
@@ -167,7 +168,7 @@ picker.onchange=async e=>{
     inputReady=true;
     runButton.disabled=false;
     runButton.textContent="Live x86 window loop — click or press a key";
-    say("Window bridge ready. The x86 thread is entering its persistent PeekMessageA loop.");
+    say("Window bridge ready. Click the canvas to test WM_LBUTTONDOWN; move the mouse to test WM_MOUSEMOVE.");
     installInput();
     await runFixture();
   }catch(err){say("ERROR: "+err.message);}
