@@ -42,6 +42,9 @@ static uint32_t halted=0,cpu_error=0;
 #define API_USER32_DISPATCHMESSAGEA (API_BASE+0x0000600Cu)
 #define API_USER32_DEFWINDOWPROCA (API_BASE+0x00006010u)
 #define API_USER32_POSTQUITMESSAGE (API_BASE+0x00006014u)
+#define API_USER32_GETCLIENTRECT (API_BASE+0x00006018u)
+#define API_USER32_INVALIDATERECT (API_BASE+0x0000601Cu)
+#define API_USER32_UPDATEWINDOW (API_BASE+0x00006020u)
 #define API_KERNEL32_BEEP (API_BASE+0x00007000u)
 extern int32_t xwasm_input_poll(int32_t msg_ptr,int32_t remove);
 extern void xwasm_input_quit(void);
@@ -104,6 +107,9 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"DispatchMessageA"))return API_USER32_DISPATCHMESSAGEA;
   if(streq_ascii(name,"DefWindowProcA"))return API_USER32_DEFWINDOWPROCA;
   if(streq_ascii(name,"PostQuitMessage"))return API_USER32_POSTQUITMESSAGE;
+  if(streq_ascii(name,"GetClientRect"))return API_USER32_GETCLIENTRECT;
+  if(streq_ascii(name,"InvalidateRect"))return API_USER32_INVALIDATERECT;
+  if(streq_ascii(name,"UpdateWindow"))return API_USER32_UPDATEWINDOW;
  }
  if(streq_ascii(dll,"KERNEL32.dll")||streq_ascii(dll,"kernel32.dll")){
   if(streq_ascii(name,"Beep"))return API_KERNEL32_BEEP;
@@ -131,18 +137,26 @@ static uint32_t call_builtin(uint32_t target){
   return 1;
  }
  if(target==API_USER32_CREATEWINDOWEXA){
-  xwasm_gfx_create(640,360); xwasm_gfx_clear(0x00101820); regs[R_EAX]=1u; regs[R_ESP]+=48u; return 1;
+  /* Win32 stdcall: 12 arguments, width/height are args 6/7. */
+  uint32_t sp=regs[R_ESP];
+  uint32_t width=rd32(sp+24u),height=rd32(sp+28u);
+  if(width<64u||width>1920u)width=640u;
+  if(height<64u||height>1080u)height=360u;
+  xwasm_gfx_create((int32_t)width,(int32_t)height);
+  xwasm_gfx_clear(0x00101820);
+  xwasm_gfx_present();
+  regs[R_EAX]=1u; regs[R_ESP]+=48u; return 1;
  }
  if(target==API_USER32_SHOWWINDOW){ regs[R_EAX]=1u; regs[R_ESP]+=8u; return 1; }
  if(target==API_USER32_GETDC){ regs[R_EAX]=1u; regs[R_ESP]+=4u; return 1; }
  if(target==API_USER32_RELEASEDC){ regs[R_EAX]=1u; regs[R_ESP]+=8u; return 1; }
  if(target==API_GDI32_SETPIXEL){
   uint32_t sp=regs[R_ESP]; uint32_t hdc=rd32(sp+4u),x=rd32(sp+8u),y=rd32(sp+12u),color=rd32(sp+16u);
-  if(hdc) xwasm_gfx_pixel((int32_t)x,(int32_t)y,(int32_t)color); regs[R_EAX]=color; regs[R_ESP]+=16u; return 1;
+  if(hdc) xwasm_gfx_pixel((int32_t)x,(int32_t)y,(int32_t)color); xwasm_gfx_present(); regs[R_EAX]=color; regs[R_ESP]+=16u; return 1;
  }
  if(target==API_GDI32_RECTANGLE){
   uint32_t sp=regs[R_ESP]; uint32_t hdc=rd32(sp+4u),left=rd32(sp+8u),top=rd32(sp+12u),right=rd32(sp+16u),bottom=rd32(sp+20u);
-  if(hdc) xwasm_gfx_rect((int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom,0x00FFFFFF); regs[R_EAX]=1u; regs[R_ESP]+=20u; return 1;
+  if(hdc) xwasm_gfx_rect((int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom,0x00FFFFFF); xwasm_gfx_present(); regs[R_EAX]=1u; regs[R_ESP]+=20u; return 1;
  }
  if(target==API_USER32_GETMESSAGEA || target==API_USER32_PEEKMESSAGEA){
   /* 32-bit MSG: hwnd, message, wParam, lParam, time, pt.x, pt.y. */
@@ -169,6 +183,17 @@ static uint32_t call_builtin(uint32_t target){
  }
  if(target==API_USER32_POSTQUITMESSAGE){
   message_quit=1; xwasm_input_quit(); regs[R_ESP]+=4u; return 1;
+ }
+ if(target==API_USER32_GETCLIENTRECT){
+  uint32_t sp=regs[R_ESP],rect=rd32(sp+8u);
+  if(rect){wr32(rect,0);wr32(rect+4u,0);wr32(rect+8u,640);wr32(rect+12u,360);}
+  regs[R_EAX]=rect?1u:0u; regs[R_ESP]+=8u; return 1;
+ }
+ if(target==API_USER32_INVALIDATERECT){
+  regs[R_EAX]=1u; regs[R_ESP]+=12u; xwasm_gfx_present(); return 1;
+ }
+ if(target==API_USER32_UPDATEWINDOW){
+  regs[R_EAX]=1u; regs[R_ESP]+=4u; xwasm_gfx_present(); return 1;
  }
  if(target==API_KERNEL32_BEEP){
   uint32_t sp=regs[R_ESP],freq=rd32(sp+4u),duration=rd32(sp+8u);
@@ -300,6 +325,18 @@ static int cpu_step(void){
    if((m>>6)==3)regs[m&7]=r; else wr32(ea,r);
    eip=ip; return 0;
   }
+  case 0x09: { uint8_t m=MEM8(ip++); uint32_t v=modrm_read32(m,&ip)|regs[(m>>3)&7]; modrm_write32(m,&ip,v); set_logic_flags(v); eip=ip; return 0; } /* OR r/m32,r32 */
+  case 0x0B: { uint8_t m=MEM8(ip++); uint32_t v=regs[(m>>3)&7]|modrm_read32(m,&ip); regs[(m>>3)&7]=v; set_logic_flags(v); eip=ip; return 0; } /* OR r32,r/m32 */
+  case 0x21: { uint8_t m=MEM8(ip++); uint32_t v=modrm_read32(m,&ip)&regs[(m>>3)&7]; modrm_write32(m,&ip,v); set_logic_flags(v); eip=ip; return 0; } /* AND r/m32,r32 */
+  case 0x23: { uint8_t m=MEM8(ip++); uint32_t v=regs[(m>>3)&7]&modrm_read32(m,&ip); regs[(m>>3)&7]=v; set_logic_flags(v); eip=ip; return 0; } /* AND r32,r/m32 */
+  case 0x2B: { uint8_t m=MEM8(ip++); uint32_t a=regs[(m>>3)&7],b=modrm_read32(m,&ip),v=a-b; set_sub_flags(a,b,v); regs[(m>>3)&7]=v; eip=ip; return 0; } /* SUB r32,r/m32 */
+  case 0x3B: { uint8_t m=MEM8(ip++); uint32_t a=regs[(m>>3)&7],b=modrm_read32(m,&ip); set_sub_flags(a,b,a-b); eip=ip; return 0; } /* CMP r32,r/m32 */
+  case 0x81: { uint8_t m=MEM8(ip++),sub=(m>>3)&7,b=rd32(ip); ip+=4; uint32_t a=modrm_read32(m,&ip),v;
+   if(sub==0){v=a+b;set_add_flags(a,b,v);} else if(sub==5){v=a-b;set_sub_flags(a,b,v);} else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;} else {cpu_error=0x8100u|sub;return -13;}
+   modrm_write32(m,&ip,v);eip=ip;return 0; } /* ADD/SUB/CMP r/m32,imm32 */
+  case 0x83: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; int32_t sb=(int8_t)MEM8(ip++); uint32_t b=(uint32_t)sb,a=modrm_read32(m,&ip),v;
+   if(sub==0){v=a+b;set_add_flags(a,b,v);} else if(sub==5){v=a-b;set_sub_flags(a,b,v);} else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;} else {cpu_error=0x8300u|sub;return -14;}
+   modrm_write32(m,&ip,v);eip=ip;return 0; } /* ADD/SUB/CMP r/m32,imm8 */
   case 0x39: { /* CMP r/m32,r32 */
    uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7],a;
    if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
@@ -327,6 +364,19 @@ static int cpu_step(void){
    regs[op-0x58]=rd32(regs[R_ESP]);regs[R_ESP]+=4;eip=ip;return 0;
   case 0x50:case 0x51:case 0x52:case 0x53:case 0x54:case 0x55:case 0x56:case 0x57:
    regs[R_ESP]-=4;wr32(regs[R_ESP],regs[op-0x50]);eip=ip;return 0;
+  case 0xC1: { uint8_t m=MEM8(ip++),sub=(m>>3)&7,count=MEM8(ip++)&31u,v=modrm_read32(m,&ip),r=v;
+   if(sub==4)r=v<<count; else if(sub==5)r=v>>count; else if(sub==7)r=(uint32_t)((int32_t)v>>count); else {cpu_error=0xC100u|sub;return -15;}
+   modrm_write32(m,&ip,r); set_logic_flags(r); eip=ip; return 0; } /* SHL/SHR/SAR */
+  case 0xD1: { uint8_t m=MEM8(ip++),sub=(m>>3)&7,v=modrm_read32(m,&ip),r;
+   if(sub==4)r=v<<1; else if(sub==5)r=v>>1; else if(sub==7)r=(uint32_t)((int32_t)v>>1); else {cpu_error=0xD100u|sub;return -16;}
+   modrm_write32(m,&ip,r); set_logic_flags(r); eip=ip; return 0; }
+  case 0x0F: {
+   uint8_t op2=MEM8(ip++);
+   if(op2==0xAF){uint8_t m=MEM8(ip++);int64_t v=(int64_t)(int32_t)regs[m&7]*(int64_t)(int32_t)modrm_read32(m,&ip);regs[(m>>3)&7]=(uint32_t)v;set_logic_flags(regs[(m>>3)&7]);eip=ip;return 0;}
+   if(op2==0xB6||op2==0xBE){uint8_t m=MEM8(ip++),eaip=ip;uint32_t ea=0;if(!modrm_ea(m,&eaip,&ea)){cpu_error=0x0F00u|op2;return -17;}uint32_t v=MEM8(ea);if(op2==0xBE&&v&0x80u)v|=0xFFFFFF00u;regs[(m>>3)&7]=v;eip=eaip;return 0;}
+   if(op2==0x84||op2==0x85){int32_t d=(int32_t)rd32(ip);ip+=4;if((op2==0x84&& (eflags&ZF))||(op2==0x85&&!(eflags&ZF)))eip=ip+(uint32_t)d;else eip=ip;return 0;}
+   cpu_error=0x0F00u|op2;return -18;
+  }
   case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
    uint8_t m=MEM8(ip++);
    uint8_t sub=(m>>3)&7;
@@ -502,3 +552,4 @@ __attribute__((export_name("x86_get_load_size"))) uint32_t x86_get_load_size(voi
 __attribute__((export_name("x86_get_message_count"))) uint32_t x86_get_message_count(void){return message_count;}
 __attribute__((export_name("x86_get_last_message"))) uint32_t x86_get_last_message(void){return message_last;}
 __attribute__((export_name("x86_get_message_quit"))) uint32_t x86_get_message_quit(void){return message_quit;}
+__attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
