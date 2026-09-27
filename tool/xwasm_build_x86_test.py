@@ -75,10 +75,10 @@ def make_test_pe() -> bytes:
         0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL target (patched below)
         0xF4,                                      # HLT
     ))
-    call_instruction_file_offset = code.find(b"\\xE8\\x00\\x00\\x00\\x00")
+    call_instruction_file_offset = code.find(b"\xE8\x00\x00\x00\x00")
     if call_instruction_file_offset < 0:
         raise AssertionError("synthetic PE CALL placeholder is missing")
-    code.extend(b"\\x00" * 16)
+    code.extend(b"\x00" * 16)
     call_target_file_offset = len(code)
     code.extend((0xB8, 0x2A, 0x00, 0x00, 0x00,     # MOV EAX,42
                  0xC3))                             # RET
