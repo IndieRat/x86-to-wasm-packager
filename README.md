@@ -179,3 +179,22 @@ The migration plan is:
     HTML shell
 
 The existing x86/v86 package tools remain available during this migration. They are not treated as the XWASM ABI itself.
+
+## XWASM x86 runtime v0.1
+
+The repository includes the first x86 compatibility-runtime foundation:
+
+- runtime/x86/runtime.c — PE32 loader, import/DLL inventory, and tiny x86 instruction-stepper foundation.
+- tool/xwasm_build_x86_runtime.py — builds the runtime as standard WebAssembly and permits unresolved host imports.
+- tool/xwasm_build_x86_test.py — creates a deterministic runtime test package with a synthetic PE32 payload and manifest.
+- tool/xwasm_pack_x86.py — exports a real 32-bit Windows game folder, records bundled DLLs, and can bundle an externally built runtime.wasm.
+- tool/xwasm_x86_runner.py — browser runner for the current x86 loader milestone.
+
+Recommended order:
+
+1. Build and inspect the deterministic x86 runtime test package.
+2. Run its generated XWASM browser runner and verify PE staging/loading.
+3. Export a real 32-bit game with tool/xwasm_pack_x86.py and the same runtime.wasm.
+4. Only then continue expanding CPU instructions, DLL/API resolution, memory mapping, graphics, audio, input, and filesystem support.
+
+The v0.1 runtime is a bring-up foundation, not yet a complete Windows compatibility layer.
