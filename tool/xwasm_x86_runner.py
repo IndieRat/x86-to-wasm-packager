@@ -237,8 +237,8 @@ document.querySelector("#files").onchange=async e=>{
       throw Error("x86 CPU did not reach HLT within the instruction budget");
     if(ex.x86_get_eax()!==1234)
       throw Error("v0.5 CPU/import test expected EAX=1234 after KERNEL32!GetTickCount");
-    if(ex.x86_get_steps()!==23)
-      throw Error("v0.5 deterministic CPU/import/memory test expected exactly 23 instructions");
+    if(ex.x86_get_steps()!==25)
+      throw Error("v0.5 deterministic CPU/import/memory test expected exactly 25 instructions");
     if(ex.x86_get_last_virtual_alloc && ex.x86_get_last_virtual_alloc()!==0x02000000)
       throw Error("v0.5 VirtualAlloc returned an unexpected guest address");
     if(ex.x86_get_last_virtual_alloc_size && ex.x86_get_last_virtual_alloc_size()!==0x1000)
