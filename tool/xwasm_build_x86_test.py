@@ -80,7 +80,11 @@ def main() -> int:
         game.mkdir()
         (game / "Test.exe").write_bytes(make_test_pe())
 
-        runtime = out / "runtime.wasm"
+        # Build the runtime outside the package directory. On Windows, writing
+        # directly into `out` and then asking the packer to copy that same file
+        # can leave the source handle open long enough for CopyFile2 to fail
+        # with WinError 32. The packer should own the final package copy.
+        runtime = Path(td) / "runtime.wasm"
         build = root / "tool" / "xwasm_build_x86_runtime.py"
         cmd = ["python", str(build), "--output", str(runtime)]
         if args.clang:
