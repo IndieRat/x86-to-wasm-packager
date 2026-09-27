@@ -59,6 +59,7 @@ static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_coun
 static uint32_t import_resolved=0,import_failed=0;
 static uint32_t message_count=0,message_last=0,message_quit=0;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
+static uint32_t last_failed_import_dll=0,last_failed_import_func=0;
 
 static uint32_t rd32(uint32_t p);
 
@@ -349,7 +350,7 @@ static int image_rva_valid(uint32_t rva,uint32_t size){
  return rva<=image_size && size<=image_size-rva;
 }
 static void scan_imports(void){
- dll_count=0; import_count=0; import_resolved=0; import_failed=0; last_import_dll=0; last_import_func=0; last_import_thunk=0; last_import_target=0;
+ dll_count=0; import_count=0; import_resolved=0; import_failed=0; last_import_dll=0; last_import_func=0; last_import_thunk=0; last_import_target=0; last_failed_import_dll=0; last_failed_import_func=0;
  if(!import_rva||!import_size||!image_rva_valid(import_rva,20))return;
  uint32_t p=image_base+import_rva;
  uint32_t max=image_base+import_rva+import_size;
@@ -382,6 +383,8 @@ static void scan_imports(void){
     resolved_this_dll++;
    }else{
     import_failed++;
+    last_failed_import_dll=name_rva;
+    last_failed_import_func=v;
    }
   }
   (void)resolved_this_dll;
@@ -478,6 +481,8 @@ __attribute__((export_name("x86_get_last_import_dll_rva"))) uint32_t x86_get_las
 __attribute__((export_name("x86_get_last_import_func_rva"))) uint32_t x86_get_last_import_func_rva(void){return last_import_func;}
 __attribute__((export_name("x86_get_last_import_thunk_rva"))) uint32_t x86_get_last_import_thunk_rva(void){return last_import_thunk;}
 __attribute__((export_name("x86_get_last_import_target"))) uint32_t x86_get_last_import_target(void){return last_import_target;}
+__attribute__((export_name("x86_get_last_failed_import_dll_rva"))) uint32_t x86_get_last_failed_import_dll_rva(void){return last_failed_import_dll;}
+__attribute__((export_name("x86_get_last_failed_import_func_rva"))) uint32_t x86_get_last_failed_import_func_rva(void){return last_failed_import_func;}
 __attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
 __attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(void){return guest_heap;}
 __attribute__((export_name("x86_virtual_alloc"))) uint32_t x86_virtual_alloc(uint32_t size){uint32_t a=al4(guest_vm),end=a+al4(size);if(!size||end<a||end>guest_vm_limit)return 0;guest_vm=end;return a;}
