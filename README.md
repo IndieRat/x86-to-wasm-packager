@@ -117,3 +117,35 @@ window.X86Runtime.start({ payload, manifest, readResource })
 If a runtime uses another ABI, provide its matching bridge with `--bridge`.
 
 Important: a package containing a PE32 executable is not itself a browser-native WASM executable. The runtime must actually implement x86 execution/translation and the compatibility facilities required by the target game.
+
+## Built-in guest disk builder
+
+The packager can now create a raw `guest.hda` without requiring QEMU to be installed:
+
+```bash
+python3 tool/packager.py ./MyGame \
+  --output ./dist/MyGame \
+  --runtime-dir ./runtime \
+  --guest-auto \
+  --guest-size 2G
+```
+
+This creates a real raw `guest.hda` alongside the package files.
+
+`guest.hda` is initially **blank**. The builder intentionally does not bundle or install an operating system. A guest OS must be installed before v86 can boot it. v86 supports hard-disk images directly, including images supplied as buffers.
+
+You can also use the standalone builder:
+
+```bash
+python3 tool/guest_builder.py --output ./guest.hda --size 2G
+```
+
+Or copy an existing raw guest image:
+
+```bash
+python3 tool/guest_builder.py \
+  --output ./guest.hda \
+  --from-image ./existing.img
+```
+
+This removes the need to use `qemu-img` merely to create an empty disk. It does not turn a blank disk into a Windows installation, and it does not automatically install a game into the guest OS.
