@@ -96,8 +96,8 @@ def make_pe():
     struct.pack_into("<IIIII", b, base + 0x114, oft_rva + 0x14, 0, 0, gdi_dll, iat_rva + 0x10)
     struct.pack_into("<IIIII", b, base + 0x128, 0, 0, 0, 0, 0)
 
-    struct.pack_into("<IIII", b, base + 0x140, *names[:4], 0)
-    struct.pack_into("<III", b, base + 0x154, *names[4:], 0)
+    struct.pack_into("<IIIII", b, base + 0x140, *names[:4], 0)
+    struct.pack_into("<III", b, base + 0x154, *names[4], names[5], 0)
     struct.pack_into("<IIII", b, base + 0x160, *names[:4])
     struct.pack_into("<II", b, base + 0x170, names[4], names[5])
     struct.pack_into("<II", b, base + 0x178, 0, 0)
