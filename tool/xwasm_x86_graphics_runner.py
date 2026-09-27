@@ -7,14 +7,14 @@ import json
 
 HTML = r"""<!doctype html>
 <meta charset="utf-8">
-<title>XWASM X86 Runtime v0.6 — Graphics Test</title>
+<title>XWASM X86 Runtime v0.7 — Graphics Compatibility Test</title>
 <style>
 body{font-family:monospace;background:#111;color:#ddd}
 canvas{display:block;width:640px;height:360px;image-rendering:pixelated;border:1px solid #555;background:#101820}
 pre{white-space:pre-wrap}
 </style>
 <canvas id="gfx" width="640" height="360"></canvas>
-<pre id="log">XWASM X86 Runtime v0.6 — graphics test</pre>
+<pre id="log">XWASM X86 Runtime v0.7 — graphics compatibility test</pre>
 <input id="picker" type="file" webkitdirectory directory>
 <script>
 const log=document.getElementById("log");
@@ -45,7 +45,10 @@ picker.onchange=async e=>{
       xwasm_gfx_clear:(c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(0,0,canvas.width,canvas.height);},
       xwasm_gfx_pixel:(x,y,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(x,y,1,1);},
       xwasm_gfx_rect:(l,t,r,b,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(l,t,r-l,b-t);},
-      xwasm_gfx_present:()=>{}
+      xwasm_gfx_present:()=>{},
+      xwasm_input_poll:(ptr,remove)=>0,
+      xwasm_input_quit:()=>{},
+      xwasm_audio_beep:(frequency,duration)=>{}
     }};
     const {instance}=await WebAssembly.instantiate(await rt.arrayBuffer(),imports);
     const ex=instance.exports;
@@ -79,7 +82,7 @@ picker.onchange=async e=>{
     if(ex.x86_get_import_failed()!==0) throw Error("graphics fixture has unresolved imports");
 
     say("GRAPHICS PASS — x86 -> USER32/GDI32 -> browser Canvas");
-    say("READY — v0.6 graphics foundation reached.");
+    say("READY — v0.6 graphics foundation remains compatible under the v0.7 runtime.");
   }catch(err){say("ERROR: "+err.message);}
 };
 </script>"""
