@@ -105,6 +105,10 @@ def make_pe():
     ]
 
     base = SECTION_RAW
+    # Clear the complete import-descriptor region first. This keeps the
+    # required null descriptor deterministic even if the fixture layout is
+    # edited later.
+    b[base + 0x100:base + 0x150] = b"\0" * 0x50
     # USER32: CreateWindowExA, ShowWindow, GetDC, ReleaseDC, and five
     # message-loop functions.
     struct.pack_into("<IIIII", b, base + 0x100,
