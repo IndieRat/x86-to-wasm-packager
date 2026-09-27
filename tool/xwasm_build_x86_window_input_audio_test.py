@@ -55,18 +55,18 @@ def make_pe():
     for value in (280, 520, 80, 120):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1194))  # Rectangle
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11AC))  # Rectangle
     for value in (0x000000FF, 180, 320):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1190))  # SetPixel
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A8))  # SetPixel
     code.extend(b"\x53\x56")
     code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x118C))  # ReleaseDC
 
     # KERNEL32!Beep(660, 120): browser Web Audio proof.
     code.extend(b"\x68" + struct.pack("<I", 120))
     code.extend(b"\x68" + struct.pack("<I", 660))
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B0))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B4))
 
     # PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE).
     # The browser runner waits for a real key event before executing the PE.
@@ -74,13 +74,13 @@ def make_pe():
     for value in (1, 0, 0, 0):
         code.extend(b"\x6A" + struct.pack("<B", value))
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1198))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1190))
     code.extend(b"\x3D\x00\x00\x00\x00")
     code.extend(b"\x74\x0E")                 # no message -> skip translate/dispatch
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x119C))  # TranslateMessage
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1194))  # TranslateMessage
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A0))  # DispatchMessageA
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1198))  # DispatchMessageA
     code.extend(b"\xF4")
 
     b[SECTION_RAW:SECTION_RAW + len(code)] = code
