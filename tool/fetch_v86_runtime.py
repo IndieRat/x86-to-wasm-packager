@@ -36,7 +36,11 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", type=Path, default=Path("runtime-v86"))
     ap.add_argument("--no-guest-image", action="store_true",
-                    help="Do not download the FreeDOS guest test image.")
+                    help="Do not include any guest image.")
+    ap.add_argument("--guest-hda", type=Path,
+                    help="Copy an existing bootable disk image into the runtime bundle as guest.hda.")
+    ap.add_argument("--guest-hda-url",
+                    help="Download a bootable disk image from a direct URL and save it as guest.hda.")
     args = ap.parse_args()
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -73,7 +77,17 @@ def main() -> int:
         (out / name).write_bytes(get(url))
 
     guest_image = None
-    if not args.no_guest_image:
+    if args.guest_hda and args.guest_hda_url:
+        raise ValueError("Use either --guest-hda or --guest-hda-url, not both.")
+    if args.guest_hda:
+        if not args.guest_hda.is_file():
+            raise FileNotFoundError(f"Guest HDA not found: {args.guest_hda}")
+        (out / "guest.hda").write_bytes(args.guest_hda.read_bytes())
+        guest_image = "guest.hda"
+    elif args.guest_hda_url:
+        (out / "guest.hda").write_bytes(get(args.guest_hda_url))
+        guest_image = "guest.hda"
+    elif not args.no_guest_image:
         name, url = next(iter(GUEST_IMAGES.items()))
         (out / name).write_bytes(get(url))
         guest_image = name
@@ -117,8 +131,8 @@ def main() -> int:
         return e;
       })();
 
-    // A real guest disk takes precedence over the bundled FreeDOS smoke-test disk.
-    const image = p.manifest.guest_hda || p.manifest.test_image || p.manifest.hda || p.manifest.cdrom;
+    // A real guest disk is required for this v86 profile.
+    const image = p.manifest.guest_hda || p.manifest.hda || p.manifest.cdrom;
     if (!image) {
       throw new Error(
         "No guest disk image is supplied. The x86 runtime is loaded, but a PE payload " +
@@ -126,9 +140,7 @@ def main() -> int:
       );
     }
     if (p.manifest.guest_hda) {
-      console.log("[X86] Booting real guest disk:", p.manifest.guest_hda);
-    } else if (p.manifest.test_image) {
-      console.warn("[X86] Booting FreeDOS smoke-test guest; Isaac payload is NOT installed in this guest.");
+      console.log("[X86] Booting guest disk:", p.manifest.guest_hda);
     }
 
     const emulator = window.emulator = new V86({
@@ -167,16 +179,16 @@ def main() -> int:
         "release_tag": release.get("tag_name"),
         "release_name": release.get("name"),
         "files": ["runtime.wasm", "libv86.js", "seabios.bin", "vgabios.bin", "bridge.js"] + ([guest_image] if guest_image else []),
-        "test_image": guest_image,
-        "note": "The included FreeDOS image is a v86 runtime smoke-test guest. It is not a Windows environment for the packaged PE payload."
+        "guest_hda": guest_image,
+        "note": "Guest disk is optional. When present, it is booted as guest.hda; the packager does not create a Windows installation or install the PE payload into the guest."
     }, indent=2), encoding="utf-8")
 
     print("v86 runtime bundle created:", out)
     print("Files: runtime.wasm, libv86.js, seabios.bin, vgabios.bin, bridge.js")
     if guest_image:
-        print("Guest image:", guest_image)
+        print("Guest disk:", guest_image)
     else:
-        print("Guest image: disabled (--no-guest-image)")
+        print("Guest disk: none (supply --guest-hda or --guest-hda-url)")
     return 0
 
 
