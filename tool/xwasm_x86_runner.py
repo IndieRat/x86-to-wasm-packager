@@ -6,7 +6,7 @@ from pathlib import Path
 
 HTML = r'''<!doctype html>
 <meta charset="utf-8">
-<title>XWASM X86 Runtime v0.1</title>
+<title>XWASM X86 Runtime v0.2</title>
 <pre id="log">XWASM X86 Runtime v0.1
 Select the package directory.</pre>
 <input id="files" type="file" webkitdirectory multiple>
@@ -169,12 +169,36 @@ document.querySelector("#files").onchange=async e=>{
 
     say("PE32 payload loaded into guest memory.");
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
+
+    if(!ex.x86_run||!ex.x86_get_eax||!ex.x86_get_eflags||!ex.x86_get_halted)
+      throw Error("x86 v0.2 CPU execution exports are missing");
+
+    say("CPU: 32-bit fetch/decode/execute core");
+    say("Executing deterministic PE entrypoint (budget: 16 instructions)...");
+    const runResult=ex.x86_run(16);
+    say("CPU run result: "+runResult);
+    say("Instructions executed: "+ex.x86_get_steps());
+    say("EIP after execution: 0x"+ex.x86_get_eip().toString(16));
+    say("EAX: 0x"+ex.x86_get_eax().toString(16).padStart(8,"0"));
+    say("EFLAGS: 0x"+ex.x86_get_eflags().toString(16).padStart(8,"0"));
+    say("CPU halted: "+ex.x86_get_halted());
+
+    if(runResult<0)
+      throw Error("x86 CPU execution failed; opcode/error=0x"+(ex.x86_get_cpu_error?ex.x86_get_cpu_error():0).toString(16));
+    if(!ex.x86_get_halted())
+      throw Error("x86 CPU did not reach HLT within the instruction budget");
+    if(ex.x86_get_eax()!==0)
+      throw Error("deterministic CPU test expected EAX=0 after XOR EAX,EAX");
+    if(ex.x86_get_steps()!==3)
+      throw Error("deterministic CPU test expected exactly 3 instructions");
+
+    say("CPU test: NOP -> XOR EAX,EAX -> HLT = PASS");
     say("DLL inventory:");
 
     for(const d of (manifest.bundled_dlls||[]))
       say("  "+d);
 
-    say("READY — v0.1 loader foundation reached.");
+    say("READY — v0.2 x86 execution foundation reached.");
   }catch(err){
     say("ERROR: "+err.message);
   }
