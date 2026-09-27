@@ -30,7 +30,7 @@ static uint32_t halted=0,cpu_error=0;
 
 static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t import_resolved=0,import_failed=0;
-static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0;
+static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 
 static uint32_t cstrlen(uint32_t p){
  uint32_t n=0; while(n<0x10000u && MEM8(p+n))n++; return n;
@@ -220,7 +220,7 @@ static int image_rva_valid(uint32_t rva,uint32_t size){
  return rva<=image_size && size<=image_size-rva;
 }
 static void scan_imports(void){
- dll_count=0; import_count=0; import_resolved=0; import_failed=0;
+ dll_count=0; import_count=0; import_resolved=0; import_failed=0; last_import_dll=0; last_import_func=0; last_import_thunk=0; last_import_target=0;
  if(!import_rva||!import_size||!image_rva_valid(import_rva,20))return;
  uint32_t p=image_base+import_rva;
  uint32_t max=image_base+import_rva+import_size;
@@ -249,6 +249,7 @@ static void scan_imports(void){
     last_import_dll=name_rva;
     last_import_func=v;
     last_import_thunk=ft+i*4u;
+    last_import_target=target;
     resolved_this_dll++;
    }else{
     import_failed++;
@@ -345,6 +346,7 @@ __attribute__((export_name("x86_get_import_failed"))) uint32_t x86_get_import_fa
 __attribute__((export_name("x86_get_last_import_dll_rva"))) uint32_t x86_get_last_import_dll_rva(void){return last_import_dll;}
 __attribute__((export_name("x86_get_last_import_func_rva"))) uint32_t x86_get_last_import_func_rva(void){return last_import_func;}
 __attribute__((export_name("x86_get_last_import_thunk_rva"))) uint32_t x86_get_last_import_thunk_rva(void){return last_import_thunk;}
+__attribute__((export_name("x86_get_last_import_target"))) uint32_t x86_get_last_import_target(void){return last_import_target;}
 __attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
 __attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(void){return guest_heap;}
 __attribute__((export_name("x86_get_loaded"))) uint32_t x86_get_loaded(void){return loaded;}
