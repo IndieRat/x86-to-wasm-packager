@@ -102,7 +102,7 @@ def read_name(data: bytes, pos: int) -> tuple[str, int]:
 
 
 def custom_sections(wasm: bytes, wanted: str | None = None) -> list[bytes]:
-    if wasm[:4] != b"\\x00asm":
+    if wasm[:4] != b"\x00asm":
         raise ValueError("not a WebAssembly binary")
     if len(wasm) < 8:
         raise ValueError("truncated WebAssembly header")
