@@ -33,8 +33,27 @@ def validate_manifest(manifest: dict) -> list[str]:
         errors.append(f"unsupported format_version: {manifest.get('format_version')!r}")
     if not isinstance(manifest.get("name"), str) or not manifest["name"]:
         errors.append("name must be a non-empty string")
-    if not isinstance(manifest.get("module"), str) or not manifest["module"]:
-        errors.append("module must be a non-empty string")
+
+    architecture = manifest.get("architecture")
+    if architecture not in {"wasm32", "x86"}:
+        errors.append("architecture must be 'wasm32' or 'x86'")
+
+    if architecture == "wasm32":
+        if not isinstance(manifest.get("module"), str) or not manifest["module"]:
+            errors.append("module must be a non-empty string for wasm32 packages")
+    elif architecture == "x86":
+        payload = manifest.get("payload")
+        if not isinstance(payload, str) or not payload:
+            errors.append("payload must be a non-empty string for x86 packages")
+        if manifest.get("payload_format") not in {None, "PE32"}:
+            errors.append("x86 payload_format must be PE32 or null")
+        if manifest.get("payload_architecture") not in {None, "i386"}:
+            errors.append("x86 payload_architecture must be i386 or null")
+
+        runtime = manifest.get("runtime")
+        if runtime is not None and not isinstance(runtime, str):
+            errors.append("runtime must be a string or null for x86 packages")
+
     if not isinstance(manifest.get("resource_root"), str):
         errors.append("resource_root must be a string")
     if manifest.get("abi") != ABI:
