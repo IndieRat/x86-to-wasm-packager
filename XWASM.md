@@ -188,7 +188,7 @@ The x86 runtime now extends the v0.4 import/memory seed with a small virtual-mem
 - page-aligned guest virtual-memory allocation from a dedicated arena at 0x02000000..0x06000000;
 - deterministic allocation diagnostics including last allocation address/size and free-call count;
 - a synthetic PE32 test that imports XWASMHOST!xwasm_log, KERNEL32!VirtualAlloc, KERNEL32!VirtualFree, and KERNEL32!GetTickCount;
-- the browser runner verifies the allocation, release call, final GetTickCount result, and 23-instruction execution path.
+- the browser runner verifies the allocation, release call, final GetTickCount result, and 25-instruction execution path.
 
 This is intentionally a compatibility seed, not a complete Windows virtual-memory implementation. Real Windows VirtualAlloc/VirtualFree support includes page state, reservation/commit semantics, protection flags, and additional failure conditions; the runtime currently models the subset needed to establish the guest memory ABI and execution path. Microsoft documents VirtualAlloc as reserving/committing pages and VirtualFree as releasing or decommitting regions.
 
@@ -208,7 +208,7 @@ The v0.6 seed resolves:
 
 The browser host exposes a Canvas 2D surface. CreateWindowExA creates the runtime's logical window surface, ShowWindow/GetDC provide compatible handles, and selected GDI calls are translated into Canvas drawing operations. The deterministic fixture draws a rectangle and a pixel through the x86 -> USER32/GDI32 -> browser path.
 
-Microsoft documents CreateWindowEx/ShowWindow as the normal Win32 window creation/showing path and GDI Rectangle/SetPixel as drawing APIs. citeturn2search0turn2search2turn1search0turn0search0
+Microsoft documents CreateWindowEx/ShowWindow as the normal Win32 window creation/showing path and GDI Rectangle/SetPixel as drawing APIs.
 
 This milestone deliberately does not claim complete Windows window management, message dispatch, painting, device contexts, brushes, pens, DirectX/OpenGL, or compositor behavior. Those will be added only as the target game's actual imports and runtime behavior require them.
 
