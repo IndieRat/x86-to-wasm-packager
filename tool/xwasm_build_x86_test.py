@@ -55,18 +55,21 @@ def make_test_pe() -> bytes:
 
     sh = oh + 0xE0
     b[sh:sh + 8] = b".text\0\0\0"
-    b[sh + 8:sh + 12] = u32(4)
+    b[sh + 8:sh + 12] = u32(0x1000)
     b[sh + 12:sh + 16] = u32(0x1000)
     b[sh + 16:sh + 20] = u32(text_raw_size)
     b[sh + 20:sh + 24] = u32(headers)
 
     # Deterministic CPU program:
     #   MOV EAX,5
-    #   ADD EAX,3
-    #   CMP EAX,8
+    #   MOV EBX,0x00401800
+    #   MOV [EBX],EAX
+    #   MOV ECX,[EBX]
+    #   MOV EAX,ECX
+    #   CMP EAX,5
     #   JE  +5             ; skip the failing EBX assignment
     #   MOV EBX,0xDEADBEEF
-    #   CALL +5            ; call function at offset 0x20
+    #   CALL +0x21         ; call function at offset 0x40
     #   HLT
     #   padding
     # function:
@@ -74,12 +77,19 @@ def make_test_pe() -> bytes:
     #   RET
     code = bytes((
         0xB8, 0x05, 0x00, 0x00, 0x00,
-        0x05, 0x03, 0x00, 0x00, 0x00,
-        0x3D, 0x08, 0x00, 0x00, 0x00,
+        0xBB, 0x00, 0x18, 0x40, 0x00,
+        0x89, 0x03,
+        0x8B, 0x0B,
+        0x8B, 0xC1,
+        0x3D, 0x05, 0x00, 0x00, 0x00,
         0x74, 0x05,
         0xBB, 0xEF, 0xBE, 0xAD, 0xDE,
-        0xE8, 0x05, 0x00, 0x00, 0x00,
+        0xE8, 0x21, 0x00, 0x00, 0x00,
         0xF4,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
         0xB8, 0x2A, 0x00, 0x00, 0x00,
         0xC3,
@@ -149,7 +159,7 @@ def main() -> int:
         raise SystemExit("packaged synthetic payload is not MZ")
 
     print(f"Created deterministic XWASM x86 test package: {out}")
-    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK")
+    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK")
     return 0
 
 
