@@ -117,3 +117,28 @@ The first milestone is intentionally a native WASM package. Once that works, an 
 XWASM is not a new WebAssembly instruction set, browser standard, CPU architecture, or universal EXE converter.
 
 It is a project-specific packaging and host ABI convention that uses standard WebAssembly facilities.
+## Reference boot protocol
+
+The reference runner follows this sequence:
+
+1. Read `manifest.xwasm.json`.
+2. Require `format = xwasm-package` and `format_version = 1`.
+3. Require ABI `xwasm.host/1`.
+4. Load the declared module as bytes.
+5. Call `WebAssembly.validate()`.
+6. Compile the module.
+7. Inspect declared imports and exports.
+8. Provide the `xwasm.host` import namespace.
+9. Instantiate the module.
+10. Resolve the manifest lifecycle exports.
+11. Call init, one test tick, then shutdown.
+
+Generate a dummy package:
+
+    python3 tool/xwasm_reference_package.py --output ./dist/xwasm-reference.xwasm
+
+Generate a standalone browser runner for that package:
+
+    python3 tool/xwasm_reference_runner.py ./dist/xwasm-reference.xwasm --output ./dist/xwasm-reference.html
+
+The runner is intentionally a reference shell rather than a game runtime. Its purpose is to establish observable boot behavior that OWB can reproduce later.
