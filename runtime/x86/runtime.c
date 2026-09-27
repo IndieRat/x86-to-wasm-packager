@@ -254,6 +254,11 @@ uint32_t x86_get_current_opcode(void){
  if(!loaded)return 0xFFFFFFFFu;
  return (uint32_t)MEM8(eip);
 }
+__attribute__((export_name("x86_get_current_imm32")))
+uint32_t x86_get_current_imm32(void){
+ if(!loaded)return 0xFFFFFFFFu;
+ return rd32(eip+1u);
+}
 __attribute__((export_name("x86_get_requested_image_base"))) uint32_t x86_get_requested_image_base(void){return requested_image_base;}
 __attribute__((export_name("x86_get_image_base"))) uint32_t x86_get_image_base(void){return image_base;}
 __attribute__((export_name("x86_get_image_size"))) uint32_t x86_get_image_size(void){return image_size;}
