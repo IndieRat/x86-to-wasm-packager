@@ -31,7 +31,8 @@ static void loglit(const char*s){uint32_t p=heap;while(*s)wr8(p++,(uint8_t)*s++)
 static void loghex(const char*s,uint32_t v){uint32_t p=heap;while(*s)wr8(p++,(uint8_t)*s++);wr8(p++,'0');wr8(p++,'x');for(int i=7;i>=0;i--){uint8_t x=(v>>(i*4))&15u;wr8(p++,(uint8_t)(x<10?'0'+x:'A'+x-10));}xwasm_log(1,(int32_t)heap,(int32_t)(p-heap));heap=al4(p+1);}
 
 static void set_logic_flags(uint32_t v){
- eflags=(eflags&~(CF|PF|ZF|SF|OF))|(v==0?ZF:0)|((v&0x80000000u)?SF:0);
+ uint32_t p=v; p^=p>>4; p^=p>>2; p^=p>>1;
+ eflags=(eflags&~(CF|PF|ZF|SF|OF))|((p&1u)==0?PF:0)|(v==0?ZF:0)|((v&0x80000000u)?SF:0);
 }
 static void set_add_flags(uint32_t a,uint32_t b,uint32_t r){
  uint32_t f=eflags&~(CF|PF|ZF|SF|OF);
@@ -63,12 +64,6 @@ static int cond(uint8_t op){
   case 0x7F:return (eflags&ZF)==0&&(((eflags&SF)!=0)==((eflags&OF)!=0)); /* JG */
   default:return 0;
  }
-}
-static uint32_t parity_even(uint8_t v){
- uint32_t p=v; p^=p>>4; p^=p>>2; p^=p>>1; return (p&1u)==0;
-}
-static void set_logic_flags(uint32_t v){
- eflags=(eflags&~(CF|PF|ZF|SF|OF))|(parity_even((uint8_t)v)?PF:0)|(v==0?ZF:0)|((v&0x80000000u)?SF:0);
 }
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea){
  uint8_t mod=m>>6,rm=m&7;
@@ -125,13 +120,23 @@ static int cpu_step(void){
    uint8_t m=MEM8(ip++); uint32_t ea=0; if(!modrm_ea(m,&ip,&ea)){cpu_error=0x8D;return -11;} regs[(m>>3)&7]=ea; eip=ip; return 0;
   }
   case 0x01: { /* ADD r/m32,r32 */
-   uint8_t m=MEM8(ip++); uint32_t a=modrm_read32(m,&ip),b=regs[(m>>3)&7],r=a+b; set_add_flags(a,b,r); modrm_write32(m,&ip,r); eip=ip; return 0;
+   uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7]; uint32_t a;
+   if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
+   uint32_t r=a+b; set_add_flags(a,b,r);
+   if((m>>6)==3)regs[m&7]=r; else wr32(ea,r);
+   eip=ip; return 0;
   }
   case 0x29: { /* SUB r/m32,r32 */
-   uint8_t m=MEM8(ip++); uint32_t a=modrm_read32(m,&ip),b=regs[(m>>3)&7],r=a-b; set_sub_flags(a,b,r); modrm_write32(m,&ip,r); eip=ip; return 0;
+   uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7]; uint32_t a;
+   if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
+   uint32_t r=a-b; set_sub_flags(a,b,r);
+   if((m>>6)==3)regs[m&7]=r; else wr32(ea,r);
+   eip=ip; return 0;
   }
   case 0x39: { /* CMP r/m32,r32 */
-   uint8_t m=MEM8(ip++); uint32_t a=modrm_read32(m,&ip),b=regs[(m>>3)&7],r=a-b; set_sub_flags(a,b,r); eip=ip; return 0;
+   uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7],a;
+   if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
+   uint32_t r=a-b; set_sub_flags(a,b,r); eip=ip; return 0;
   }
   case 0x85: { /* TEST r/m32,r32 */
    uint8_t m=MEM8(ip++); uint32_t v=modrm_read32(m,&ip)&regs[(m>>3)&7]; set_logic_flags(v); eip=ip; return 0;
