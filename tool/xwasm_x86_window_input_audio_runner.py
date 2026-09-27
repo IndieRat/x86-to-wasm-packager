@@ -21,8 +21,7 @@ const log=document.getElementById("log");
 const canvas=document.getElementById("gfx");
 const gfx=canvas.getContext("2d");
 const runButton=document.getElementById("run");
-const say=s=>{log.textContent+="
-"+s;};
+const say=s=>{log.textContent+="\\n"+s;};
 const rgb=c=>"#"+(c&255).toString(16).padStart(2,"0")+((c>>>8)&255).toString(16).padStart(2,"0")+((c>>>16)&255).toString(16).padStart(2,"0");
 let memory=null;
 const inputQueue=[];
