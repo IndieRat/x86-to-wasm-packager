@@ -77,7 +77,7 @@ def main() -> int:
     payload = out / "resources" / "__x86__" / "payload.exe"
     payload.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(exe, payload)
-    count = copy_tree(game, resources, exe)
+    count = copy_tree(game, resources, exe)\n    bundled_dlls = [str(x.relative_to(game)).replace("\\\\","/") for x in sorted(game.rglob("*.dll")) if x.resolve() != exe.resolve()]
 
     runtime = args.runtime
     runtime_source = None
@@ -103,7 +103,7 @@ def main() -> int:
             "shutdown": "xwasm_shutdown",
         },
         "pe": info,
-        "resource_file_count": count,
+        "resource_file_count": count,\n        "bundled_dlls": bundled_dlls,
         "sha256": hashlib.sha256(exe.read_bytes()).hexdigest(),
         "execution_status": "requires_x86_runtime",
     }
