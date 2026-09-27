@@ -43,30 +43,30 @@ def make_pe():
 
     # CreateWindowExA(NULL x 12), then ShowWindow(hwnd, SW_SHOW).
     code.extend(b"\x6A\x00" * 12)
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1180))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A0))
     code.extend(b"\x89\xC6")                 # ESI = HWND
     code.extend(b"\x6A\x01\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1184))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A4))
 
     # GetDC(hwnd), then draw through the existing GDI bridge.
     code.extend(b"\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1188))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A8))
     code.extend(b"\x89\xC3")                 # EBX = HDC
     for value in (280, 520, 80, 120):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11AC))  # Rectangle
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11BC))  # Rectangle
     for value in (0x000000FF, 180, 320):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A8))  # SetPixel
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B8))  # SetPixel
     code.extend(b"\x53\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x118C))  # ReleaseDC
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x119C))  # ReleaseDC
 
     # KERNEL32!Beep(660, 120): browser Web Audio proof.
     code.extend(b"\x68" + struct.pack("<I", 120))
     code.extend(b"\x68" + struct.pack("<I", 660))
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B4))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11C4))
 
     # PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE).
     # The browser runner waits for a real key event before executing the PE.
@@ -74,13 +74,13 @@ def make_pe():
     for value in (1, 0, 0, 0):
         code.extend(b"\x6A" + struct.pack("<B", value))
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1190))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A0))
     code.extend(b"\x3D\x00\x00\x00\x00")
     code.extend(b"\x74\x0E")                 # no message -> skip translate/dispatch
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1194))  # TranslateMessage
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A4))  # TranslateMessage
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1198))  # DispatchMessageA
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A8))  # DispatchMessageA
     code.extend(b"\xF4")
 
     b[SECTION_RAW:SECTION_RAW + len(code)] = code
