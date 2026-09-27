@@ -43,14 +43,14 @@ def make_pe():
 
     # CreateWindowExA(NULL x 12), then ShowWindow(hwnd, SW_SHOW).
     code.extend(b"\x6A\x00" * 12)
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A0))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1190))
     code.extend(b"\x89\xC6")                 # ESI = HWND
     code.extend(b"\x6A\x01\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A4))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1194))
 
     # GetDC(hwnd), then draw through the existing GDI bridge.
     code.extend(b"\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A8))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1198))
     code.extend(b"\x89\xC3")                 # EBX = HDC
     for value in (280, 520, 80, 120):
         code.extend(b"\x68" + struct.pack("<I", value))
