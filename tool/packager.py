@@ -9,6 +9,8 @@ import sys
 import urllib.request
 from pathlib import Path
 
+from guest_builder import build_guest
+
 I386 = 0x014C
 
 
@@ -317,7 +319,8 @@ def package(game: Path, out: Path, exe_name: str | None,
             runtime: Path | None, bridge: Path | None,
             runtime_dir: Path | None, name: str | None,
             guest_hda: Path | None = None, guest_hdb: Path | None = None,
-            guest_hda_url: str | None = None) -> dict:
+            guest_hda_url: str | None = None, guest_auto: bool = False,
+            guest_size: str = "2G") -> dict:
     game = game.resolve()
     out = out.resolve()
     if not game.is_dir():
@@ -344,8 +347,8 @@ def package(game: Path, out: Path, exe_name: str | None,
     # a Windows guest; it only carries an existing guest image into the package.
     guest_hda_name = None
     guest_hdb_name = None
-    if guest_hda and guest_hda_url:
-        raise ValueError("Use either --guest-hda or --guest-hda-url, not both.")
+    if sum(bool(x) for x in (guest_hda, guest_hda_url, guest_auto)) > 1:
+        raise ValueError("Use only one of --guest-hda, --guest-hda-url, or --guest-auto.")
     if guest_hda_url:
         (out / "guest.hda").write_bytes(download_bytes(guest_hda_url))
         guest_hda_name = "guest.hda"
@@ -359,6 +362,9 @@ def package(game: Path, out: Path, exe_name: str | None,
             raise FileNotFoundError(f"Guest HDB not found: {guest_hdb}")
         shutil.copy2(guest_hdb, out / "guest.hdb")
         guest_hdb_name = "guest.hdb"
+    if guest_auto:
+        build_guest(out / "guest.hda", guest_size, None)
+        guest_hda_name = "guest.hda"
 
     write_loader(out)
     manifest = build_manifest(
@@ -369,6 +375,8 @@ def package(game: Path, out: Path, exe_name: str | None,
     manifest["runtime_files"] = runtime_files
     if guest_hda_name:
         manifest["guest_hda"] = guest_hda_name
+        manifest["guest_hda_type"] = "blank-raw-image" if guest_auto else "provided"
+        manifest["guest_requires_os_install"] = True
     if guest_hdb_name:
         manifest["guest_hdb"] = guest_hdb_name
     write_manifest(out, manifest)
@@ -445,6 +453,10 @@ def main() -> int:
                     help="Optional existing second guest disk image to carry as guest.hdb.")
     ap.add_argument("--guest-hda-url",
                     help="Download a bootable guest disk from a direct URL and package it as guest.hda.")
+    ap.add_argument("--guest-auto", action="store_true",
+                    help="Create a blank raw guest.hda automatically; no QEMU required.")
+    ap.add_argument("--guest-size", default="2G",
+                    help="Size for --guest-auto, e.g. 256M, 1G, 2G (default: 2G).")
     ap.add_argument("--update-port", type=Path,
                     help="Update an existing port folder in place with runtime files.")
 
@@ -472,12 +484,16 @@ def main() -> int:
                 args.name,
                 args.guest_hda,
                 args.guest_hdb,
-                args.guest_hda_url
+                args.guest_hda_url,
+                args.guest_auto,
+                args.guest_size
             )
             print(f"Package: {args.output}")
 
         print(f"Runtime: {m.get('runtime') or 'none'}")
         print(f"Bridge: {m.get('bridge') or 'none'}")
+        if m.get("guest_hda_type") == "blank-raw-image":
+            print("Guest: blank guest.hda created; install a guest OS before it can boot.")
         print("Note: the runtime must actually execute/translate x86; the packager does not generate an emulator.")
         return 0
 
