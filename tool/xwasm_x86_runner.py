@@ -6,8 +6,8 @@ from pathlib import Path
 
 HTML = r'''<!doctype html>
 <meta charset="utf-8">
-<title>XWASM X86 Runtime v0.2</title>
-<pre id="log">XWASM X86 Runtime v0.1
+<title>XWASM X86 Runtime v0.3</title>
+<pre id="log">XWASM X86 Runtime v0.3
 Select the package directory.</pre>
 <input id="files" type="file" webkitdirectory multiple>
 <script>
@@ -151,7 +151,8 @@ document.querySelector("#files").onchange=async e=>{
         11:"SizeOfHeaders exceeds payload size",
         12:"section table extends outside the payload",
         13:"section destination exceeds guest image limit",
-        14:"section raw data extends outside the payload"
+        14:"section raw data extends outside the payload",
+        15:"entry point RVA is outside the mapped image"
       };
 
       say("ERROR: x86_load_pe failed: "+loadResult);
@@ -168,14 +169,22 @@ document.querySelector("#files").onchange=async e=>{
     }
 
     say("PE32 payload loaded into guest memory.");
+    if(ex.x86_get_requested_image_base) say("Requested image base: 0x"+ex.x86_get_requested_image_base().toString(16));
+    if(ex.x86_get_image_base) say("Mapped image base: 0x"+ex.x86_get_image_base().toString(16));
+    if(ex.x86_get_image_size) say("Mapped image size: 0x"+ex.x86_get_image_size().toString(16));
+    if(ex.x86_get_relocation_rva) say("Relocation directory: RVA=0x"+ex.x86_get_relocation_rva().toString(16)+" size=0x"+(ex.x86_get_relocation_size?ex.x86_get_relocation_size():0).toString(16));
+    if(ex.x86_get_relocation_needed) say("Relocation required: "+ex.x86_get_relocation_needed());
+    if(ex.x86_get_import_rva) say("Import directory: RVA=0x"+ex.x86_get_import_rva().toString(16)+" size=0x"+(ex.x86_get_import_size?ex.x86_get_import_size():0).toString(16));
+    if(ex.x86_get_dll_count) say("PE import DLLs: "+ex.x86_get_dll_count());
+    if(ex.x86_get_import_count) say("PE imported symbols: "+ex.x86_get_import_count());
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
 
     if(!ex.x86_run||!ex.x86_get_eax||!ex.x86_get_eflags||!ex.x86_get_halted)
       throw Error("x86 v0.2 CPU execution exports are missing");
 
-    say("CPU: 32-bit fetch/decode/execute core");
-    say("Executing deterministic PE entrypoint (budget: 16 instructions)...");
-    const runResult=ex.x86_run(16);
+    say("CPU: 32-bit fetch/decode/execute core + ModRM addressing");
+    say("Executing deterministic PE entrypoint (budget: 32 instructions)...");
+    const runResult=ex.x86_run(32);
     say("CPU run result: "+runResult);
     say("Instructions executed: "+ex.x86_get_steps());
     say("EIP after execution: 0x"+ex.x86_get_eip().toString(16));
@@ -189,16 +198,16 @@ document.querySelector("#files").onchange=async e=>{
       throw Error("x86 CPU did not reach HLT within the instruction budget");
     if(ex.x86_get_eax()!==42)
       throw Error("deterministic CPU test expected EAX=42 after the CALL/RET test");
-    if(ex.x86_get_steps()!==8)
-      throw Error("deterministic CPU test expected exactly 8 instructions");
+    if(ex.x86_get_steps()!==11)
+      throw Error("deterministic CPU test expected exactly 11 instructions");
 
-    say("CPU test: MOV -> ADD -> CMP -> JE -> CALL -> MOV -> RET -> HLT = PASS");
+    say("CPU test: MOV/ModRM memory -> CMP/JE -> CALL/RET -> HLT = PASS");
     say("DLL inventory:");
 
     for(const d of (manifest.bundled_dlls||[]))
       say("  "+d);
 
-    say("READY — v0.2 x86 execution foundation reached.");
+    say("READY — v0.3 PE compatibility + ModRM execution foundation reached.");
   }catch(err){
     say("ERROR: "+err.message);
   }
