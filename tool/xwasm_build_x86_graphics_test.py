@@ -85,7 +85,7 @@ def make_pe():
     iat_rva = 0x1160
     user_dll = 0x1180
     gdi_dll = 0x1190
-    names = [0x11A0, 0x11B0, 0x11C0, 0x11D0, 0x11E0, 0x11F0]
+    # Keep every IMAGE_IMPORT_BY_NAME record far enough apart for the\n    # two-byte hint plus the complete function name and NUL terminator.\n    # CreateWindowExA is 16 bytes including NUL, so the old 0x10 spacing\n    # overlapped its final bytes with the next record.\n    names = [0x11A0, 0x11C0, 0x11E0, 0x1200, 0x1220, 0x1240]
     funcs = [
         b"CreateWindowExA\0", b"ShowWindow\0", b"GetDC\0",
         b"ReleaseDC\0", b"SetPixel\0", b"Rectangle\0"
