@@ -86,15 +86,15 @@ def make_pe():
     b[SECTION_RAW:SECTION_RAW + len(code)] = code
 
     import_rva = 0x1100
-    user_oft_rva = 0x1140
-    gdi_oft_rva = 0x1168
-    kernel_oft_rva = 0x1174
-    user_iat_rva = 0x1180
-    gdi_iat_rva = 0x11A8
-    kernel_iat_rva = 0x11B4
-    user_dll = 0x11C0
-    gdi_dll = 0x11D0
-    kernel_dll = 0x11E0
+    user_oft_rva = 0x1150
+    gdi_oft_rva = 0x1178
+    kernel_oft_rva = 0x1184
+    user_iat_rva = 0x1190
+    gdi_iat_rva = 0x11B8
+    kernel_iat_rva = 0x11C4
+    user_dll = 0x11D0
+    gdi_dll = 0x11E0
+    kernel_dll = 0x11F0
     names = [0x1200 + i * 0x20 for i in range(12)]
     funcs = [
         b"CreateWindowExA\0", b"ShowWindow\0", b"GetDC\0", b"ReleaseDC\0",
