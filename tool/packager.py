@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import sys
+import urllib.request
 from pathlib import Path
 
 I386 = 0x014C
@@ -43,6 +44,12 @@ def pe32_info(path: Path) -> dict:
             "raw_size": int.from_bytes(data[off + 16:off + 20], "little"),
         })
     return {"file_size": len(data), "entry_point": entry, "sections": sections}
+
+
+def download_bytes(url: str) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": "x86-to-wasm-packager/1.0"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        return r.read()
 
 
 def sha256(path: Path) -> str:
@@ -309,7 +316,8 @@ def write_manifest(out: Path, manifest: dict) -> None:
 def package(game: Path, out: Path, exe_name: str | None,
             runtime: Path | None, bridge: Path | None,
             runtime_dir: Path | None, name: str | None,
-            guest_hda: Path | None = None, guest_hdb: Path | None = None) -> dict:
+            guest_hda: Path | None = None, guest_hdb: Path | None = None,
+            guest_hda_url: str | None = None) -> dict:
     game = game.resolve()
     out = out.resolve()
     if not game.is_dir():
@@ -336,6 +344,11 @@ def package(game: Path, out: Path, exe_name: str | None,
     # a Windows guest; it only carries an existing guest image into the package.
     guest_hda_name = None
     guest_hdb_name = None
+    if guest_hda and guest_hda_url:
+        raise ValueError("Use either --guest-hda or --guest-hda-url, not both.")
+    if guest_hda_url:
+        (out / "guest.hda").write_bytes(download_bytes(guest_hda_url))
+        guest_hda_name = "guest.hda"
     if guest_hda:
         if not guest_hda.is_file():
             raise FileNotFoundError(f"Guest HDA not found: {guest_hda}")
@@ -430,6 +443,8 @@ def main() -> int:
                     help="Optional existing bootable guest disk image to carry as guest.hda.")
     ap.add_argument("--guest-hdb", type=Path,
                     help="Optional existing second guest disk image to carry as guest.hdb.")
+    ap.add_argument("--guest-hda-url",
+                    help="Download a bootable guest disk from a direct URL and package it as guest.hda.")
     ap.add_argument("--update-port", type=Path,
                     help="Update an existing port folder in place with runtime files.")
 
@@ -456,7 +471,8 @@ def main() -> int:
                 args.runtime_dir,
                 args.name,
                 args.guest_hda,
-                args.guest_hdb
+                args.guest_hdb,
+                args.guest_hda_url
             )
             print(f"Package: {args.output}")
 
