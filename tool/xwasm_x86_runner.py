@@ -54,7 +54,12 @@ document.querySelector("#files").onchange=async e=>{
     if(dv.getUint16(0,true)!==0x5a4d) throw Error("payload is not MZ");
     const pe=dv.getUint32(0x3c,true);
     if(dv.getUint32(pe,true)!==0x4550) throw Error("payload is not PE");
-    const stage=0x02000000;\n    new Uint8Array(mem.buffer,stage,buf.length).set(buf);\n    const loadResult=ex.x86_load_pe(stage,buf.length);\n    if(loadResult!==0) throw Error("x86_load_pe failed: "+loadResult);\n    say("PE32 payload loaded into guest memory.");\n    say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
+    const stage=0x02000000;
+    new Uint8Array(mem.buffer,stage,buf.length).set(buf);
+    const loadResult=ex.x86_load_pe(stage,buf.length);
+    if(loadResult!==0) throw Error("x86_load_pe failed: "+loadResult);
+    say("PE32 payload loaded into guest memory.");
+    say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
     say("DLL inventory:");
     for(const d of (manifest.bundled_dlls||[])) say("  "+d);
     say("READY — v0.1 loader foundation reached.");
