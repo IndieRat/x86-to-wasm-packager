@@ -6,8 +6,8 @@ from pathlib import Path
 
 HTML = r'''<!doctype html>
 <meta charset="utf-8">
-<title>XWASM X86 Runtime v0.3</title>
-<pre id="log">XWASM X86 Runtime v0.3
+<title>XWASM X86 Runtime v0.4</title>
+<pre id="log">XWASM X86 Runtime v0.4
 Select the package directory.</pre>
 <input id="files" type="file" webkitdirectory multiple>
 <script>
@@ -177,6 +177,19 @@ document.querySelector("#files").onchange=async e=>{
     if(ex.x86_get_import_rva) say("Import directory: RVA=0x"+ex.x86_get_import_rva().toString(16)+" size=0x"+(ex.x86_get_import_size?ex.x86_get_import_size():0).toString(16));
     if(ex.x86_get_dll_count) say("PE import DLLs: "+ex.x86_get_dll_count());
     if(ex.x86_get_import_count) say("PE imported symbols: "+ex.x86_get_import_count());
+    if(ex.x86_get_import_resolved) say("Resolved imports: "+ex.x86_get_import_resolved());
+    if(ex.x86_get_import_failed) say("Unresolved imports: "+ex.x86_get_import_failed());
+    if(ex.x86_get_last_import_target) say("Last resolved API: 0x"+ex.x86_get_last_import_target().toString(16));
+    if(ex.x86_alloc){
+      const probeAlloc=ex.x86_alloc(64);
+      say("Guest allocation probe: 64 bytes at 0x"+probeAlloc.toString(16));
+      if(probeAlloc<0x00800000||probeAlloc>=0x01F00000)
+        throw Error("guest memory allocator returned an address outside its v0.4 arena");
+    }
+    if(ex.x86_get_import_resolved && ex.x86_get_import_resolved()!==1)
+      throw Error("v0.4 import test expected exactly one resolved builtin import");
+    if(ex.x86_get_import_failed && ex.x86_get_import_failed()!==0)
+      throw Error("v0.4 import test expected zero unresolved imports");
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
     const entryBytes=new Uint8Array(mem.buffer,ex.x86_get_eip(),8);
     say("Entry bytes: "+hex(entryBytes,8));
@@ -184,7 +197,7 @@ document.querySelector("#files").onchange=async e=>{
     if(!ex.x86_run||!ex.x86_get_eax||!ex.x86_get_eflags||!ex.x86_get_halted)
       throw Error("x86 v0.3 CPU execution exports are missing");
 
-    say("CPU: 32-bit fetch/decode/execute core + ModRM addressing");
+    say("CPU: 32-bit fetch/decode/execute core + ModRM addressing + imported CALL");
     say("Executing deterministic PE entrypoint (budget: 32 instructions)...");
     const runResult=ex.x86_run(32);
     say("CPU run result: "+runResult);
@@ -218,18 +231,18 @@ document.querySelector("#files").onchange=async e=>{
     }
     if(!ex.x86_get_halted())
       throw Error("x86 CPU did not reach HLT within the instruction budget");
-    if(ex.x86_get_eax()!==42)
-      throw Error("deterministic CPU test expected EAX=42 after the CALL/RET test");
-    if(ex.x86_get_steps()!==11)
-      throw Error("deterministic CPU test expected exactly 11 instructions");
+    if(ex.x86_get_eax()!==1234)
+      throw Error("v0.4 CPU/import test expected EAX=1234 after KERNEL32!GetTickCount");
+    if(ex.x86_get_steps()!==12)
+      throw Error("v0.4 deterministic CPU/import test expected exactly 12 instructions");
 
-    say("CPU test: MOV/ModRM memory -> CMP/JE -> CALL/RET -> HLT = PASS");
+    say("CPU/import test: MOV/ModRM -> CMP/JE -> CALL/RET -> imported CALL -> HLT = PASS");
     say("DLL inventory:");
 
     for(const d of (manifest.bundled_dlls||[]))
       say("  "+d);
 
-    say("READY — v0.3 PE compatibility + ModRM execution foundation reached.");
+    say("READY — v0.4 PE imports + guest memory foundation reached.");
   }catch(err){
     say("ERROR: "+err.message);
   }

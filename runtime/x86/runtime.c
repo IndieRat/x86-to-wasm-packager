@@ -1,4 +1,4 @@
-// XWASM X86 Runtime v0.2
+// XWASM X86 Runtime v0.4
 #include <stdint.h>
 
 extern void xwasm_log(int32_t level,int32_t ptr,int32_t len);
@@ -20,6 +20,43 @@ static uint32_t requested_image_base=0,reloc_rva=0,reloc_size=0,import_rva=0,imp
 static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last_load_ptr=0,last_load_size=0;
 static uint32_t regs[8],eflags=0x00000002u;
 static uint32_t halted=0,cpu_error=0;
+
+/* v0.4 guest memory/import foundation. The guest-visible address space is
+ * intentionally separate from the WASM allocator used for diagnostics. */
+#define GUEST_HEAP_BASE 0x00800000u
+#define GUEST_HEAP_LIMIT 0x01F00000u
+#define API_BASE 0x70000000u
+#define API_GETTICKCOUNT (API_BASE+0x00001000u)
+
+static uint32_t guest_heap=GUEST_HEAP_BASE;
+static uint32_t import_resolved=0,import_failed=0;
+static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
+
+static uint32_t cstrlen(uint32_t p){
+ uint32_t n=0; while(n<0x10000u && MEM8(p+n))n++; return n;
+}
+static int streq_ascii(uint32_t p,const char*s){
+ uint32_t i=0; while(s[i]){if(MEM8(p+i)!=(uint8_t)s[i])return 0;i++;}
+ return MEM8(p+i)==0;
+}
+static uint32_t guest_alloc_raw(uint32_t n){
+ if(!n)return 0;
+ uint32_t a=al4(guest_heap);
+ uint32_t end=a+al4(n);
+ if(end<a||end>GUEST_HEAP_LIMIT)return 0;
+ guest_heap=end; return a;
+}
+static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
+ /* First compatibility seed: enough structure to grow into real Win32 DLLs. */
+ if(streq_ascii(dll,"KERNEL32.dll")||streq_ascii(dll,"kernel32.dll")){
+  if(streq_ascii(name,"GetTickCount"))return API_GETTICKCOUNT;
+ }
+ return 0;
+}
+static uint32_t call_builtin(uint32_t target){
+ if(target==API_GETTICKCOUNT){regs[R_EAX]=1234u;return 1;}
+ return 0;
+}
 
 static uint16_t rd16(uint32_t p){return (uint16_t)MEM8(p)|((uint16_t)MEM8(p+1)<<8);}
 static uint32_t rd32(uint32_t p){return (uint32_t)MEM8(p)|((uint32_t)MEM8(p+1)<<8)|((uint32_t)MEM8(p+2)<<16)|((uint32_t)MEM8(p+3)<<24);}
@@ -160,6 +197,19 @@ static int cpu_step(void){
    regs[op-0x58]=rd32(regs[R_ESP]);regs[R_ESP]+=4;eip=ip;return 0;
   case 0x50:case 0x51:case 0x52:case 0x53:case 0x54:case 0x55:case 0x56:case 0x57:
    regs[R_ESP]-=4;wr32(regs[R_ESP],regs[op-0x50]);eip=ip;return 0;
+  case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
+   uint8_t m=MEM8(ip++);
+   uint8_t sub=(m>>3)&7;
+   if(sub!=2&&sub!=4){cpu_error=0xFF00u|sub;return -12;}
+   uint32_t target=modrm_read32(m,&ip);
+   uint32_t next=ip;
+   if(sub==2){
+    regs[R_ESP]-=4;wr32(regs[R_ESP],next);
+    if(call_builtin(target)){eip=next;regs[R_ESP]+=4;return 0;}
+    eip=target;return 0;
+   }
+   eip=target;return 0;
+  }
   case 0xC3:eip=rd32(regs[R_ESP]);regs[R_ESP]+=4;return 0; /* RET */
   case 0xE8:{int32_t d=(int32_t)rd32(ip);uint32_t next=ip+4;regs[R_ESP]-=4;wr32(regs[R_ESP],next);eip=next+(uint32_t)d;return 0;} /* CALL rel32 */
   default: cpu_error=op; return -10;
@@ -170,23 +220,45 @@ static int image_rva_valid(uint32_t rva,uint32_t size){
  return rva<=image_size && size<=image_size-rva;
 }
 static void scan_imports(void){
- dll_count=0; import_count=0;
+ dll_count=0; import_count=0; import_resolved=0; import_failed=0; last_import_dll=0; last_import_func=0; last_import_thunk=0; last_import_target=0;
  if(!import_rva||!import_size||!image_rva_valid(import_rva,20))return;
  uint32_t p=image_base+import_rva;
  uint32_t max=image_base+import_rva+import_size;
  for(uint32_t n=0;p+20u<=max;n++,p+=20u){
-  uint32_t oft=rd32(p),name=rd32(p+12),ft=rd32(p+16);
-  if(!oft&&!name&&!ft)break;
+  uint32_t oft=rd32(p),name_rva=rd32(p+12),ft=rd32(p+16);
+  if(!oft&&!name_rva&&!ft)break;
   dll_count++;
-  uint32_t thunk=oft?oft:ft;
-  if(!thunk||thunk>=image_size)continue;
-  uint32_t q=image_base+thunk;
-  for(uint32_t i=0;i<0x100000u && q+4u<=image_base+image_size;i++,q+=4u){
-   uint32_t v=rd32(q); if(!v)break;
+  if(!name_rva||name_rva>=image_size||!ft||ft>=image_size){import_failed++;continue;}
+  uint32_t thunk_rva=oft?oft:ft;
+  if(thunk_rva>=image_size){import_failed++;continue;}
+  uint32_t thunk=image_base+thunk_rva;
+  uint32_t iat=image_base+ft;
+  uint32_t dll=image_base+name_rva;
+  uint32_t resolved_this_dll=0;
+  for(uint32_t i=0;i<0x100000u;i++){
+   uint32_t v=rd32(thunk+i*4u);
+   if(!v)break;
+   if(v&0x80000000u){import_failed++;continue;} /* ordinal imports are a later milestone */
+   if(v+2u>=image_size){import_failed++;break;}
+   uint32_t name=image_base+v+2u;
    import_count++;
+   uint32_t target=resolve_builtin(dll,name);
+   if(target){
+    wr32(iat+i*4u,target);
+    import_resolved++;
+    last_import_dll=name_rva;
+    last_import_func=v;
+    last_import_thunk=ft+i*4u;
+    last_import_target=target;
+    resolved_this_dll++;
+   }else{
+    import_failed++;
+   }
   }
+  (void)resolved_this_dll;
  }
 }
+
 
 static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
@@ -217,7 +289,7 @@ static int load_pe(uint32_t f,uint32_t sz){
  }
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
- loaded=1;eip=image_base+entry;regs[R_ESP]=image_base+image_size-0x1000u;halted=0;cpu_error=0;steps=0;eflags=0x2;
+ loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;
  loghex("X86 requested image base=",requested_image_base);
  loghex("X86 mapped image base=",image_base);
  loghex("X86 entry=",eip);
@@ -225,10 +297,10 @@ static int load_pe(uint32_t f,uint32_t sz){
 }
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
- heap=al4((uint32_t)(uintptr_t)__heap_base);loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
- for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.3");loglit("PE32 mapping + imports/relocations diagnostics + x86 ModRM foundation");return 0;
+ heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
+ for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.4");loglit("PE32 mapping + DLL import resolution + guest memory foundation + x86 ModRM");return 0;
 }
-__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00030000u;}
+__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00040000u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
 __attribute__((export_name("x86_run"))) int x86_run(int32_t max_steps){
@@ -269,6 +341,14 @@ __attribute__((export_name("x86_get_import_size"))) uint32_t x86_get_import_size
 __attribute__((export_name("x86_get_relocation_needed"))) uint32_t x86_get_relocation_needed(void){return relocation_needed;}
 __attribute__((export_name("x86_get_dll_count"))) uint32_t x86_get_dll_count(void){return dll_count;}
 __attribute__((export_name("x86_get_import_count"))) uint32_t x86_get_import_count(void){return import_count;}
+__attribute__((export_name("x86_get_import_resolved"))) uint32_t x86_get_import_resolved(void){return import_resolved;}
+__attribute__((export_name("x86_get_import_failed"))) uint32_t x86_get_import_failed(void){return import_failed;}
+__attribute__((export_name("x86_get_last_import_dll_rva"))) uint32_t x86_get_last_import_dll_rva(void){return last_import_dll;}
+__attribute__((export_name("x86_get_last_import_func_rva"))) uint32_t x86_get_last_import_func_rva(void){return last_import_func;}
+__attribute__((export_name("x86_get_last_import_thunk_rva"))) uint32_t x86_get_last_import_thunk_rva(void){return last_import_thunk;}
+__attribute__((export_name("x86_get_last_import_target"))) uint32_t x86_get_last_import_target(void){return last_import_target;}
+__attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
+__attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(void){return guest_heap;}
 __attribute__((export_name("x86_get_loaded"))) uint32_t x86_get_loaded(void){return loaded;}
 __attribute__((export_name("x86_get_load_error"))) uint32_t x86_get_load_error(void){return load_error;}
 __attribute__((export_name("x86_get_load_ptr"))) uint32_t x86_get_load_ptr(void){return last_load_ptr;}
