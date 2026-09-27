@@ -178,7 +178,8 @@ document.querySelector("#files").onchange=async e=>{
     if(ex.x86_get_dll_count) say("PE import DLLs: "+ex.x86_get_dll_count());
     if(ex.x86_get_import_count) say("PE imported symbols: "+ex.x86_get_import_count());
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
-    const entryBytes=new Uint8Array(mem.buffer,ex.x86_get_eip(),8);\n    say("Entry bytes: "+hex(entryBytes,8));
+    const entryBytes=new Uint8Array(mem.buffer,ex.x86_get_eip(),8);
+    say("Entry bytes: "+hex(entryBytes,8));
 
     if(!ex.x86_run||!ex.x86_get_eax||!ex.x86_get_eflags||!ex.x86_get_halted)
       throw Error("x86 v0.3 CPU execution exports are missing");
@@ -197,11 +198,13 @@ document.querySelector("#files").onchange=async e=>{
 
     if(runResult<0){
       const opcode=ex.x86_get_current_opcode?(ex.x86_get_current_opcode()>>>0):0xFFFFFFFF;
+      const imm32=ex.x86_get_current_imm32?(ex.x86_get_current_imm32()>>>0):0xFFFFFFFF;
       const cpuError=ex.x86_get_cpu_error?(ex.x86_get_cpu_error()>>>0):0;
       console.error(
         "CPU FAILURE: "+
         "EIP=0x"+eip.toString(16).padStart(8,"0")+
         " opcode=0x"+opcode.toString(16).padStart(2,"0")+
+        " imm32=0x"+imm32.toString(16).padStart(8,"0")+
         " cpu_error=0x"+cpuError.toString(16).padStart(8,"0")
       );
       say(
