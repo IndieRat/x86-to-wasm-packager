@@ -249,6 +249,11 @@ __attribute__((export_name("x86_get_edi"))) uint32_t x86_get_edi(void){return re
 __attribute__((export_name("x86_get_eflags"))) uint32_t x86_get_eflags(void){return eflags;}
 __attribute__((export_name("x86_get_halted"))) uint32_t x86_get_halted(void){return halted;}
 __attribute__((export_name("x86_get_cpu_error"))) uint32_t x86_get_cpu_error(void){return cpu_error;}
+__attribute__((export_name("x86_get_current_opcode")))
+uint32_t x86_get_current_opcode(void){
+ if(!loaded)return 0xFFFFFFFFu;
+ return (uint32_t)MEM8(eip);
+}
 __attribute__((export_name("x86_get_requested_image_base"))) uint32_t x86_get_requested_image_base(void){return requested_image_base;}
 __attribute__((export_name("x86_get_image_base"))) uint32_t x86_get_image_base(void){return image_base;}
 __attribute__((export_name("x86_get_image_size"))) uint32_t x86_get_image_size(void){return image_size;}
