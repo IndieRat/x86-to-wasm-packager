@@ -73,7 +73,10 @@ def make_test_pe() -> bytes:
         0x74, 0x05,                                # JE skip next MOV
         0xBB, 0xEF, 0xBE, 0xAD, 0xDE,             # MOV EBX,0xDEADBEEF
         0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL target (patched below)
-        0xFF, 0x15, 0x40, 0x11, 0x40, 0x00,       # CALL [0x00401140] -> KERNEL32!GetTickCount
+        0xB9, 0x00, 0x10, 0x40, 0x00,             # MOV ECX, hello-string address (patched below)
+        0xBA, 0x0D, 0x00, 0x00, 0x00,             # MOV EDX, 13
+        0xFF, 0x15, 0x60, 0x11, 0x40, 0x00,       # CALL [0x00401160] -> XWASMHOST!xwasm_log
+        0xFF, 0x15, 0x64, 0x11, 0x40, 0x00,       # CALL [0x00401164] -> KERNEL32!GetTickCount
         0xF4,                                      # HLT
     ))
     call_instruction_file_offset = code.find(b"\xE8\x00\x00\x00\x00")
@@ -83,6 +86,14 @@ def make_test_pe() -> bytes:
     call_target_file_offset = len(code)
     code.extend((0xB8, 0x2A, 0x00, 0x00, 0x00,     # MOV EAX,42
                  0xC3))                             # RET
+
+    hello_string_file_offset = len(code)
+    code.extend(b"Hello, XWASM!")
+    hello_string_rva = 0x1000 + hello_string_file_offset
+    hello_mov = code.find(b"\xB9\x00\x10\x40\x00")
+    if hello_mov < 0:
+        raise AssertionError("hello-string MOV ECX placeholder is missing")
+    struct.pack_into("<I", code, hello_mov + 1, 0x00400000 + hello_string_rva)
 
     call_rel = call_target_file_offset - (call_instruction_file_offset + 5)
     code[call_instruction_file_offset] = 0xE8
@@ -106,20 +117,31 @@ def make_test_pe() -> bytes:
     # The runtime resolves this through its builtin Win32 seed table and
     # patches the IAT with an emulated API address.
     import_rva = 0x1100
-    oft_rva = 0x1120
-    iat_rva = 0x1140
-    dll_name_rva = 0x1160
-    hint_name_rva = 0x1170
-    struct.pack_into("<IIIII", b, headers + 0x100, oft_rva, 0, 0, dll_name_rva, iat_rva)
-    struct.pack_into("<IIIII", b, headers + 0x114, 0, 0, 0, 0, 0)
-    struct.pack_into("<II", b, headers + 0x120, hint_name_rva, 0)
-    struct.pack_into("<II", b, headers + 0x140, hint_name_rva, 0)
-    b[headers + 0x160:headers + 0x160 + len(b"KERNEL32.dll\0")] = b"KERNEL32.dll\0"
-    b[headers + 0x170:headers + 0x170 + 2] = b"\0\0"
-    b[headers + 0x172:headers + 0x172 + len(b"GetTickCount\0")] = b"GetTickCount\0"
+    oft_rva = 0x1140
+    iat_rva = 0x1160
+    dll1_rva = 0x1180
+    dll2_rva = 0x1190
+    name1_rva = 0x11A0
+    name2_rva = 0x11B0
+    # XWASMHOST.dll!xwasm_log
+    struct.pack_into("<IIIII", b, headers + 0x100, oft_rva, 0, 0, dll1_rva, iat_rva)
+    # KERNEL32.dll!GetTickCount
+    struct.pack_into("<IIIII", b, headers + 0x114, oft_rva + 8, 0, 0, dll2_rva, iat_rva + 4)
+    # Null import descriptor.
+    struct.pack_into("<IIIII", b, headers + 0x128, 0, 0, 0, 0, 0)
+    struct.pack_into("<II", b, headers + 0x140, name1_rva, 0)
+    struct.pack_into("<II", b, headers + 0x148, name2_rva, 0)
+    struct.pack_into("<II", b, headers + 0x160, name1_rva, 0)
+    struct.pack_into("<II", b, headers + 0x168, name2_rva, 0)
+    b[headers + 0x180:headers + 0x180 + len(b"XWASMHOST.dll\0")] = b"XWASMHOST.dll\0"
+    b[headers + 0x190:headers + 0x190 + len(b"KERNEL32.dll\0")] = b"KERNEL32.dll\0"
+    b[headers + 0x1A0:headers + 0x1A0 + 2] = b"\0\0"
+    b[headers + 0x1A2:headers + 0x1A2 + len(b"xwasm_log\0")] = b"xwasm_log\0"
+    b[headers + 0x1B0:headers + 0x1B0 + 2] = b"\0\0"
+    b[headers + 0x1B2:headers + 0x1B2 + len(b"GetTickCount\0")] = b"GetTickCount\0"
 
     # Import directory RVA/size.
-    struct.pack_into("<II", b, oh + 96 + 8, import_rva, 0x28)
+    struct.pack_into("<II", b, oh + 96 + 8, import_rva, 0x3C)
 
     b[headers:headers + len(code)] = code
 
@@ -218,7 +240,7 @@ def main() -> int:
         f"rel={decoded_rel:+d} target=0x{decoded_target:X} "
         f"opcode=0x{code[decoded_target]:02X}"
     )
-    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK imports=KERNEL32!GetTickCount")
+    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK imports=XWASMHOST!xwasm_log,KERNEL32!GetTickCount")
     return 0
 
 

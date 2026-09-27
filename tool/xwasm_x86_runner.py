@@ -186,8 +186,8 @@ document.querySelector("#files").onchange=async e=>{
       if(probeAlloc<0x00800000||probeAlloc>=0x01F00000)
         throw Error("guest memory allocator returned an address outside its v0.4 arena");
     }
-    if(ex.x86_get_import_resolved && ex.x86_get_import_resolved()!==1)
-      throw Error("v0.4 import test expected exactly one resolved builtin import");
+    if(ex.x86_get_import_resolved && ex.x86_get_import_resolved()!==2)
+      throw Error("v0.4 host-bridge test expected exactly two resolved builtin imports");
     if(ex.x86_get_import_failed && ex.x86_get_import_failed()!==0)
       throw Error("v0.4 import test expected zero unresolved imports");
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
@@ -233,10 +233,10 @@ document.querySelector("#files").onchange=async e=>{
       throw Error("x86 CPU did not reach HLT within the instruction budget");
     if(ex.x86_get_eax()!==1234)
       throw Error("v0.4 CPU/import test expected EAX=1234 after KERNEL32!GetTickCount");
-    if(ex.x86_get_steps()!==12)
-      throw Error("v0.4 deterministic CPU/import test expected exactly 12 instructions");
+    if(ex.x86_get_steps()!==15)
+      throw Error("v0.4 deterministic CPU/import/host-bridge test expected exactly 15 instructions");
 
-    say("CPU/import test: MOV/ModRM -> CMP/JE -> CALL/RET -> imported CALL -> HLT = PASS");
+    say("CPU/import/host bridge test: x86 -> XWASMHOST!xwasm_log -> browser output + KERNEL32!GetTickCount = PASS");
     say("DLL inventory:");
 
     for(const d of (manifest.bundled_dlls||[]))
