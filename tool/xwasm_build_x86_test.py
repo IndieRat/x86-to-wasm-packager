@@ -73,10 +73,21 @@ def make_test_pe() -> bytes:
         0x74, 0x05,                                # JE skip next MOV
         0xBB, 0xEF, 0xBE, 0xAD, 0xDE,             # MOV EBX,0xDEADBEEF
         0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL target (patched below)
-        0xB9, 0x00, 0x10, 0x40, 0x00,             # MOV ECX, hello-string address (patched below)
-        0xBA, 0x0D, 0x00, 0x00, 0x00,             # MOV EDX, 13
+        0x31, 0xC9,                                # XOR ECX,ECX (lpAddress=NULL)
+        0xBA, 0x00, 0x10, 0x00, 0x00,             # MOV EDX,0x1000 (one page)
+        0xBE, 0x00, 0x30, 0x00, 0x00,             # MOV ESI,MEM_COMMIT|MEM_RESERVE
+        0xBF, 0x04, 0x00, 0x00, 0x00,             # MOV EDI,PAGE_READWRITE
         0xFF, 0x15, 0x60, 0x11, 0x40, 0x00,       # CALL [0x00401160] -> XWASMHOST!xwasm_log
-        0xFF, 0x15, 0x64, 0x11, 0x40, 0x00,       # CALL [0x00401164] -> KERNEL32!GetTickCount
+        0xFF, 0x15, 0x68, 0x11, 0x40, 0x00,       # CALL [0x00401168] -> KERNEL32!VirtualAlloc
+        0x89, 0xC3,                                # MOV EBX,EAX (retain allocation)
+        0xB9, 0x00, 0x10, 0x40, 0x00,             # MOV ECX, hello-string address (patched below)
+        0xBA, 0x10, 0x00, 0x00, 0x00,             # MOV EDX, 16
+        0xFF, 0x15, 0x64, 0x11, 0x40, 0x00,       # CALL [0x00401164] -> XWASMHOST!xwasm_log
+        0x89, 0xD9,                                # MOV ECX,EBX (lpAddress)
+        0x31, 0xD2,                                # XOR EDX,EDX (dwSize=0 for MEM_RELEASE)
+        0xBE, 0x00, 0x80, 0x00, 0x00,             # MOV ESI,0x8000 (MEM_RELEASE)
+        0xFF, 0x15, 0x6C, 0x11, 0x40, 0x00,       # CALL [0x0040116C] -> KERNEL32!VirtualFree
+        0xFF, 0x15, 0x70, 0x11, 0x40, 0x00,       # CALL [0x00401170] -> KERNEL32!GetTickCount
         0xF4,                                      # HLT
     ))
     call_instruction_file_offset = code.find(b"\xE8\x00\x00\x00\x00")
@@ -88,7 +99,7 @@ def make_test_pe() -> bytes:
                  0xC3))                             # RET
 
     hello_string_file_offset = len(code)
-    code.extend(b"Hello, XWASM!")
+    code.extend(b"VirtualAlloc PASS!")
     hello_string_rva = 0x1000 + hello_string_file_offset
     hello_mov = code.find(b"\xB9\x00\x10\x40\x00")
     if hello_mov < 0:
@@ -123,22 +134,23 @@ def make_test_pe() -> bytes:
     dll2_rva = 0x1190
     name1_rva = 0x11A0
     name2_rva = 0x11B0
-    # XWASMHOST.dll!xwasm_log
+    # XWASMHOST.dll!xwasm_log, plus KERNEL32 memory/time APIs.
     struct.pack_into("<IIIII", b, headers + 0x100, oft_rva, 0, 0, dll1_rva, iat_rva)
-    # KERNEL32.dll!GetTickCount
     struct.pack_into("<IIIII", b, headers + 0x114, oft_rva + 8, 0, 0, dll2_rva, iat_rva + 4)
-    # Null import descriptor.
     struct.pack_into("<IIIII", b, headers + 0x128, 0, 0, 0, 0, 0)
     struct.pack_into("<II", b, headers + 0x140, name1_rva, 0)
     struct.pack_into("<II", b, headers + 0x148, name2_rva, 0)
-    struct.pack_into("<II", b, headers + 0x160, name1_rva, 0)
-    struct.pack_into("<II", b, headers + 0x168, name2_rva, 0)
+    struct.pack_into("<IIII", b, headers + 0x160, name1_rva, name2_rva, name2_rva, name2_rva)
     b[headers + 0x180:headers + 0x180 + len(b"XWASMHOST.dll\0")] = b"XWASMHOST.dll\0"
     b[headers + 0x190:headers + 0x190 + len(b"KERNEL32.dll\0")] = b"KERNEL32.dll\0"
     b[headers + 0x1A0:headers + 0x1A0 + 2] = b"\0\0"
     b[headers + 0x1A2:headers + 0x1A2 + len(b"xwasm_log\0")] = b"xwasm_log\0"
     b[headers + 0x1B0:headers + 0x1B0 + 2] = b"\0\0"
-    b[headers + 0x1B2:headers + 0x1B2 + len(b"GetTickCount\0")] = b"GetTickCount\0"
+    b[headers + 0x1B2:headers + 0x1B2 + len(b"VirtualAlloc\0")] = b"VirtualAlloc\0"
+    b[headers + 0x1C0:headers + 0x1C0 + 2] = b"\0\0"
+    b[headers + 0x1C2:headers + 0x1C2 + len(b"VirtualFree\0")] = b"VirtualFree\0"
+    b[headers + 0x1D0:headers + 0x1D0 + 2] = b"\0\0"
+    b[headers + 0x1D2:headers + 0x1D2 + len(b"GetTickCount\0")] = b"GetTickCount\0"
 
     # Import directory RVA/size.
     struct.pack_into("<II", b, oh + 96 + 8, import_rva, 0x3C)
@@ -240,7 +252,7 @@ def main() -> int:
         f"rel={decoded_rel:+d} target=0x{decoded_target:X} "
         f"opcode=0x{code[decoded_target]:02X}"
     )
-    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK imports=XWASMHOST!xwasm_log,KERNEL32!GetTickCount")
+    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK imports=XWASMHOST!xwasm_log,KERNEL32!VirtualAlloc/VirtualFree/GetTickCount")
     return 0
 
 
