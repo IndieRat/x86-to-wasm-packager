@@ -36,7 +36,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", type=Path, default=Path("runtime-v86"))
     ap.add_argument("--no-guest-image", action="store_true",
-                    help="Do not include any guest image.")
+                    help="Do not include any guest image (default behavior).")
+    ap.add_argument("--freedos-test", action="store_true",
+                    help="Explicitly include the legacy FreeDOS smoke-test image.")
     ap.add_argument("--guest-hda", type=Path,
                     help="Copy an existing bootable disk image into the runtime bundle as guest.hda.")
     ap.add_argument("--guest-hda-url",
@@ -87,15 +89,14 @@ def main() -> int:
     elif args.guest_hda_url:
         (out / "guest.hda").write_bytes(get(args.guest_hda_url))
         guest_image = "guest.hda"
-    elif not args.no_guest_image:
+    elif args.freedos_test and not args.no_guest_image:
         name, url = next(iter(GUEST_IMAGES.items()))
         (out / name).write_bytes(get(url))
         guest_image = name
 
-    bridge = r'''/* v86 profile-test bridge.
- * This is for testing the x86/WASM profile itself.
- * It boots a supplied guest disk using v86. The bundled FreeDOS image is only
- * a smoke test; a PE32 payload is not automatically installed into that guest.
+    bridge = r'''/* v86 profile bridge.
+ * It boots a supplied guest disk using v86.
+ * A PE32 payload is not automatically installed into the guest OS.
  */
 (function () {
   "use strict";
