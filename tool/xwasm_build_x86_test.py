@@ -60,8 +60,31 @@ def make_test_pe() -> bytes:
     b[sh + 16:sh + 20] = u32(text_raw_size)
     b[sh + 20:sh + 24] = u32(headers)
 
-    # NOP; XOR EAX,EAX; HLT
-    b[headers:headers + 4] = bytes((0x90, 0x31, 0xC0, 0xF4))
+    # Deterministic CPU program:
+    #   MOV EAX,5
+    #   ADD EAX,3
+    #   CMP EAX,8
+    #   JE  +5             ; skip the failing EBX assignment
+    #   MOV EBX,0xDEADBEEF
+    #   CALL +5            ; call function at offset 0x20
+    #   HLT
+    #   padding
+    # function:
+    #   MOV EAX,42
+    #   RET
+    code = bytes((
+        0xB8, 0x05, 0x00, 0x00, 0x00,
+        0x05, 0x03, 0x00, 0x00, 0x00,
+        0x3D, 0x08, 0x00, 0x00, 0x00,
+        0x74, 0x05,
+        0xBB, 0xEF, 0xBE, 0xAD, 0xDE,
+        0xE8, 0x05, 0x00, 0x00, 0x00,
+        0xF4,
+        0x00, 0x00, 0x00, 0x00,
+        0xB8, 0x2A, 0x00, 0x00, 0x00,
+        0xC3,
+    ))
+    b[headers:headers + len(code)] = code
 
     payload = bytes(b)
 
