@@ -16,7 +16,8 @@ enum { R_EAX=0,R_ECX,R_EDX,R_EBX,R_ESP,R_EBP,R_ESI,R_EDI };
 #define OF 0x00000800u
 
 static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,eip=0,steps=0,loaded=0;
-static uint32_t dll_count=0,import_count=0,load_error=0,last_load_ptr=0,last_load_size=0;
+static uint32_t requested_image_base=0,reloc_rva=0,reloc_size=0,import_rva=0,import_size=0;
+static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last_load_ptr=0,last_load_size=0;
 static uint32_t regs[8],eflags=0x00000002u;
 static uint32_t halted=0,cpu_error=0;
 
@@ -30,7 +31,8 @@ static void loglit(const char*s){uint32_t p=heap;while(*s)wr8(p++,(uint8_t)*s++)
 static void loghex(const char*s,uint32_t v){uint32_t p=heap;while(*s)wr8(p++,(uint8_t)*s++);wr8(p++,'0');wr8(p++,'x');for(int i=7;i>=0;i--){uint8_t x=(v>>(i*4))&15u;wr8(p++,(uint8_t)(x<10?'0'+x:'A'+x-10));}xwasm_log(1,(int32_t)heap,(int32_t)(p-heap));heap=al4(p+1);}
 
 static void set_logic_flags(uint32_t v){
- eflags=(eflags&~(CF|PF|ZF|SF|OF))|(v==0?ZF:0)|((v&0x80000000u)?SF:0);
+ uint32_t p=v; p^=p>>4; p^=p>>2; p^=p>>1;
+ eflags=(eflags&~(CF|PF|ZF|SF|OF))|((p&1u)==0?PF:0)|(v==0?ZF:0)|((v&0x80000000u)?SF:0);
 }
 static void set_add_flags(uint32_t a,uint32_t b,uint32_t r){
  uint32_t f=eflags&~(CF|PF|ZF|SF|OF);
@@ -63,7 +65,32 @@ static int cond(uint8_t op){
   default:return 0;
  }
 }
-static uint32_t reg_from_modrm(uint8_t m){return regs[(m>>3)&7];}
+static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea){
+ uint8_t mod=m>>6,rm=m&7;
+ if(mod==3)return 0;
+ uint32_t base=0,index=0,scale=1;
+ if(rm==4){
+  uint8_t sib=MEM8((*ip)++);
+  uint8_t ss=sib>>6,si=(sib>>3)&7,sb=sib&7;
+  scale=1u<<ss;
+  if(si!=4)index=regs[si]*scale;
+  if(sb==5&&mod==0)base=rd32(*ip),*ip+=4;
+  else base=regs[sb];
+ }else if(rm==5&&mod==0){
+  base=rd32(*ip);*ip+=4;
+ }else{
+  base=regs[rm];
+ }
+ if(mod==1){int8_t d=(int8_t)MEM8((*ip)++);base+=(int32_t)d;}
+ else if(mod==2){int32_t d=(int32_t)rd32(*ip);*ip+=4;base+=(uint32_t)d;}
+ *ea=base+index; return 1;
+}
+static uint32_t modrm_read32(uint8_t m,uint32_t *ip){
+ uint32_t ea=0; if(!modrm_ea(m,ip,&ea))return regs[m&7]; return rd32(ea);
+}
+static void modrm_write32(uint8_t m,uint32_t *ip,uint32_t v){
+ uint32_t ea=0; if(!modrm_ea(m,ip,&ea)){regs[m&7]=v;return;} wr32(ea,v);
+}
 
 static int cpu_step(void){
  uint32_t ip=eip; uint8_t op=MEM8(ip++); steps++;
@@ -83,6 +110,37 @@ static int cpu_step(void){
   }
   case 0xB8:case 0xB9:case 0xBA:case 0xBB:case 0xBC:case 0xBD:case 0xBE:case 0xBF:
    regs[op-0xB8]=rd32(ip); eip=ip+4; return 0; /* MOV r32,imm32 */
+  case 0x8B: { /* MOV r32,r/m32 */
+   uint8_t m=MEM8(ip++); uint32_t v=modrm_read32(m,&ip); regs[(m>>3)&7]=v; eip=ip; return 0;
+  }
+  case 0x89: { /* MOV r/m32,r32 */
+   uint8_t m=MEM8(ip++); uint32_t v=regs[(m>>3)&7]; modrm_write32(m,&ip,v); eip=ip; return 0;
+  }
+  case 0x8D: { /* LEA r32,m */
+   uint8_t m=MEM8(ip++); uint32_t ea=0; if(!modrm_ea(m,&ip,&ea)){cpu_error=0x8D;return -11;} regs[(m>>3)&7]=ea; eip=ip; return 0;
+  }
+  case 0x01: { /* ADD r/m32,r32 */
+   uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7]; uint32_t a;
+   if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
+   uint32_t r=a+b; set_add_flags(a,b,r);
+   if((m>>6)==3)regs[m&7]=r; else wr32(ea,r);
+   eip=ip; return 0;
+  }
+  case 0x29: { /* SUB r/m32,r32 */
+   uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7]; uint32_t a;
+   if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
+   uint32_t r=a-b; set_sub_flags(a,b,r);
+   if((m>>6)==3)regs[m&7]=r; else wr32(ea,r);
+   eip=ip; return 0;
+  }
+  case 0x39: { /* CMP r/m32,r32 */
+   uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7],a;
+   if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
+   uint32_t r=a-b; set_sub_flags(a,b,r); eip=ip; return 0;
+  }
+  case 0x85: { /* TEST r/m32,r32 */
+   uint8_t m=MEM8(ip++); uint32_t v=modrm_read32(m,&ip)&regs[(m>>3)&7]; set_logic_flags(v); eip=ip; return 0;
+  }
   case 0x05: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]+b;set_add_flags(regs[R_EAX],b,r);regs[R_EAX]=r;eip=ip+4;return 0;}
   case 0x2D: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]-b;set_sub_flags(regs[R_EAX],b,r);regs[R_EAX]=r;eip=ip+4;return 0;}
   case 0x3D: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]-b;set_sub_flags(regs[R_EAX],b,r);eip=ip+4;return 0;} /* CMP EAX,imm32 */
@@ -108,30 +166,69 @@ static int cpu_step(void){
  }
 }
 
+static int image_rva_valid(uint32_t rva,uint32_t size){
+ return rva<=image_size && size<=image_size-rva;
+}
+static void scan_imports(void){
+ dll_count=0; import_count=0;
+ if(!import_rva||!import_size||!image_rva_valid(import_rva,20))return;
+ uint32_t p=image_base+import_rva;
+ uint32_t max=image_base+import_rva+import_size;
+ for(uint32_t n=0;p+20u<=max;n++,p+=20u){
+  uint32_t oft=rd32(p),name=rd32(p+12),ft=rd32(p+16);
+  if(!oft&&!name&&!ft)break;
+  dll_count++;
+  uint32_t thunk=oft?oft:ft;
+  if(!thunk||thunk>=image_size)continue;
+  uint32_t q=image_base+thunk;
+  for(uint32_t i=0;i<0x100000u && q+4u<=image_base+image_size;i++,q+=4u){
+   uint32_t v=rd32(q); if(!v)break;
+   import_count++;
+  }
+ }
+}
+
 static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
+ requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;
  if(sz<0x40u){load_error=1;return-1;} if(rd16(f)!=0x5a4du){load_error=2;return-1;}
  uint32_t pe=rd32(f+0x3cu); if(pe>sz-4u){load_error=3;return-2;} if(pe+24u>sz){load_error=4;return-2;}
  if(rd32(f+pe)!=0x4550u){load_error=5;return-2;}
  uint16_t mach=rd16(f+pe+4),nsec=rd16(f+pe+6),optsz=rd16(f+pe+20);
  if(mach!=0x14cu){load_error=6;return-3;} if(optsz<224u){load_error=7;return-3;}
  uint32_t oh=f+pe+24u; if(oh+optsz>f+sz){load_error=8;return-3;} if(rd16(oh)!=0x10bu){load_error=9;return-3;}
- uint32_t szimg=rd32(oh+56u),szhdr=rd32(oh+60u),ep=rd32(oh+16u);
- if(szimg<0x1000u||szimg>0x10000000u){load_error=10;return-4;} if(szhdr>sz){load_error=11;return-4;}
- image_base=IMAGE_BASE;image_size=szimg;entry=ep;copy_bytes(image_base,f,szhdr);
- uint32_t sh=oh+optsz; if(sh<f||sh>f+sz||(uint64_t)nsec*40u>(uint64_t)(f+sz-sh)){load_error=12;return-5;}
- for(uint16_t i=0;i<nsec;i++,sh+=40u){uint32_t va=rd32(sh+12u),raw=rd32(sh+20u),rawsz=rd32(sh+16u);
-  if((uint64_t)image_base+va+rawsz>0x10000000ULL){load_error=13;return-5;} if(raw>sz||rawsz>sz-raw){load_error=14;return-5;}
-  copy_bytes(image_base+va,f+raw,rawsz);
+ uint32_t szimg=rd32(oh+56u),szhdr=rd32(oh+60u),ep=rd32(oh+16u),reqbase=rd32(oh+28u);
+ uint32_t dirs=rd32(oh+92u);
+ if(szimg<0x1000u||szimg>0x10000000u){load_error=10;return-4;} if(szhdr>sz||szhdr>szimg){load_error=11;return-4;}
+ requested_image_base=reqbase; image_base=IMAGE_BASE; image_size=szimg; entry=ep;
+ relocation_needed=(requested_image_base!=image_base)?1u:0u;
+ if(dirs>1u){import_rva=rd32(oh+96u+8u);import_size=rd32(oh+96u+12u);}
+ if(dirs>5u){reloc_rva=rd32(oh+96u+40u);reloc_size=rd32(oh+96u+44u);}
+ uint32_t sh=oh+optsz;
+ if(sh<f||sh>f+sz||(uint64_t)nsec*40u>(uint64_t)(f+sz-sh)){load_error=12;return-5;}
+ for(uint32_t i=0;i<image_size;i++)wr8(image_base+i,0);
+ copy_bytes(image_base,f,szhdr);
+ for(uint16_t i=0;i<nsec;i++,sh+=40u){
+  uint32_t va=rd32(sh+12u),vsz=rd32(sh+8u),raw=rd32(sh+20u),rawsz=rd32(sh+16u);
+  uint32_t mapped=vsz>rawsz?vsz:rawsz;
+  if((uint64_t)va+mapped>(uint64_t)image_size){load_error=13;return-5;}
+  if(raw>sz||rawsz>sz-raw){load_error=14;return-5;}
+  if(rawsz)copy_bytes(image_base+va,f+raw,rawsz);
  }
- loaded=1;eip=image_base+entry;regs[R_ESP]=image_base+image_size-0x1000u;halted=0;cpu_error=0;steps=0;eflags=0x2;loghex("X86 entry=",eip);return 0;
+ if(ep>=image_size){load_error=15;return-6;}
+ if(import_rva&&import_size)scan_imports();
+ loaded=1;eip=image_base+entry;regs[R_ESP]=image_base+image_size-0x1000u;halted=0;cpu_error=0;steps=0;eflags=0x2;
+ loghex("X86 requested image base=",requested_image_base);
+ loghex("X86 mapped image base=",image_base);
+ loghex("X86 entry=",eip);
+ return 0;
 }
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
- heap=al4((uint32_t)(uintptr_t)__heap_base);loaded=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
- for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.2");loglit("PE32 loader + x86 fetch/decode/execute foundation");return 0;
+ heap=al4((uint32_t)(uintptr_t)__heap_base);loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
+ for(int i=0;i<8;i++)regs[i]=0; loglit("XWASM X86 Runtime v0.3");loglit("PE32 mapping + imports/relocations diagnostics + x86 ModRM foundation");return 0;
 }
-__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00020000u;}
+__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00030000u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
 __attribute__((export_name("x86_run"))) int x86_run(int32_t max_steps){
@@ -152,6 +249,14 @@ __attribute__((export_name("x86_get_edi"))) uint32_t x86_get_edi(void){return re
 __attribute__((export_name("x86_get_eflags"))) uint32_t x86_get_eflags(void){return eflags;}
 __attribute__((export_name("x86_get_halted"))) uint32_t x86_get_halted(void){return halted;}
 __attribute__((export_name("x86_get_cpu_error"))) uint32_t x86_get_cpu_error(void){return cpu_error;}
+__attribute__((export_name("x86_get_requested_image_base"))) uint32_t x86_get_requested_image_base(void){return requested_image_base;}
+__attribute__((export_name("x86_get_image_base"))) uint32_t x86_get_image_base(void){return image_base;}
+__attribute__((export_name("x86_get_image_size"))) uint32_t x86_get_image_size(void){return image_size;}
+__attribute__((export_name("x86_get_relocation_rva"))) uint32_t x86_get_relocation_rva(void){return reloc_rva;}
+__attribute__((export_name("x86_get_relocation_size"))) uint32_t x86_get_relocation_size(void){return reloc_size;}
+__attribute__((export_name("x86_get_import_rva"))) uint32_t x86_get_import_rva(void){return import_rva;}
+__attribute__((export_name("x86_get_import_size"))) uint32_t x86_get_import_size(void){return import_size;}
+__attribute__((export_name("x86_get_relocation_needed"))) uint32_t x86_get_relocation_needed(void){return relocation_needed;}
 __attribute__((export_name("x86_get_dll_count"))) uint32_t x86_get_dll_count(void){return dll_count;}
 __attribute__((export_name("x86_get_import_count"))) uint32_t x86_get_import_count(void){return import_count;}
 __attribute__((export_name("x86_get_loaded"))) uint32_t x86_get_loaded(void){return loaded;}
