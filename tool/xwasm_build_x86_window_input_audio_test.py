@@ -41,47 +41,56 @@ def make_pe():
 
     code = bytearray()
 
-    # CreateWindowExA(NULL x 12), then ShowWindow(hwnd, SW_SHOW).
-    code.extend(b"\x6A\x00" * 12)
+    # Create a real Win32-style client surface: exstyle, class, title, style,
+    # x, y, width, height, parent, menu, instance, param.
+    args = [0, 0, 0, 0x10000000, 0, 0, 640, 360, 0, 0, 0, 0]
+    for value in reversed(args):
+        code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1190))
     code.extend(b"\x89\xC6")                 # ESI = HWND
     code.extend(b"\x6A\x01\x56")
     code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1194))
 
-    # GetDC(hwnd), then draw through the existing GDI bridge.
+    # GetDC(hwnd), draw a surface marker, then release the DC.
     code.extend(b"\x56")
     code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1198))
     code.extend(b"\x89\xC3")                 # EBX = HDC
     for value in (280, 520, 80, 120):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11BC))  # Rectangle
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11BC))
     for value in (0x000000FF, 180, 320):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B8))  # SetPixel
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B8))
     code.extend(b"\x53\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x119C))  # ReleaseDC
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x119C))
 
     # KERNEL32!Beep(660, 120): browser Web Audio proof.
     code.extend(b"\x68" + struct.pack("<I", 120))
     code.extend(b"\x68" + struct.pack("<I", 660))
     code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11C4))
 
-    # PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE).
-    # The browser runner waits for a real key event before executing the PE.
-    code.extend(b"\xBF" + struct.pack("<I", 0x00800000))
+    # Proper persistent Win32-style message loop.
+    # PeekMessageA is polled continuously; each browser event wakes the loop,
+    # then TranslateMessage/DispatchMessageA consume the MSG.
+    code.extend(b"\xBF" + struct.pack("<I", 0x00800000))  # EDI = MSG*
+    loop = len(code)
     for value in (1, 0, 0, 0):
         code.extend(b"\x6A" + struct.pack("<B", value))
     code.extend(b"\x57")
     code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A0))
-    code.extend(b"\x3D\x00\x00\x00\x00")
-    code.extend(b"\x74\x0E")                 # no message -> skip translate/dispatch
+    code.extend(b"\x85\xC0")                 # TEST EAX,EAX
+    jz = len(code)
+    code.extend(b"\x74\x00")
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A4))  # TranslateMessage
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A4))
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A8))  # DispatchMessageA
-    code.extend(b"\xF4")
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A8))
+    back = len(code)
+    code.extend(b"\xEB\x00")
+    code[jz + 1] = (loop - (jz + 2)) & 0xFF
+    code[back + 1] = (loop - (back + 2)) & 0xFF
 
     b[SECTION_RAW:SECTION_RAW + len(code)] = code
 
