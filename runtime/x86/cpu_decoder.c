@@ -303,6 +303,38 @@ static int cpu_step(void) {
      * the raw opcode in the legacy switch.
      */
     if (d.entry && d.entry->id) {
+        if (x86_id_is(d.entry->id,"RCR_RM32_1") ||
+            x86_id_is(d.entry->id,"RCR_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"RCR_RM32_CL")) {
+            uint32_t op_ip=d.cursor-d.disp_size;
+            uint32_t v=decoded_operand16 ? (uint32_t)modrm_read16(d.modrm,&op_ip) : modrm_read32(d.modrm,&op_ip);
+            uint32_t bits=decoded_operand16?16u:32u;
+            uint32_t mask=bits==16?0xFFFFu:0xFFFFFFFFu;
+            uint32_t sign=1u<<(bits-1u);
+            uint32_t count=x86_id_is(d.entry->id,"RCR_RM32_1")?1u:
+                          x86_id_is(d.entry->id,"RCR_RM32_CL")?(regs[R_ECX]&31u):MEM8(d.cursor);
+            uint32_t modulus=bits==16?17u:33u;
+            count&=31u; count%=modulus;
+            if(count){
+                uint32_t cf=(eflags&CF)?1u:0u;
+                uint64_t x=((uint64_t)cf<<bits)|(v&mask);
+                uint64_t fullmask=(1ull<<(bits+1u))-1ull;
+                x=((x>>count)|(x<<(bits+1u-count)))&fullmask;
+                uint32_t r=(uint32_t)x&mask;
+                cf=(uint32_t)((x>>bits)&1u);
+                uint32_t of=((r&sign)?1u:0u)^((r>>(bits-2u))&1u);
+                set_rotate_flags(r,cf,count==1u,of);
+                uint32_t write_ip=d.cursor-d.disp_size;
+                if(decoded_operand16)modrm_write16(d.modrm,&write_ip,(uint16_t)r);
+                else modrm_write32(d.modrm,&write_ip,r);
+            }
+            eip=d.cursor+(x86_id_is(d.entry->id,"RCR_RM32_IMM8")?1u:0u);
+            last_dispatch_id=X86_DISPATCH_RCR;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (d.entry->id[0]=='I' && d.entry->id[1]=='N' &&
             d.entry->id[2]=='C' && d.entry->id[3]=='_' &&
             d.entry->id[4]=='R' && d.entry->id[5]=='3' &&
