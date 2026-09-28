@@ -45,7 +45,7 @@ static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t 
  trace_head=(trace_head+1u)%X86_TRACE_DEPTH; if(trace_count<X86_TRACE_DEPTH)trace_count++;
  if(regs[R_EAX]==0xDEADC0DEu && before_eax!=0xDEADC0DEu) trace_failure_index=i+1u;
 }
-enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_DISPATCH_RCR=3 };
+enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_DISPATCH_RCR=3, X86_DISPATCH_MOV_R8_IMM8=4, X86_DISPATCH_MOV_R16_IMM16=5, X86_DISPATCH_CMP_R16_IMM16=6 };
 
 /* v0.4 guest memory/import foundation. The guest-visible address space is
  * intentionally separate from the WASM allocator used for diagnostics. */
