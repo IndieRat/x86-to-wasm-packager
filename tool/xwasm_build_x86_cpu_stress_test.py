@@ -72,6 +72,22 @@ def make_code():
     a.rel32(0xE9, "fail")
     a.label("logic_ok")
 
+    # Register-source ADD form (0x03): EAX = 5 + 7 = 12.
+    a.imm32(0xB8, 0, 5)
+    a.imm32(0xBA, 0, 7)
+    a.emit(0x03, 0xC2)
+    a.emit(0x3D, *struct.pack("<I", 12))
+    a.rel32((0x0F, 0x85), "fail")
+
+    # INC must preserve CF: CMP 0,1 sets CF, INC 0 must leave it set.
+    a.imm32(0xB8, 0, 0)
+    a.imm32(0xBA, 0, 1)
+    a.emit(0x3B, 0xC2)                           # CMP EAX,EDX -> CF=1
+    a.emit(0x40)                                 # INC EAX
+    a.rel8(0x72, "inc_cf_ok")
+    a.rel32(0xE9, "fail")
+    a.label("inc_cf_ok")
+
     # Shifts.
     a.imm32(0xB8, 0, 1)
     a.emit(0xC1, 0xE0, 4)                        # SHL EAX,4 -> 16
@@ -80,6 +96,12 @@ def make_code():
     a.emit(0xC1, 0xF9, 2)                        # SAR ECX,2 -> FFFFFFFC
     a.imm32(0xBA, 0, 8)
     a.emit(0xD1, 0xEA)                           # SHR EDX,1
+
+    a.imm32(0xB8, 0, 0x80000000)
+    a.emit(0xD1, 0xE0)                           # SHL EAX,1 -> CF=1
+    a.rel8(0x72, "shift_cf_ok")
+    a.rel32(0xE9, "fail")
+    a.label("shift_cf_ok")
 
     # IMUL EAX,EDX (result 4).
     a.imm32(0xB8, 0, 2)
