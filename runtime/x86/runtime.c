@@ -432,7 +432,7 @@ static int cpu_step_legacy(void){
    if(sub==4){uint64_t p=(uint64_t)regs[R_EAX]*(uint64_t)v;regs[R_EAX]=(uint32_t)p;regs[R_EDX]=(uint32_t)(p>>32);eflags=(eflags&~(CF|OF))|(((p>>32)!=0)?(CF|OF):0);eip=ip;return 0;}
    if(sub==5){int64_t p=(int64_t)(int32_t)regs[R_EAX]*(int64_t)(int32_t)v;uint32_t lo=(uint32_t)p,hi=(uint32_t)((uint64_t)p>>32);regs[R_EAX]=lo;regs[R_EDX]=hi;int64_t sx=(int64_t)(int32_t)lo;eflags=(eflags&~(CF|OF))|((p!=sx)?(CF|OF):0);eip=ip;return 0;}
    if(sub==6){if(v==0){cpu_error=0xF706u;return -30;}uint64_t dividend=((uint64_t)regs[R_EDX]<<32)|regs[R_EAX];uint64_t q=dividend/v,r=dividend%v;if(q>0xFFFFFFFFull){cpu_error=0xF707u;return -31;}regs[R_EAX]=(uint32_t)q;regs[R_EDX]=(uint32_t)r;eip=ip;return 0;}
-   if(sub==7){if(v==0){cpu_error=0xF708u;return -32;}int64_t dividend=((int64_t)(int32_t)regs[R_EDX]<<32)|(uint32_t)regs[R_EAX];int64_t q=dividend/(int32_t)v,r=dividend%(int32_t)v;if(q>2147483647ll||q<(-2147483647ll-1ll)){cpu_error=0xF709u;return -33;}regs[R_EAX]=(uint32_t)q;regs[R_EDX]=(uint32_t)r;eip=ip;return 0;}
+   if(sub==7){if(v==0){cpu_error=0xF708u;return -32;}int32_t divisor=(int32_t)v;int64_t dividend=((int64_t)(int32_t)regs[R_EDX]<<32)|(uint32_t)regs[R_EAX];if(dividend==(-9223372036854775807ll-1ll)&&divisor==-1){cpu_error=0xF709u;return -33;}int64_t q=dividend/divisor,r=dividend%divisor;if(q>2147483647ll||q<(-2147483647ll-1ll)){cpu_error=0xF709u;return -33;}regs[R_EAX]=(uint32_t)q;regs[R_EDX]=(uint32_t)r;eip=ip;return 0;}
    cpu_error=0xF700u|sub;return -34;
   }
   case 0x40:case 0x41:case 0x42:case 0x43:case 0x44:case 0x45:case 0x46:case 0x47:
