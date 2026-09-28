@@ -208,7 +208,7 @@ def make_code():
     a.imm32(0xBB, 0, 2)
     a.emit(0x3B, 0xD3)
     a.rel32((0x0F, 0x85), "fail")
-    a.imm32(0xBA, 0xFFFFFFFF)
+    a.imm32(0xBA, 0, 0xFFFFFFFF)
     a.imm32(0xB8, 0, 0xFFFFFF9C)                 # -100
     a.imm32(0xB9, 0, 7)
     a.emit(0xF7, 0xF9)                           # IDIV ECX -> EAX=-14, EDX=-2
