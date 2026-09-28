@@ -5,6 +5,7 @@ extern void xwasm_log(int32_t level,int32_t ptr,int32_t len);
 #define HEAP_BASE_FALLBACK 0x100000u
 extern unsigned char __heap_base[];
 #define IMAGE_BASE 0x00400000u
+#define X86_STRESS_REPORT_BASE 0x00401900u
 #define MEM8(p) (*(volatile uint8_t *)(uintptr_t)(p))
 
 /* 32-bit x86 register order: EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI. */
@@ -26,7 +27,7 @@ static uint32_t regs[8],eflags=0x00000002u;
 static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
-static uint32_t last_dispatch_id=0,last_dispatch_count=0;
+static uint32_t last_dispatch_id=0,last_dispatch_count=0,legacy_execution_count=0;
 #define X86_TRACE_DEPTH 32u
 static uint32_t trace_eip[X86_TRACE_DEPTH],trace_next_eip[X86_TRACE_DEPTH];
 static uint32_t trace_opcode[X86_TRACE_DEPTH],trace_flags[X86_TRACE_DEPTH];
@@ -683,6 +684,7 @@ static int load_pe(uint32_t f,uint32_t sz){
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
  loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset();
+ legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
  loghex("X86 mapped image base=",image_base);
  loghex("X86 entry=",eip);
@@ -802,4 +804,6 @@ __attribute__((export_name("x86_get_mouse_moves"))) uint32_t x86_get_mouse_moves
 __attribute__((export_name("x86_get_surface_width"))) uint32_t x86_get_surface_width(void){return surface_width;}
 __attribute__((export_name("x86_get_surface_height"))) uint32_t x86_get_surface_height(void){return surface_height;}
 __attribute__((export_name("x86_get_rich_ops_pass"))) uint32_t x86_get_rich_ops_pass(void){return regs[R_EBP]==0x584F5053u?1u:0u;}
+__attribute__((export_name("x86_get_legacy_execution_count"))) uint32_t x86_get_legacy_execution_count(void){return legacy_execution_count;}
+__attribute__((export_name("x86_get_stress_report_word"))) uint32_t x86_get_stress_report_word(uint32_t index){if(index>=16u)return 0;return rd32(X86_STRESS_REPORT_BASE+(index*4u));}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
