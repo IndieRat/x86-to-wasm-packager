@@ -16,6 +16,8 @@ enum { R_EAX=0,R_ECX,R_EDX,R_EBX,R_ESP,R_EBP,R_ESI,R_EDI };
 #define SF 0x00000080u
 #define OF 0x00000800u
 #define DF 0x00000400u
+#define X86_PREFIX_REPNZ 0x02u
+#define X86_PREFIX_REP 0x04u
 
 static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,eip=0,steps=0,loaded=0;
 static uint32_t requested_image_base=0,reloc_rva=0,reloc_size=0,import_rva=0,import_size=0;
@@ -23,6 +25,7 @@ static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last
 static uint32_t regs[8],eflags=0x00000002u;
 static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
+static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea);
 
 /* v0.4 guest memory/import foundation. The guest-visible address space is
  * intentionally separate from the WASM allocator used for diagnostics. */
@@ -505,19 +508,6 @@ static int cpu_step_legacy(void){
    regs[op-0x58]=rd32(regs[R_ESP]);regs[R_ESP]+=4;eip=ip;return 0;
   case 0x50:case 0x51:case 0x52:case 0x53:case 0x54:case 0x55:case 0x56:case 0x57:
    regs[R_ESP]-=4;wr32(regs[R_ESP],regs[op-0x50]);eip=ip;return 0;
-  case 0xC1: { uint8_t m=MEM8(ip++),sub=(m>>3)&7,count=MEM8(ip++)&31u; uint32_t ea=0;uint32_t v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea)),r=v;
-   if(!count){eip=ip;return 0;}
-   if(sub==4){eflags=(eflags&~CF)|((v>>(32u-count))&1u?CF:0);r=v<<count; if(count==1)eflags=(eflags&~OF)|(((r>>31)^(eflags&CF?1u:0u))?OF:0);}
-   else if(sub==5){eflags=(eflags&~CF)|((v>>(count-1u))&1u?CF:0);r=v>>count; if(count==1)eflags=(eflags&~OF)|((v>>31)&1u?OF:0);}
-   else if(sub==7){eflags=(eflags&~CF)|((v>>(count-1u))&1u?CF:0);r=(uint32_t)((int32_t)v>>count); if(count==1)eflags&=~OF;}
-   else{cpu_error=0xC100u|sub;return -15;}
-   if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);{uint32_t cf=(eflags&CF)!=0,of=(eflags&OF)!=0;set_shift_flags(r,cf,1,of);}eip=ip;return 0; } /* SHL/SHR/SAR */
-  case 0xD1: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0;uint32_t v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea)),r;
-   if(sub==4){eflags=(eflags&~CF)|((v>>31)&1u?CF:0);r=v<<1;eflags=(eflags&~OF)|(((r>>31)^((eflags&CF)?1u:0u))?OF:0);}
-   else if(sub==5){eflags=(eflags&~CF)|(v&1u?CF:0);r=v>>1;eflags=(eflags&~OF)|((v>>31)&1u?OF:0);}
-   else if(sub==7){eflags=(eflags&~CF)|(v&1u?CF:0);r=(uint32_t)((int32_t)v>>1);eflags&=~OF;}
-   else{cpu_error=0xD100u|sub;return -16;}
-   if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);{uint32_t cf=(eflags&CF)!=0,of=(eflags&OF)!=0;set_shift_flags(r,cf,1,of);}eip=ip;return 0; }
   case 0x0F: {
    uint8_t op2=MEM8(ip++);
    if(op2==0xAF){uint8_t m=MEM8(ip++);int64_t p=(int64_t)(int32_t)regs[(m>>3)&7]*(int64_t)(int32_t)modrm_read32(m,&ip);uint32_t r=(uint32_t)p;regs[(m>>3)&7]=r;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);eip=ip;return 0;}
