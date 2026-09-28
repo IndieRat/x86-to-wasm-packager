@@ -53,7 +53,7 @@ def make_code():
     a.emit(0x05, *struct.pack("<I", 0x20))       # ADD EAX,20 -> 30
     a.emit(0x2D, *struct.pack("<I", 5))          # SUB EAX,5 -> 2B
     a.emit(0x3D, *struct.pack("<I", 0x2B))        # CMP EAX,2B
-    a.rel8(0x75, "fail")                         # JNE
+    a.rel32((0x0F, 0x85), "fail")                         # JNE
 
     # Logic.
     a.imm32(0xBA, 0, 0x0F0F0F0F)                # EDX
@@ -63,8 +63,8 @@ def make_code():
     a.emit(0x09, 0xCA)                           # OR EDX,ECX
     a.emit(0x31, 0xC9)                           # XOR ECX,ECX
     a.emit(0x85, 0xC9)                           # TEST ECX,ECX
-    a.rel8(0x74, "logic_ok")                     # JE
-    a.rel8(0xEB, "fail")
+    a.rel32((0x0F, 0x84), "logic_ok")                     # JE
+    a.rel32(0xE9, "fail")
     a.label("logic_ok")
 
     # Shifts.
