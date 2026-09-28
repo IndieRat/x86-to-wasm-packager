@@ -150,3 +150,51 @@ The intended pipeline is:
 The JSON files are the authoring/source format. The runtime should eventually compile them into compact lookup tables rather than parse JSON for every guest instruction.
 
 The encoding structure follows the same useful separation used by Intel XED: decoded instructions have structured operands and encoding data, while the byte-level encoding rules select the concrete form. Intel documents ModR/M, operand encoding, and opcode-map information separately in Volume 2. 
+
+
+## Full encoding map and Intel-assisted authoring
+
+The v0.8 CPU data model now separates the semantic instruction list from the byte-space map.
+
+- `runtime/x86/opcode_map_i386.json` materializes 256 slots for the primary map, 256 for `0F`, 256 for `0F 38`, and 256 for `0F 3A`.
+- `runtime/x86/encoding_schema.json` defines the byte-level pieces the decoder must understand: legacy prefixes, opcode maps, ModR/M, SIB, displacement, immediates, relative branches, operand size, address size, implicit operands, and encoding constraints.
+- `tool/xwasm_import_xed_isa.py` is an optional build-time importer for Intel XED's machine-readable ISA patterns.
+
+Intel's current SDM identifies Volume 2 as the full instruction-set reference and explicitly documents instruction format, prefixes, ModR/M, SIB, displacement/immediate bytes, and opcode maps. Intel XED is an encoder/decoder library and its source uses generated machine-readable instruction tables. XWASM uses those resources as authoring/verification input; the browser runtime does not contact Intel.
+
+### Offline/reproducible workflow
+
+Download or otherwise provide an `xed-isa.txt` snapshot, then run:
+
+    python3 tool/xwasm_import_xed_isa.py --input path/to/xed-isa.txt
+
+This writes:
+
+    runtime/x86/xed_isa_patterns.json
+
+For a one-shot source refresh, the importer can use its configured Intel XED source URL:
+
+    python3 tool/xwasm_import_xed_isa.py
+
+The generated XED snapshot is reference data. It does not automatically mark XWASM instructions executable. An instruction still needs a semantic definition, an XWASM encoding record, decoder support, execution semantics, and a fixture test before it becomes `EXECUTE`.
+
+Validate all current layers with:
+
+    python3 tool/xwasm_validate_instruction_db.py
+
+The next decoder implementation can therefore consume the four-level pipeline:
+
+    XED/SDM reference
+             |
+             v
+      XWASM JSON authoring
+             |
+             +--> semantic definitions
+             +--> concrete encodings
+             +--> complete opcode maps
+             |
+             v
+       generated decoder tables
+             |
+             v
+          x86 CPU
