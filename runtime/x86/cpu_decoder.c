@@ -1,0 +1,203 @@
+/*
+ * XWASM IA-32 decoder front-end.
+ *
+ * This file is included by runtime.c after the guest CPU state/helpers are
+ * defined.  The decoder owns instruction-boundary parsing and lookup; the
+ * legacy executor remains behind it until each semantic family is migrated.
+ */
+#include "generated_decode_table.h"
+
+typedef struct {
+    uint32_t start;
+    uint32_t cursor;
+    uint8_t prefixes;
+    uint8_t operand16;
+    uint8_t address16;
+    uint8_t map;
+    uint8_t opcode;
+    uint8_t modrm;
+    uint8_t has_modrm;
+    uint8_t sib;
+    uint8_t has_sib;
+    uint8_t disp_size;
+    uint8_t imm_size;
+    uint8_t rel_size;
+    int8_t modrm_ext;
+    const x86_decode_entry_t *entry;
+} x86_decoded_t;
+
+#define X86_PREFIX_LOCK 0x01u
+#define X86_PREFIX_REPNZ 0x02u
+#define X86_PREFIX_REP 0x04u
+#define X86_PREFIX_SEG 0x08u
+#define X86_PREFIX_OP16 0x10u
+#define X86_PREFIX_ADDR16 0x20u
+
+static int x86_is_prefix(uint8_t b) {
+    switch (b) {
+        case 0xF0: case 0xF2: case 0xF3:
+        case 0x2E: case 0x36: case 0x3E: case 0x26: case 0x64: case 0x65:
+        case 0x66: case 0x67:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+static void x86_record_prefix(x86_decoded_t *d, uint8_t b) {
+    if (b == 0xF0) d->prefixes |= X86_PREFIX_LOCK;
+    else if (b == 0xF2) d->prefixes |= X86_PREFIX_REPNZ;
+    else if (b == 0xF3) d->prefixes |= X86_PREFIX_REP;
+    else if (b == 0x66) { d->prefixes |= X86_PREFIX_OP16; d->operand16 ^= 1u; }
+    else if (b == 0x67) { d->prefixes |= X86_PREFIX_ADDR16; d->address16 ^= 1u; }
+    else d->prefixes |= X86_PREFIX_SEG;
+}
+
+static const x86_decode_entry_t *x86_find_entry(uint8_t map, uint8_t opcode,
+                                                 int has_modrm, uint8_t modrm) {
+    const x86_decode_entry_t *best = 0;
+    for (uint32_t i = 0; i < X86_DECODE_TABLE_COUNT; ++i) {
+        const x86_decode_entry_t *e = &x86_decode_table[i];
+        if (e->map != map || e->opcode != opcode) continue;
+        if (e->needs_modrm != (uint8_t)has_modrm) continue;
+        if (e->modrm_ext >= 0) {
+            if (!has_modrm || ((modrm >> 3) & 7u) != (uint8_t)e->modrm_ext) continue;
+        }
+        best = e;
+        break;
+    }
+    return best;
+}
+
+static int x86_decode_modrm_tail(x86_decoded_t *d) {
+    uint8_t m = d->modrm;
+    uint8_t mod = m >> 6;
+    uint8_t rm = m & 7u;
+
+    if (mod == 3) return 0;
+
+    if (d->address16) {
+        d->disp_size = (mod == 0 && rm == 6) ? 2 : (mod == 1 ? 1 : (mod == 2 ? 2 : 0));
+        d->cursor += d->disp_size;
+        return 0;
+    }
+
+    if (rm == 4) {
+        d->has_sib = 1;
+        d->sib = MEM8(d->cursor++);
+        uint8_t base = d->sib & 7u;
+        if (mod == 0 && base == 5) d->disp_size = 4;
+    } else if (mod == 0 && rm == 5) {
+        d->disp_size = 4;
+    }
+    if (mod == 1) d->disp_size = 1;
+    else if (mod == 2) d->disp_size = 4;
+    d->cursor += d->disp_size;
+    return 0;
+}
+
+static int x86_decode_instruction(x86_decoded_t *d) {
+    d->start = eip;
+    d->cursor = eip;
+    d->prefixes = 0;
+    d->operand16 = 0;
+    d->address16 = 0;
+    d->map = 0;
+    d->opcode = 0;
+    d->modrm = 0;
+    d->has_modrm = 0;
+    d->sib = 0;
+    d->has_sib = 0;
+    d->disp_size = 0;
+    d->imm_size = 0;
+    d->rel_size = 0;
+    d->modrm_ext = -1;
+    d->entry = 0;
+
+    for (uint32_t n = 0; n < 15u && x86_is_prefix(MEM8(d->cursor)); ++n) {
+        x86_record_prefix(d, MEM8(d->cursor++));
+    }
+
+    if (d->cursor - d->start >= 15u) {
+        cpu_error = 0xD001u;
+        return -1;
+    }
+
+    d->opcode = MEM8(d->cursor++);
+    if (d->opcode == 0x0F) {
+        d->map = 1;
+        if (MEM8(d->cursor) == 0x38 || MEM8(d->cursor) == 0x3A) {
+            /* Three-byte maps are decoded structurally now; execution is
+             * intentionally rejected until their semantic families land. */
+            d->map = MEM8(d->cursor++) == 0x38 ? 2 : 3;
+        }
+        d->opcode = MEM8(d->cursor++);
+    }
+
+    /* First locate an opcode candidate without consuming ModR/M. */
+    d->entry = x86_find_entry(d->map, d->opcode, 0, 0);
+
+    /* If there is no fixed-form entry, try the ModR/M forms. */
+    if (!d->entry) {
+        d->entry = x86_find_entry(d->map, d->opcode, 1, MEM8(d->cursor));
+        if (d->entry) {
+            d->has_modrm = 1;
+            d->modrm = MEM8(d->cursor++);
+            d->modrm_ext = (int8_t)((d->modrm >> 3) & 7u);
+            x86_decode_modrm_tail(d);
+        }
+    } else if (d->entry->needs_modrm) {
+        d->has_modrm = 1;
+        d->modrm = MEM8(d->cursor++);
+        d->modrm_ext = (int8_t)((d->modrm >> 3) & 7u);
+        x86_decode_modrm_tail(d);
+    }
+
+    if (!d->entry) {
+        /* Opcode forms that use an opcode-embedded register are represented
+         * by one entry for several opcode bytes in the JSON database. */
+        if (d->map == 0) {
+            if ((d->opcode >= 0xB8 && d->opcode <= 0xBF) ||
+                (d->opcode >= 0x40 && d->opcode <= 0x4F) ||
+                (d->opcode >= 0x50 && d->opcode <= 0x5F)) {
+                d->entry = x86_find_entry(0, (uint8_t)(d->opcode & 0xF8u), 0, 0);
+            }
+        }
+    }
+
+    if (!d->entry) {
+        cpu_error = 0xD000u | d->opcode;
+        return -2;
+    }
+
+    /* Operand-size/address-size overrides are decoded correctly, but the
+     * current semantic executor only consumes 32-bit forms. */
+    if (d->operand16 || d->address16) {
+        cpu_error = 0xD100u | d->opcode;
+        return -3;
+    }
+
+    if (d->cursor - d->start > 15u) {
+        cpu_error = 0xD002u;
+        return -4;
+    }
+
+    return 0;
+}
+
+static int cpu_step(void) {
+    x86_decoded_t d;
+    uint32_t saved_eip = eip;
+    int decoded = x86_decode_instruction(&d);
+    if (decoded < 0) return decoded;
+
+    /*
+     * Semantic migration point.
+     *
+     * The old executor already implements the working v0.8 foundation
+     * semantics. Keeping it behind a verified decoder lets us migrate each
+     * instruction family independently without maintaining two decoders.
+     */
+    eip = saved_eip;
+    return cpu_step_legacy();
+}
