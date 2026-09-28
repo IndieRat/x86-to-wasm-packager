@@ -570,5 +570,11 @@ __attribute__((export_name("x86_get_load_size"))) uint32_t x86_get_load_size(voi
 __attribute__((export_name("x86_get_message_count"))) uint32_t x86_get_message_count(void){return message_count;}
 __attribute__((export_name("x86_get_last_message"))) uint32_t x86_get_last_message(void){return message_last;}
 __attribute__((export_name("x86_get_message_quit"))) uint32_t x86_get_message_quit(void){return message_quit;}
-__attribute__((export_name("x86_get_mouse_clicks"))) uint32_t x86_get_mouse_clicks(void){return mouse_clicks;}\n__attribute__((export_name("x86_get_mouse_right_clicks"))) uint32_t x86_get_mouse_right_clicks(void){return mouse_right_clicks;}\n__attribute__((export_name("x86_get_mouse_middle_clicks"))) uint32_t x86_get_mouse_middle_clicks(void){return mouse_middle_clicks;}\n__attribute__((export_name("x86_get_mouse_moves"))) uint32_t x86_get_mouse_moves(void){return mouse_moves;}\n__attribute__((export_name("x86_get_surface_width"))) uint32_t x86_get_surface_width(void){return surface_width;}\n__attribute__((export_name("x86_get_surface_height"))) uint32_t x86_get_surface_height(void){return surface_height;}\n__attribute__((export_name("x86_get_rich_ops_pass"))) uint32_t x86_get_rich_ops_pass(void){return regs[R_EBP]==0x584F5053u?1u:0u;}
+__attribute__((export_name("x86_get_mouse_clicks"))) uint32_t x86_get_mouse_clicks(void){return mouse_clicks;}
+__attribute__((export_name("x86_get_mouse_right_clicks"))) uint32_t x86_get_mouse_right_clicks(void){return mouse_right_clicks;}
+__attribute__((export_name("x86_get_mouse_middle_clicks"))) uint32_t x86_get_mouse_middle_clicks(void){return mouse_middle_clicks;}
+__attribute__((export_name("x86_get_mouse_moves"))) uint32_t x86_get_mouse_moves(void){return mouse_moves;}
+__attribute__((export_name("x86_get_surface_width"))) uint32_t x86_get_surface_width(void){return surface_width;}
+__attribute__((export_name("x86_get_surface_height"))) uint32_t x86_get_surface_height(void){return surface_height;}
+__attribute__((export_name("x86_get_rich_ops_pass"))) uint32_t x86_get_rich_ops_pass(void){return regs[R_EBP]==0x584F5053u?1u:0u;}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
