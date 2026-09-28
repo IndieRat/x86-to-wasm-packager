@@ -60,7 +60,7 @@ static uint32_t guest_vm=0x02000000u;
 static uint32_t guest_vm_limit=0x06000000u;
 static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_count=0;
 static uint32_t import_resolved=0,import_failed=0;
-static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0;
+static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0,mouse_right_clicks=0,mouse_middle_clicks=0,mouse_moves=0;\nstatic uint32_t surface_width=640,surface_height=360;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 static uint32_t last_failed_import_dll=0,last_failed_import_func=0;
 
@@ -197,7 +197,7 @@ static uint32_t call_builtin(uint32_t target){
  }
  if(target==API_USER32_GETCLIENTRECT){
   uint32_t sp=regs[R_ESP],rect=rd32(sp+8u);
-  if(rect){wr32(rect,0);wr32(rect+4u,0);wr32(rect+8u,640);wr32(rect+12u,360);}
+  if(rect){wr32(rect,0);wr32(rect+4u,0);wr32(rect+8u,surface_width);wr32(rect+12u,surface_height);}
   regs[R_EAX]=rect?1u:0u; regs[R_ESP]+=8u; return 1;
  }
  if(target==API_USER32_INVALIDATERECT){
@@ -495,8 +495,8 @@ static int load_pe(uint32_t f,uint32_t sz){
 }
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
- heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;
- for(int i=0;i<8;i++)regs[i]=0; message_count=0;message_last=0;message_quit=0;mouse_clicks=0;
+ heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
+ for(int i=0;i<8;i++)regs[i]=0; message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.7");
 loglit("PE32 + imports + memory + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
@@ -563,5 +563,5 @@ __attribute__((export_name("x86_get_load_size"))) uint32_t x86_get_load_size(voi
 __attribute__((export_name("x86_get_message_count"))) uint32_t x86_get_message_count(void){return message_count;}
 __attribute__((export_name("x86_get_last_message"))) uint32_t x86_get_last_message(void){return message_last;}
 __attribute__((export_name("x86_get_message_quit"))) uint32_t x86_get_message_quit(void){return message_quit;}
-__attribute__((export_name("x86_get_mouse_clicks"))) uint32_t x86_get_mouse_clicks(void){return mouse_clicks;}
+__attribute__((export_name("x86_get_mouse_clicks"))) uint32_t x86_get_mouse_clicks(void){return mouse_clicks;}\n__attribute__((export_name("x86_get_mouse_right_clicks"))) uint32_t x86_get_mouse_right_clicks(void){return mouse_right_clicks;}\n__attribute__((export_name("x86_get_mouse_middle_clicks"))) uint32_t x86_get_mouse_middle_clicks(void){return mouse_middle_clicks;}\n__attribute__((export_name("x86_get_mouse_moves"))) uint32_t x86_get_mouse_moves(void){return mouse_moves;}\n__attribute__((export_name("x86_get_surface_width"))) uint32_t x86_get_surface_width(void){return surface_width;}\n__attribute__((export_name("x86_get_surface_height"))) uint32_t x86_get_surface_height(void){return surface_height;}\n__attribute__((export_name("x86_get_rich_ops_pass"))) uint32_t x86_get_rich_ops_pass(void){return regs[R_EBP]==0x584F5053u?1u:0u;}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
