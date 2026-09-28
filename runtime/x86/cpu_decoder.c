@@ -101,7 +101,10 @@ static int x86_id_is(const char *a,const char *b){while(*a&&*b){if(*a++!=*b++)re
 static void x86_decode_payload_size(x86_decoded_t *d) {
     const char *id = d->entry ? d->entry->id : 0;
     if (!id) return;
-    if (x86_id_is(id, "MOV_R32_IMM32") ||
+    if (x86_id_is(id, "MOV_R8_IMM8")) d->imm_size = 1;
+    else if (x86_id_is(id, "MOV_R32_IMM32") && !d->operand16) d->imm_size = 4;
+    else if (x86_id_is(id, "MOV_R32_IMM32") && d->operand16) d->imm_size = 2;
+    else if (x86_id_is(id, "MOV_R32_IMM32") ||
         x86_id_is(id, "ADD_RM32_IMM32") ||
         x86_id_is(id, "SUB_RM32_IMM32") ||
         x86_id_is(id, "CMP_RM32_IMM32") ||
@@ -217,7 +220,8 @@ static int x86_decode_instruction(x86_decoded_t *d) {
         /* Opcode forms that use an opcode-embedded register are represented
          * by one entry for several opcode bytes in the JSON database. */
         if (d->map == 0) {
-            if ((d->opcode >= 0xB8 && d->opcode <= 0xBF) ||
+            if ((d->opcode >= 0xB0 && d->opcode <= 0xB7) ||
+                (d->opcode >= 0xB8 && d->opcode <= 0xBF) ||
                 (d->opcode >= 0x40 && d->opcode <= 0x4F) ||
                 (d->opcode >= 0x50 && d->opcode <= 0x5F)) {
                 d->entry = x86_find_entry(0, d->opcode, 0, 0);
@@ -256,7 +260,9 @@ static int x86_decode_instruction(x86_decoded_t *d) {
                         x86_id_is(d->entry->id, "SHL_RM32_1") ||
                         x86_id_is(d->entry->id, "SHR_RM32_1") ||
                         x86_id_is(d->entry->id, "SAR_RM32_1");
-        if (!string16 && !group2_16) {
+        if (!string16 && !group2_16 &&
+            !x86_id_is(d->entry->id, "MOV_R32_IMM32") &&
+            !x86_id_is(d->entry->id, "CMP_EAX_IMM32")) {
             cpu_error = 0xD100u | d->opcode;
             return -3;
         }
@@ -302,6 +308,40 @@ static int cpu_step(void) {
      * INC is dispatched from the decoded semantic ID rather than re-decoding
      * the raw opcode in the legacy switch.
      */
+    if (d.entry && d.entry->id) {
+        if (x86_id_is(d.entry->id,"MOV_R8_IMM8")) {
+            uint32_t reg=(uint32_t)(d.opcode-0xB0u);
+            uint8_t value=MEM8(d.cursor-1u);
+            reg8_write(reg,value);
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_MOV_R8_IMM8;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"MOV_R32_IMM32") && decoded_operand16) {
+            uint32_t reg=(uint32_t)(d.opcode-0xB8u);
+            uint16_t value=rd16(d.cursor-2u);
+            reg16_write(reg,value);
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_MOV_R16_IMM16;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"CMP_EAX_IMM32") && decoded_operand16) {
+            uint32_t a=(uint32_t)reg16_read(R_EAX);
+            uint32_t b=(uint32_t)rd16(d.cursor-2u);
+            set_sub_flags_width(a,b,(a-b)&0xFFFFu,16u);
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_CMP_R16_IMM16;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
     if (d.entry && d.entry->id) {
         if (x86_id_is(d.entry->id,"RCR_RM32_1") ||
             x86_id_is(d.entry->id,"RCR_RM32_IMM8") ||
