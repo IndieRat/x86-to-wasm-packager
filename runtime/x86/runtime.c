@@ -304,12 +304,18 @@ static void set_shift_flags(uint32_t v,uint32_t cf,int of_valid,uint32_t of){
 }
 static int cond(uint8_t op){
  switch(op){
-  case 0x74:return (eflags&ZF)!=0; /* JE/JZ */
-  case 0x75:return (eflags&ZF)==0; /* JNE/JNZ */
+  case 0x70:return (eflags&OF)!=0; /* JO */
+  case 0x71:return (eflags&OF)==0; /* JNO */
   case 0x72:return (eflags&CF)!=0; /* JB/JC */
   case 0x73:return (eflags&CF)==0; /* JAE/JNC */
-  case 0x77:return (eflags&CF)==0&&(eflags&ZF)==0; /* JA */
+  case 0x74:return (eflags&ZF)!=0; /* JE/JZ */
+  case 0x75:return (eflags&ZF)==0; /* JNE/JNZ */
   case 0x76:return (eflags&CF)!=0||(eflags&ZF)!=0; /* JBE */
+  case 0x77:return (eflags&CF)==0&&(eflags&ZF)==0; /* JA */
+  case 0x78:return (eflags&SF)!=0; /* JS */
+  case 0x79:return (eflags&SF)==0; /* JNS */
+  case 0x7A:return (eflags&PF)!=0; /* JP/JPE */
+  case 0x7B:return (eflags&PF)==0; /* JNP/JPO */
   case 0x7C:return ((eflags&SF)!=0)!=((eflags&OF)!=0); /* JL */
   case 0x7D:return ((eflags&SF)!=0)==((eflags&OF)!=0); /* JGE */
   case 0x7E:return (eflags&ZF)!=0||(((eflags&SF)!=0)!=((eflags&OF)!=0)); /* JLE */
@@ -442,7 +448,7 @@ static int cpu_step_legacy(void){
    {uint32_t r=regs[op-0x48]-1;uint32_t old=eflags;set_sub_flags(regs[op-0x48]+1,1,r);eflags=(eflags&~CF)|(old&CF);regs[op-0x48]=r;eip=ip;return 0;}
   case 0xE9:{int32_t d=(int32_t)rd32(ip);eip=ip+4+(uint32_t)d;return 0;} /* JMP rel32 */
   case 0xEB:{int8_t d=(int8_t)MEM8(ip);eip=ip+1+(int32_t)d;return 0;} /* JMP rel8 */
-  case 0x74:case 0x75:case 0x72:case 0x73:case 0x77:case 0x76:case 0x7C:case 0x7D:case 0x7E:case 0x7F:{
+  case 0x70:case 0x71:case 0x72:case 0x73:case 0x74:case 0x75:case 0x76:case 0x77:case 0x78:case 0x79:case 0x7A:case 0x7B:case 0x7C:case 0x7D:case 0x7E:case 0x7F:{
    int8_t d=(int8_t)MEM8(ip++);eip=cond(op)?ip+(int32_t)d:ip;return 0;
   }
   case 0x68:{uint32_t v=rd32(ip);ip+=4;regs[R_ESP]-=4;wr32(regs[R_ESP],v);eip=ip;return 0;} /* PUSH imm32 */
@@ -473,6 +479,11 @@ static int cpu_step_legacy(void){
    if(op2==0x84||op2==0x85){int32_t d=(int32_t)rd32(ip);ip+=4;if((op2==0x84&& (eflags&ZF))||(op2==0x85&&!(eflags&ZF)))eip=ip+(uint32_t)d;else eip=ip;return 0;}
    cpu_error=0x0F00u|op2;return -18;
   }
+  case 0xE3:{int8_t d=(int8_t)MEM8(ip++);eip=(regs[R_ECX]==0)?ip+(int32_t)d:ip;return 0;} /* JECXZ */
+  case 0xE0:case 0xE1:case 0xE2:{int8_t d=(int8_t)MEM8(ip++);regs[R_ECX]--;uint32_t take=(regs[R_ECX]!=0);if(op==0xE1)take=take&&((eflags&ZF)!=0);if(op==0xE0)take=take&&((eflags&ZF)==0);eip=take?ip+(int32_t)d:ip;return 0;}
+  case 0x0F: { /* extended Jcc */
+   uint8_t op2=MEM8(ip++);
+   if(op2>=0x80&&op2<=0x8F){int32_t d=(int32_t)rd32(ip);ip+=4;uint8_t shortop=(uint8_t)(0x70u+(op2-0x80u));eip=cond(shortop)?ip+(uint32_t)d:ip;return 0;}
   case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
    uint8_t m=MEM8(ip++);
    uint8_t sub=(m>>3)&7;
