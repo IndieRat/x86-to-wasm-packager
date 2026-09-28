@@ -86,17 +86,17 @@ def make_code():
     a.imm32(0xBA, 0, 2)
     a.emit(0x0F, 0xAF, 0xC2)                    # IMUL EAX,EDX -> 4
     a.emit(0x3D, *struct.pack("<I", 4))
-    a.rel8(0x75, "fail")
+    a.rel32((0x0F, 0x85), "fail")
 
     # MOVZX/MOVSX byte-register forms.
     a.imm32(0xB8, 0, 0x80)
     a.emit(0x0F, 0xB6, 0xC8)                    # MOVZX ECX,AL -> 80
     a.emit(0x3D, *struct.pack("<I", 0x80))       # CMP EAX,80 (EAX unchanged)
-    a.rel8(0x75, "fail")
+    a.rel32((0x0F, 0x85), "fail")
     a.emit(0x0F, 0xBE, 0xD0)                    # MOVSX EDX,AL -> FFFFFF80
     a.imm32(0xB8, 0, 0xFFFFFF80)
     a.emit(0x3B, 0xD0)                           # CMP EDX,EAX
-    a.rel8(0x75, "fail")
+    a.rel32((0x0F, 0x85), "fail")
 
     # PUSH/POP and stack round-trip.
     a.imm32(0xB8, 0, 0x13579BDF)
@@ -105,7 +105,7 @@ def make_code():
     a.emit(0x58)                                 # POP EAX
     a.imm32(0xBA, 0, 0x13579BDF)
     a.emit(0x3B, 0xC2)                           # CMP EAX,EDX
-    a.rel8(0x75, "fail")
+    a.rel32((0x0F, 0x85), "fail")
 
     # ModR/M memory operand round-trip.
     a.imm32(0xBB, 0, DATA)
@@ -113,7 +113,7 @@ def make_code():
     a.emit(0x89, 0x03)                           # MOV [EBX],EAX
     a.emit(0x8B, 0x0B)                           # MOV ECX,[EBX]
     a.emit(0x3B, 0xC8)                           # CMP ECX,EAX
-    a.rel8(0x75, "fail")
+    a.rel32((0x0F, 0x85), "fail")
 
     # SIB address: [ESI + EDI*4].
     a.imm32(0xBE, 0, DATA + 0x20)              # ESI
@@ -122,13 +122,13 @@ def make_code():
     a.emit(0x89, 0x44, 0xBE, 0x00)              # MOV [ESI+EDI*4],EAX
     a.emit(0x8B, 0x4C, 0xBE, 0x00)              # MOV ECX,[ESI+EDI*4]
     a.emit(0x3B, 0xC8)
-    a.rel8(0x75, "fail")
+    a.rel32((0x0F, 0x85), "fail")
 
     # CALL/RET.
     a.rel32(0xE8, "subroutine")
     a.imm32(0xBA, 0, 0xCAFEBABE)
     a.emit(0x3B, 0xC2)
-    a.rel8(0x75, "fail")
+    a.rel32((0x0F, 0x85), "fail")
 
     # Success/failure markers.
     a.imm32(0xB8, 0, 0xC0DEF00D)
