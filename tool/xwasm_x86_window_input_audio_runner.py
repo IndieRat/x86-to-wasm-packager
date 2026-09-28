@@ -199,7 +199,10 @@ async function runFixture(){
   try{
     const ex=runtimeExports,result=ex.x86_run(512);
     sliceCount++;
-    if(result<0)throw Error("x86 CPU execution failed at EIP="+hex(ex.x86_get_eip()));
+    if(result<0){
+      const diag=dumpCpuFailure(ex,result);
+      throw Error("x86 CPU execution failed at EIP="+hex(diag.eip)+" (error="+hex(diag.err,4)+", opcode="+hex(diag.opcode,2)+")");
+    }
     lastSteps=ex.x86_get_steps();
     const msg=ex.x86_get_last_message();
     const left=ex.x86_get_mouse_clicks?.()??0;
@@ -229,6 +232,37 @@ async function runFixture(){
     if(sliceCount===1&&!audioReported){audioReported=true;logTo("audio","KERNEL32 Beep bridge executed during fixture startup.","pass");}
     if(sw&&sh&&!windowReported){windowReported=true;logTo("window","CreateWindowExA created the browser-backed client surface.","pass");}
   }catch(err){logTo("system","ERROR: "+err.message,"fail");setStatus("ERROR",false);}
+}
+function dumpCpuFailure(ex,result){
+  const eip=ex.x86_get_eip?.()??0;
+  const esp=ex.x86_get_esp?.()??0;
+  const err=ex.x86_get_cpu_error?.()??0;
+  const opcode=ex.x86_get_current_opcode?.()??0;
+  const imm=ex.x86_get_current_imm32?.()??0;
+  const eflags=ex.x86_get_eflags?.()??0;
+  const d=new DataView(memory.buffer);
+  const safe32=p=>(p>=0&&p+4<=memory.buffer.byteLength)?d.getUint32(p,true):null;
+  const bytes=[];
+  for(let i=-8;i<16;i++){
+    const p=eip+i;
+    if(p>=0&&p<memory.buffer.byteLength)bytes.push((d.getUint8(p)).toString(16).padStart(2,"0"));
+  }
+  const stack=[];
+  for(let i=-4;i<12;i++){
+    const p=(esp+(i*4))>>>0;
+    const v=safe32(p);
+    stack.push((i===0?"ESP -> ":"        ")+hex(p)+" : "+(v===null?"<out of bounds>":hex(v)));
+  }
+  logTo("cpu","================================ CPU FAULT =================================","fail");
+  logTo("cpu","x86_run returned "+result+" at EIP="+hex(eip),"fail");
+  logTo("cpu","CPU error="+hex(err,4)+" · opcode="+hex(opcode,2)+" · imm32="+hex(imm)+" · EFLAGS="+hex(eflags),"fail");
+  logTo("cpu","EAX="+hex(ex.x86_get_eax?.()??0)+" ECX="+hex(ex.x86_get_ecx?.()??0)+" EDX="+hex(ex.x86_get_edx?.()??0)+" EBX="+hex(ex.x86_get_ebx?.()??0),"fail");
+  logTo("cpu","ESP="+hex(esp)+" EBP="+hex(ex.x86_get_ebp?.()??0)+" ESI="+hex(ex.x86_get_esi?.()??0)+" EDI="+hex(ex.x86_get_edi?.()??0),"fail");
+  logTo("cpu","Instruction bytes [EIP-8..EIP+15]: "+bytes.join(" "),"fail");
+  logTo("cpu","Guest stack [ESP-16..ESP+44]:\\n"+stack.join("\\n"),"fail");
+  setMeta("cpu","FAULT · EIP "+hex(eip)+" · error "+hex(err,4)+" · opcode "+hex(opcode,2));
+  setStatus("CPU FAULT",false);
+  return {eip,esp,err,opcode,imm,eflags,stack};
 }
 function scheduleCpu(){if(!loopRunning)return;runFixture().finally(()=>{frameHandle=requestAnimationFrame(scheduleCpu);});}
 function startCpuLoop(){if(loopRunning)return;loopRunning=true;setStatus("RUNTIME LIVE",true);frameHandle=requestAnimationFrame(scheduleCpu);}
