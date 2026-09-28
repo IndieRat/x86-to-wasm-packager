@@ -232,7 +232,7 @@ def make_code():
     a.rel32((0x0F, 0x85), "fail")
     a.imm32(0xB8, 0, 0x80000000)
     a.emit(0xD1, 0xD8)                           # RCR EAX,1
-    a.imm32(0xB9, 0, 0x40000000)
+    a.imm32(0xB9, 0, 0xC0000000)
     a.emit(0x3B, 0xC1)
     a.rel32((0x0F, 0x85), "fail")
 
