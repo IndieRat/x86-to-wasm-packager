@@ -30,7 +30,7 @@
       },
       {
         "mnemonic": "ADC",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "ADD",
@@ -50,11 +50,11 @@
       },
       {
         "mnemonic": "DIV",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "IDIV",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "IMUL",
@@ -66,15 +66,15 @@
       },
       {
         "mnemonic": "MUL",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "NEG",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "NOT",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "OR",
@@ -82,7 +82,7 @@
       },
       {
         "mnemonic": "SBB",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "SUB",
@@ -260,19 +260,19 @@
       },
       {
         "mnemonic": "ROL",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "ROR",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "RCL",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "RCR",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "SHLD",
@@ -284,19 +284,19 @@
       },
       {
         "mnemonic": "BT",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "BTS",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "BTR",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "BTC",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "BSF",
