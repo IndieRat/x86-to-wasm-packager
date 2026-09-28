@@ -263,6 +263,12 @@ static int x86_decode_instruction(x86_decoded_t *d) {
 static int cpu_step(void) {
     x86_decoded_t d;
     uint32_t saved_eip = eip;
+    uint32_t before_flags = eflags;
+    uint32_t before_eax = regs[R_EAX];
+    uint32_t before_ecx = regs[R_ECX];
+    uint32_t before_edx = regs[R_EDX];
+    uint32_t before_ebx = regs[R_EBX];
+    uint32_t before_opcode = (uint32_t)MEM8(saved_eip);
     int decoded = x86_decode_instruction(&d);
     if (decoded < 0) return decoded;
 
@@ -300,10 +306,15 @@ static int cpu_step(void) {
             eip=saved_eip+1u;
             last_dispatch_id=X86_DISPATCH_INC_R32;
             last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
             return 0;
         }
     }
 
     last_dispatch_id=X86_DISPATCH_NONE;
-    return cpu_step_legacy();
+    int result=cpu_step_legacy();
+    x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                     before_opcode,last_dispatch_id);
+    return result;
 }
