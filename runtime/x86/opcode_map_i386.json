@@ -1027,43 +1027,59 @@
       },
       {
         "byte": "B0",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R8_IMM8"
+        ]
       },
       {
         "byte": "B1",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R8_IMM8"
+        ]
       },
       {
         "byte": "B2",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R8_IMM8"
+        ]
       },
       {
         "byte": "B3",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R8_IMM8"
+        ]
       },
       {
         "byte": "B4",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R8_IMM8"
+        ]
       },
       {
         "byte": "B5",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R8_IMM8"
+        ]
       },
       {
         "byte": "B6",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R8_IMM8"
+        ]
       },
       {
         "byte": "B7",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R8_IMM8"
+        ]
       },
       {
         "byte": "B8",
