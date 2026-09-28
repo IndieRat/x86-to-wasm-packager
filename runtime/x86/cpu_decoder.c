@@ -276,5 +276,34 @@ static int cpu_step(void) {
     eip = saved_eip;
     decoded_prefixes = d.prefixes;
     decoded_operand16 = d.operand16;
+    last_decoded_map = d.map;
+    last_decoded_opcode = d.opcode;
+    last_decoded_length = d.cursor - d.start;
+
+    /*
+     * Refined semantic dispatch:
+     * the decoder's instruction ID is authoritative for migrated families.
+     * INC is dispatched from the decoded semantic ID rather than re-decoding
+     * the raw opcode in the legacy switch.
+     */
+    if (d.entry && d.entry->id) {
+        if (d.entry->id[0]=='I' && d.entry->id[1]=='N' &&
+            d.entry->id[2]=='C' && d.entry->id[3]=='_' &&
+            d.entry->id[4]=='R' && d.entry->id[5]=='3' &&
+            d.entry->id[6]=='2' && d.entry->id[7]==0) {
+            uint32_t reg=(uint32_t)(d.opcode-0x40u);
+            uint32_t old_flags=eflags;
+            uint32_t a=regs[reg], r=a+1u;
+            regs[reg]=r;
+            set_add_flags(a,1u,r);
+            eflags=(eflags&~CF)|(old_flags&CF);
+            eip=saved_eip+1u;
+            last_dispatch_id=X86_DISPATCH_INC_R32;
+            last_dispatch_count++;
+            return 0;
+        }
+    }
+
+    last_dispatch_id=X86_DISPATCH_NONE;
     return cpu_step_legacy();
 }
