@@ -27,7 +27,23 @@ static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
 static uint32_t last_dispatch_id=0,last_dispatch_count=0;
+#define X86_TRACE_DEPTH 32u
+static uint32_t trace_eip[X86_TRACE_DEPTH],trace_next_eip[X86_TRACE_DEPTH];
+static uint32_t trace_opcode[X86_TRACE_DEPTH],trace_flags[X86_TRACE_DEPTH];
+static uint32_t trace_eax[X86_TRACE_DEPTH],trace_ecx[X86_TRACE_DEPTH];
+static uint32_t trace_ebx[X86_TRACE_DEPTH],trace_edx[X86_TRACE_DEPTH];
+static uint32_t trace_dispatch[X86_TRACE_DEPTH];
+static uint32_t trace_count=0,trace_head=0,trace_failure_index=0;
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea);
+static void x86_trace_reset(void){trace_count=0;trace_head=0;trace_failure_index=0;}
+static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t before_eax,uint32_t before_ecx,uint32_t before_edx,uint32_t before_ebx,uint32_t before_opcode,uint32_t dispatch){
+ uint32_t i=trace_head%X86_TRACE_DEPTH;
+ trace_eip[i]=before_eip; trace_next_eip[i]=eip; trace_opcode[i]=before_opcode;
+ trace_flags[i]=before_flags; trace_eax[i]=before_eax; trace_ecx[i]=before_ecx;
+ trace_edx[i]=before_edx; trace_ebx[i]=before_ebx; trace_dispatch[i]=dispatch;
+ trace_head=(trace_head+1u)%X86_TRACE_DEPTH; if(trace_count<X86_TRACE_DEPTH)trace_count++;
+ if(regs[R_EAX]==0xDEADC0DEu && before_eax!=0xDEADC0DEu) trace_failure_index=i+1u;
+}
 enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2 };
 
 /* v0.4 guest memory/import foundation. The guest-visible address space is
@@ -638,7 +654,7 @@ static int load_pe(uint32_t f,uint32_t sz){
  }
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
- loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;
+ loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset();
  loghex("X86 requested image base=",requested_image_base);
  loghex("X86 mapped image base=",image_base);
  loghex("X86 entry=",eip);
@@ -647,7 +663,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
- for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0; message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
+ for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.8");
 loglit("PE32 + imports + memory + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
@@ -677,6 +693,18 @@ __attribute__((export_name("x86_get_last_decoded_opcode"))) uint32_t x86_get_las
 __attribute__((export_name("x86_get_last_decoded_length"))) uint32_t x86_get_last_decoded_length(void){return last_decoded_length;}
 __attribute__((export_name("x86_get_last_dispatch_id"))) uint32_t x86_get_last_dispatch_id(void){return last_dispatch_id;}
 __attribute__((export_name("x86_get_last_dispatch_count"))) uint32_t x86_get_last_dispatch_count(void){return last_dispatch_count;}
+__attribute__((export_name("x86_get_trace_count"))) uint32_t x86_get_trace_count(void){return trace_count;}
+__attribute__((export_name("x86_get_trace_index"))) uint32_t x86_get_trace_index(uint32_t n){if(n>=trace_count)return 0xFFFFFFFFu;return (trace_head+X86_TRACE_DEPTH-trace_count+n)%X86_TRACE_DEPTH;}
+__attribute__((export_name("x86_get_trace_eip"))) uint32_t x86_get_trace_eip(uint32_t i){return i<X86_TRACE_DEPTH?trace_eip[i]:0;}
+__attribute__((export_name("x86_get_trace_next_eip"))) uint32_t x86_get_trace_next_eip(uint32_t i){return i<X86_TRACE_DEPTH?trace_next_eip[i]:0;}
+__attribute__((export_name("x86_get_trace_opcode"))) uint32_t x86_get_trace_opcode(uint32_t i){return i<X86_TRACE_DEPTH?trace_opcode[i]:0;}
+__attribute__((export_name("x86_get_trace_flags"))) uint32_t x86_get_trace_flags(uint32_t i){return i<X86_TRACE_DEPTH?trace_flags[i]:0;}
+__attribute__((export_name("x86_get_trace_eax"))) uint32_t x86_get_trace_eax(uint32_t i){return i<X86_TRACE_DEPTH?trace_eax[i]:0;}
+__attribute__((export_name("x86_get_trace_ecx"))) uint32_t x86_get_trace_ecx(uint32_t i){return i<X86_TRACE_DEPTH?trace_ecx[i]:0;}
+__attribute__((export_name("x86_get_trace_edx"))) uint32_t x86_get_trace_edx(uint32_t i){return i<X86_TRACE_DEPTH?trace_edx[i]:0;}
+__attribute__((export_name("x86_get_trace_ebx"))) uint32_t x86_get_trace_ebx(uint32_t i){return i<X86_TRACE_DEPTH?trace_ebx[i]:0;}
+__attribute__((export_name("x86_get_trace_dispatch"))) uint32_t x86_get_trace_dispatch(uint32_t i){return i<X86_TRACE_DEPTH?trace_dispatch[i]:0;}
+__attribute__((export_name("x86_get_trace_failure_index"))) uint32_t x86_get_trace_failure_index(void){return trace_failure_index;}
 __attribute__((export_name("x86_get_current_opcode")))
 uint32_t x86_get_current_opcode(void){
  if(!loaded)return 0xFFFFFFFFu;
