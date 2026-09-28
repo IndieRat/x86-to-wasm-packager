@@ -6,6 +6,7 @@ from pathlib import Path
 
 BASE = 0x00400000
 DATA = BASE + 0x1800
+REPORT = BASE + 0x1900
 
 class Asm:
     def __init__(self):
@@ -52,6 +53,11 @@ class Asm:
 
 def make_code():
     a = Asm()
+
+    def mark(slot):
+        a.imm32(0xBB, 0, REPORT + slot * 4)
+        a.imm32(0xB8, 0, 1)
+        a.emit(0x89, 0x03)
 
     # MOV + ADD/SUB/CMP + conditional branch.
     a.imm32(0xB8, 0, 0x10)
@@ -116,6 +122,18 @@ def make_code():
     a.emit(0x3D, *struct.pack("<I", 0x80))       # CMP EAX,80 (EAX unchanged)
     a.rel32((0x0F, 0x85), "fail")
     a.emit(0x0F, 0xBE, 0xD0)                    # MOVSX EDX,AL -> FFFFFF80
+    # Byte-register access: AL/AH and high-byte register preservation.
+    a.imm32(0xB8, 0, 0x11223344)
+    a.emit(0xB0, 0xAA)                           # MOV AL,AA
+    a.emit(0xB4, 0xBB)                           # MOV AH,BB
+    a.imm32(0xBA, 0, 0x1122BBAA)
+    a.emit(0x3B, 0xC2)
+    a.rel32((0x0F, 0x85), "fail")
+    # 16-bit register access through 66h MOV/CMP forms.
+    a.emit(0x66, 0xB8, 0xDD, 0xCC)
+    a.emit(0x66, 0x3D, 0xDD, 0xCC)
+    a.rel32((0x0F, 0x85), "fail")
+    mark(1)  # Byte/word register access
     a.imm32(0xB8, 0, 0xFFFFFF80)
     a.emit(0x3B, 0xD0)                           # CMP EDX,EAX
     a.rel32((0x0F, 0x85), "fail")
@@ -290,6 +308,7 @@ def make_code():
     a.rel8(0x72, "bit_ok")
     a.rel32(0xE9, "fail")
     a.label("bit_ok")
+    mark(2)  # Correct flags / edge cases
 
     # Success/failure markers.
     a.imm32(0xB8, 0, 0xC0DEF00D)
@@ -343,7 +362,7 @@ def main():
     if manifest.get("architecture")!="x86": raise SystemExit("package is not x86")
     print(f"Created CPU foundation stress package: {out}")
     print(f"Instruction bytes: {len(code)}")
-    print("Coverage: MOV, ADD, ADC, SUB, SBB, CMP, AND, OR, XOR, TEST, SHL, SHR, SAR, ROL, ROR, RCL, RCR, NEG, NOT, MUL, IMUL, DIV, IDIV, BT, BTS, BTR, BTC, MOVZX, MOVSX, PUSH, POP, ModR/M, SIB, CALL, RET, JE/JNE, HLT")
+    print("Coverage: Integer 32-bit execution; byte/word register access; flags/edge cases; MOV, ADD, ADC, SUB, SBB, CMP, AND, OR, XOR, TEST, SHL, SHR, SAR, ROL, ROR, RCL, RCR, NEG, NOT, MUL, IMUL, DIV, IDIV, BT, BTS, BTR, BTC, MOVZX, MOVSX, PUSH, POP, ModR/M, SIB, CALL, RET, JE/JNE, HLT")
     return 0
 
 if __name__=="__main__": raise SystemExit(main())
