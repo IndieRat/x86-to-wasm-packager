@@ -731,7 +731,7 @@ uint32_t x86_rcr32_self_test(void){
  const uint32_t values[4]={0x80000000u,0x80000000u,0x00000001u,0xFFFFFFFFu};
  const uint32_t carries[4]={0u,1u,1u,0u};
  const uint32_t counts[4]={1u,1u,1u,31u};
- const uint32_t expected[4]={0x40000000u,0xC0000000u,0x80000000u,0x00000003u};
+ const uint32_t expected[4]={0x40000000u,0xC0000000u,0x80000000u,0xFFFFFFFDu};
  const uint32_t expected_cf[4]={0u,0u,1u,1u};
  for(uint32_t i=0;i<4u;i++){
   uint32_t count=counts[i]&31u;
