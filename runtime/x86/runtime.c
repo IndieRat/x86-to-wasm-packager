@@ -250,6 +250,7 @@ static void set_logic_flags(uint32_t v){
  eflags=(eflags&~(CF|PF|AF|ZF|SF|OF))|((p&1u)==0?PF:0)|(v==0?ZF:0)|((v&0x80000000u)?SF:0);
 }
 static uint32_t parity_even8(uint32_t v){v&=0xFFu;v^=v>>4;v^=v>>2;v^=v>>1;return (v&1u)==0u;}
+static void set_logic_flags_width(uint32_t v,uint32_t bits){uint32_t mask=bits==8?0xFFu:(bits==16?0xFFFFu:0xFFFFFFFFu),sign=1u<<(bits-1u);v&=mask;uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);if(parity_even8(v))f|=PF;if(v==0)f|=ZF;if(v&sign)f|=SF;eflags=f;}
 static void set_add_flags(uint32_t a,uint32_t b,uint32_t r){
  uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);
  if(r<a)f|=CF;
@@ -299,6 +300,8 @@ static uint8_t reg8_read(uint32_t r){uint32_t i=r&7u;return (uint8_t)(i<4u?regs[
 static void reg8_write(uint32_t r,uint8_t v){uint32_t i=r&7u;if(i<4u)regs[i]=(regs[i]&~0xFFu)|v;else{uint32_t q=i-4u;regs[q]=(regs[q]&~0xFF00u)|((uint32_t)v<<8);}}
 static void reg16_write(uint32_t r,uint16_t v){uint32_t i=r&7u;regs[i]=(regs[i]&~0xFFFFu)|v;}
 static uint8_t modrm_read8(uint8_t m,uint32_t *ip){uint32_t ea=0;if(!modrm_ea(m,ip,&ea))return reg8_read(m&7);return MEM8(ea);}
+static uint16_t modrm_read16(uint8_t m,uint32_t *ip){uint32_t ea=0;if(!modrm_ea(m,ip,&ea))return reg16_read(m&7);return rd16(ea);}
+static void modrm_write16(uint8_t m,uint32_t *ip,uint16_t v){uint32_t ea=0;if(!modrm_ea(m,ip,&ea)){reg16_write(m&7,v);return;}wr32(ea,(rd32(ea)&0xFFFF0000u)|v);}
 static void modrm_write8(uint8_t m,uint32_t *ip,uint8_t v){uint32_t ea=0;if(!modrm_ea(m,ip,&ea)){reg8_write(m&7,v);return;}wr8(ea,v);}
 static void string_step(uint8_t op){
  uint32_t width=(op==0xA4||op==0xA6||op==0xAC||op==0xAE||op==0xAA)?1u:(decoded_operand16?2u:4u),si=regs[R_ESI],di=regs[R_EDI],step=(eflags&DF)?(uint32_t)(-(int32_t)width):width;
@@ -394,14 +397,29 @@ static int cpu_step_legacy(void){
   }
   case 0xB8:case 0xB9:case 0xBA:case 0xBB:case 0xBC:case 0xBD:case 0xBE:case 0xBF:
    regs[op-0xB8]=rd32(ip); eip=ip+4; return 0; /* MOV r32,imm32 */
-  case 0x8B: { /* MOV r32,r/m32 */
-   uint8_t m=MEM8(ip++); uint32_t v=modrm_read32(m,&ip); regs[(m>>3)&7]=v; eip=ip; return 0;
+  case 0x8B: { /* MOV r32/r16,r/m */
+   uint8_t m=MEM8(ip++); if(decoded_operand16){reg16_write((m>>3)&7,modrm_read16(m,&ip));}else{regs[(m>>3)&7]=modrm_read32(m,&ip);} eip=ip; return 0;
   }
-  case 0x89: { /* MOV r/m32,r32 */
-   uint8_t m=MEM8(ip++); uint32_t v=regs[(m>>3)&7]; modrm_write32(m,&ip,v); eip=ip; return 0;
+  case 0x89: { /* MOV r/m32/r16,r32/r16 */
+   uint8_t m=MEM8(ip++); if(decoded_operand16)modrm_write16(m,&ip,reg16_read((m>>3)&7));else modrm_write32(m,&ip,regs[(m>>3)&7]); eip=ip; return 0;
   }
   case 0x8D: { /* LEA r32,m */
    uint8_t m=MEM8(ip++); uint32_t ea=0; if(!modrm_ea(m,&ip,&ea)){cpu_error=0x8D;return -11;} regs[(m>>3)&7]=ea; eip=ip; return 0;
+  }
+  case 0x00:case 0x02:case 0x08:case 0x0A:case 0x10:case 0x12:case 0x18:case 0x1A:case 0x20:case 0x22:case 0x28:case 0x2A:case 0x30:case 0x32:case 0x38:case 0x3A:case 0x84:{
+   uint8_t m=MEM8(ip++),d=(m>>3)&7;uint8_t a,b,r;uint32_t ea=0;
+   if((m>>6)==3)a=reg8_read(m&7);else{modrm_ea(m,&ip,&ea);a=MEM8(ea);}
+   b=reg8_read(d);
+   switch(op&0xF8u){case 0x00:r=(uint8_t)(a+b);set_add_flags_width(a,b,r,8);break;case 0x08:r=(uint8_t)(a|b);set_logic_flags_width(r,8);break;case 0x10:{uint32_t c=(eflags&CF)?1u:0u;r=(uint8_t)(a+b+c);set_adc_flags(a,b,c,r);break;}case 0x18:{uint32_t c=(eflags&CF)?1u:0u;r=(uint8_t)(a-b-c);set_sbb_flags(a,b,c,r);break;}case 0x20:r=(uint8_t)(a&b);set_logic_flags_width(r,8);break;case 0x28:r=(uint8_t)(a-b);set_sub_flags_width(a,b,r,8);break;case 0x30:r=(uint8_t)(a^b);set_logic_flags_width(r,8);break;default:set_sub_flags_width(a,b,(uint8_t)(a-b),8);eip=ip;return 0;}
+   if(op==0x02||op==0x0A||op==0x12||op==0x1A||op==0x22||op==0x2A||op==0x32||op==0x3A)reg8_write(d,r);else if(op==0x84){set_logic_flags_width((uint8_t)(a&b),8);eip=ip;return 0;}else if((m>>6)==3)reg8_write(m&7,r);else wr8(ea,r);
+   eip=ip;return 0;
+  }
+  case 0x04:case 0x0C:case 0x14:case 0x1C:case 0x24:case 0x2C:case 0x34:case 0x3C:{
+   uint8_t b=MEM8(ip++),a=reg8_read(0),r;switch(op){case 0x04:r=a+b;set_add_flags_width(a,b,r,8);break;case 0x0C:r=a|b;set_logic_flags_width(r,8);break;case 0x14:{uint32_t c=(eflags&CF)?1u:0u;r=a+b+c;set_adc_flags(a,b,c,r);break;}case 0x1C:{uint32_t c=(eflags&CF)?1u:0u;r=a-b-c;set_sbb_flags(a,b,c,r);break;}case 0x24:r=a&b;set_logic_flags_width(r,8);break;case 0x2C:r=a-b;set_sub_flags_width(a,b,r,8);break;case 0x34:r=a^b;set_logic_flags_width(r,8);break;default:set_sub_flags_width(a,b,(uint8_t)(a-b),8);eip=ip;return 0;}reg8_write(0,r);eip=ip;return 0;
+  }
+  case 0x80:{
+   uint8_t m=MEM8(ip++),sub=(m>>3)&7;uint32_t ea=0;uint8_t a=(m>>6)==3?reg8_read(m&7):(modrm_ea(m,&ip,&ea),MEM8(ea)),b=MEM8(ip++),r;
+   if(sub==0){r=a+b;set_add_flags_width(a,b,r,8);}else if(sub==2){uint32_t c=(eflags&CF)?1u:0u;r=a+b+c;set_adc_flags(a,b,c,r);}else if(sub==3){uint32_t c=(eflags&CF)?1u:0u;r=a-b-c;set_sbb_flags(a,b,c,r);}else if(sub==4){r=a&b;set_logic_flags_width(r,8);}else if(sub==5){r=a-b;set_sub_flags_width(a,b,r,8);}else if(sub==6){r=a^b;set_logic_flags_width(r,8);}else if(sub==7){set_sub_flags_width(a,b,(uint8_t)(a-b),8);eip=ip;return 0;}else{cpu_error=0x8000u|sub;return -40;}if(sub!=7){if((m>>6)==3)reg8_write(m&7,r);else wr8(ea,r);}eip=ip;return 0;
   }
   case 0x01: { /* ADD r/m32,r32 */
    uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7]; uint32_t a;
