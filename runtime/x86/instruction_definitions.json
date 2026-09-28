@@ -479,7 +479,8 @@
       "family": "control_flow",
       "status": "EXECUTE",
       "forms": [
-        "JB_REL8"
+        "JB_REL8",
+        "JB_REL32"
       ],
       "condition": "CF=1",
       "flags": {
@@ -497,7 +498,8 @@
       "family": "control_flow",
       "status": "EXECUTE",
       "forms": [
-        "JAE_REL8"
+        "JAE_REL8",
+        "JAE_REL32"
       ],
       "condition": "CF=0",
       "flags": {
@@ -515,7 +517,8 @@
       "family": "control_flow",
       "status": "EXECUTE",
       "forms": [
-        "JA_REL8"
+        "JA_REL8",
+        "JA_REL32"
       ],
       "condition": "CF=0 && ZF=0",
       "flags": {
@@ -534,7 +537,8 @@
       "family": "control_flow",
       "status": "EXECUTE",
       "forms": [
-        "JBE_REL8"
+        "JBE_REL8",
+        "JBE_REL32"
       ],
       "condition": "CF=1 || ZF=1",
       "flags": {
@@ -553,7 +557,8 @@
       "family": "control_flow",
       "status": "EXECUTE",
       "forms": [
-        "JL_REL8"
+        "JL_REL8",
+        "JL_REL32"
       ],
       "condition": "SF!=OF",
       "flags": {
@@ -572,7 +577,8 @@
       "family": "control_flow",
       "status": "EXECUTE",
       "forms": [
-        "JGE_REL8"
+        "JGE_REL8",
+        "JGE_REL32"
       ],
       "condition": "SF=OF",
       "flags": {
@@ -591,7 +597,8 @@
       "family": "control_flow",
       "status": "EXECUTE",
       "forms": [
-        "JLE_REL8"
+        "JLE_REL8",
+        "JLE_REL32"
       ],
       "condition": "ZF=1 || SF!=OF",
       "flags": {
@@ -611,7 +618,8 @@
       "family": "control_flow",
       "status": "EXECUTE",
       "forms": [
-        "JG_REL8"
+        "JG_REL8",
+        "JG_REL32"
       ],
       "condition": "ZF=0 && SF=OF",
       "flags": {
@@ -903,6 +911,142 @@
         "write": [
           "CF"
         ]
+      }
+    },
+    {
+      "id": "JO",
+      "mnemonic": "JO",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JO_REL8",
+        "JO_REL32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "JNO",
+      "mnemonic": "JNO",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JNO_REL8",
+        "JNO_REL32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "JS",
+      "mnemonic": "JS",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JS_REL8",
+        "JS_REL32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "JNS",
+      "mnemonic": "JNS",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JNS_REL8",
+        "JNS_REL32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "JP",
+      "mnemonic": "JP",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JP_REL8",
+        "JP_REL32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "JNP",
+      "mnemonic": "JNP",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JNP_REL8",
+        "JNP_REL32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "JCXZ",
+      "mnemonic": "JCXZ",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JCXZ_REL8"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "LOOP",
+      "mnemonic": "LOOP",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "LOOP_REL8"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "LOOPE",
+      "mnemonic": "LOOPE",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "LOOPE_REL8"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "LOOPNE",
+      "mnemonic": "LOOPNE",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "LOOPNE_REL8"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
       }
     }
   ]
