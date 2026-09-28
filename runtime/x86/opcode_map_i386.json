@@ -363,163 +363,227 @@
       },
       {
         "byte": "40",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INC_R32"
+        ]
       },
       {
         "byte": "41",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INC_R32"
+        ]
       },
       {
         "byte": "42",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INC_R32"
+        ]
       },
       {
         "byte": "43",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INC_R32"
+        ]
       },
       {
         "byte": "44",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INC_R32"
+        ]
       },
       {
         "byte": "45",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INC_R32"
+        ]
       },
       {
         "byte": "46",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INC_R32"
+        ]
       },
       {
         "byte": "47",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INC_R32"
+        ]
       },
       {
         "byte": "48",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "DEC_R32"
+        ]
       },
       {
         "byte": "49",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "DEC_R32"
+        ]
       },
       {
         "byte": "4A",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "DEC_R32"
+        ]
       },
       {
         "byte": "4B",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "DEC_R32"
+        ]
       },
       {
         "byte": "4C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "DEC_R32"
+        ]
       },
       {
         "byte": "4D",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "DEC_R32"
+        ]
       },
       {
         "byte": "4E",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "DEC_R32"
+        ]
       },
       {
         "byte": "4F",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "DEC_R32"
+        ]
       },
       {
         "byte": "50",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_R32"
+        ]
       },
       {
         "byte": "51",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_R32"
+        ]
       },
       {
         "byte": "52",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_R32"
+        ]
       },
       {
         "byte": "53",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_R32"
+        ]
       },
       {
         "byte": "54",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_R32"
+        ]
       },
       {
         "byte": "55",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_R32"
+        ]
       },
       {
         "byte": "56",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_R32"
+        ]
       },
       {
         "byte": "57",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_R32"
+        ]
       },
       {
         "byte": "58",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POP_R32"
+        ]
       },
       {
         "byte": "59",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POP_R32"
+        ]
       },
       {
         "byte": "5A",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POP_R32"
+        ]
       },
       {
         "byte": "5B",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POP_R32"
+        ]
       },
       {
         "byte": "5C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POP_R32"
+        ]
       },
       {
         "byte": "5D",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POP_R32"
+        ]
       },
       {
         "byte": "5E",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POP_R32"
+        ]
       },
       {
         "byte": "5F",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POP_R32"
+        ]
       },
       {
         "byte": "60",
@@ -1003,43 +1067,59 @@
       },
       {
         "byte": "B8",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R32_IMM32"
+        ]
       },
       {
         "byte": "B9",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R32_IMM32"
+        ]
       },
       {
         "byte": "BA",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R32_IMM32"
+        ]
       },
       {
         "byte": "BB",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R32_IMM32"
+        ]
       },
       {
         "byte": "BC",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R32_IMM32"
+        ]
       },
       {
         "byte": "BD",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R32_IMM32"
+        ]
       },
       {
         "byte": "BE",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R32_IMM32"
+        ]
       },
       {
         "byte": "BF",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R32_IMM32"
+        ]
       },
       {
         "byte": "C0",
