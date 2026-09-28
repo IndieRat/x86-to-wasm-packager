@@ -1,4 +1,4 @@
-// XWASM X86 Runtime v0.7
+// XWASM X86 Runtime v0.8
 #include <stdint.h>
 
 extern void xwasm_log(int32_t level,int32_t ptr,int32_t len);
@@ -248,19 +248,39 @@ static void set_logic_flags(uint32_t v){
  eflags=(eflags&~(CF|PF|AF|ZF|SF|OF))|((p&1u)==0?PF:0)|(v==0?ZF:0)|((v&0x80000000u)?SF:0);
 }
 static void set_add_flags(uint32_t a,uint32_t b,uint32_t r){
- uint32_t f=eflags&~(CF|PF|ZF|SF|OF);
+ uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);
  if(r<a)f|=CF;
+ if(((a&0xFu)+(b&0xFu))>0xFu)f|=AF;
  if(r==0)f|=ZF;
  if(r&0x80000000u)f|=SF;
  if(((~(a^b))&(a^r)&0x80000000u)!=0)f|=OF;
  eflags=f;
 }
 static void set_sub_flags(uint32_t a,uint32_t b,uint32_t r){
- uint32_t f=eflags&~(CF|PF|ZF|SF|OF);
+ uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);
  if(a<b)f|=CF;
+ if((a&0xFu)<(b&0xFu))f|=AF;
  if(r==0)f|=ZF;
  if(r&0x80000000u)f|=SF;
  if(((a^b)&(a^r)&0x80000000u)!=0)f|=OF;
+ eflags=f;
+}
+static void set_adc_flags(uint32_t a,uint32_t b,uint32_t cin,uint32_t r){
+ uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF),bb=b+cin;
+ if(r<a || (cin && r==a))f|=CF;
+ if(((a&0xFu)+(b&0xFu)+cin)>0xFu)f|=AF;
+ if(r==0)f|=ZF;
+ if(r&0x80000000u)f|=SF;
+ if(((~(a^bb))&(a^r)&0x80000000u)!=0)f|=OF;
+ eflags=f;
+}
+static void set_sbb_flags(uint32_t a,uint32_t b,uint32_t bin,uint32_t r){
+ uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF),bb=b+bin;
+ if(a<bb || bb<b)f|=CF;
+ if((a&0xFu)<((b&0xFu)+bin))f|=AF;
+ if(r==0)f|=ZF;
+ if(r&0x80000000u)f|=SF;
+ if(((a^bb)&(a^r)&0x80000000u)!=0)f|=OF;
  eflags=f;
 }
 static void set_shift_flags(uint32_t v,uint32_t cf,int of_valid,uint32_t of){
@@ -364,10 +384,10 @@ static int cpu_step_legacy(void){
   case 0x03: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t a=regs[d],b=modrm_read32(m,&ip),v=a+b;set_add_flags(a,b,v);regs[d]=v;eip=ip;return 0; } /* ADD r32,r/m32 */
   case 0x3B: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t a=regs[d],b=modrm_read32(m,&ip);set_sub_flags(a,b,a-b);eip=ip;return 0; } /* CMP r32,r/m32 */
   case 0x81: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,a; if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);} uint32_t b=rd32(ip);ip+=4; uint32_t v;
-   if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8100u|sub;return -13;}
+   if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==2){uint32_t c=(eflags&CF)?1u:0u;v=a+b+c;set_adc_flags(a,b,c,v);}else if(sub==3){uint32_t c=(eflags&CF)?1u:0u;v=a-b-c;set_sbb_flags(a,b,c,v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8100u|sub;return -13;}
    if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);eip=ip;return 0; } /* ADD/SUB/CMP r/m32,imm32 */
   case 0x83: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,a; if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);} int32_t sb=(int8_t)MEM8(ip++);uint32_t b=(uint32_t)sb,v;
-   if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8300u|sub;return -14;}
+   if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==2){uint32_t c=(eflags&CF)?1u:0u;v=a+b+c;set_adc_flags(a,b,c,v);}else if(sub==3){uint32_t c=(eflags&CF)?1u:0u;v=a-b-c;set_sbb_flags(a,b,c,v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8300u|sub;return -14;}
    if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);eip=ip;return 0; } /* ADD/SUB/CMP r/m32,imm8 */
   case 0x39: { /* CMP r/m32,r32 */
    uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7],a;
@@ -377,9 +397,25 @@ static int cpu_step_legacy(void){
   case 0x85: { /* TEST r/m32,r32 */
    uint8_t m=MEM8(ip++); uint32_t v=modrm_read32(m,&ip)&regs[(m>>3)&7]; set_logic_flags(v); eip=ip; return 0;
   }
+  case 0x11: {uint8_t m=MEM8(ip++);uint32_t ea=0,a,b=regs[(m>>3)&7],cin=(eflags&CF)?1u:0u;if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);}uint32_t r=a+b+cin;set_adc_flags(a,b,cin,r);if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);eip=ip;return 0;}
+  case 0x13: {uint8_t m=MEM8(ip++),d=(m>>3)&7,cin=(eflags&CF)?1u:0u,a=regs[d],b=modrm_read32(m,&ip),r=a+b+cin;set_adc_flags(a,b,cin,r);regs[d]=r;eip=ip;return 0;}
+  case 0x15: {uint32_t b=rd32(ip),cin=(eflags&CF)?1u:0u,a=regs[R_EAX],r=a+b+cin;set_adc_flags(a,b,cin,r);regs[R_EAX]=r;eip=ip+4;return 0;}
+  case 0x19: {uint8_t m=MEM8(ip++);uint32_t ea=0,a,b=regs[(m>>3)&7],bin=(eflags&CF)?1u:0u;if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);}uint32_t r=a-b-bin;set_sbb_flags(a,b,bin,r);if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);eip=ip;return 0;}
+  case 0x1B: {uint8_t m=MEM8(ip++),d=(m>>3)&7,bin=(eflags&CF)?1u:0u,a=regs[d],b=modrm_read32(m,&ip),r=a-b-bin;set_sbb_flags(a,b,bin,r);regs[d]=r;eip=ip;return 0;}
+  case 0x1D: {uint32_t b=rd32(ip),bin=(eflags&CF)?1u:0u,a=regs[R_EAX],r=a-b-bin;set_sbb_flags(a,b,bin,r);regs[R_EAX]=r;eip=ip+4;return 0;}
   case 0x05: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]+b;set_add_flags(regs[R_EAX],b,r);regs[R_EAX]=r;eip=ip+4;return 0;}
   case 0x2D: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]-b;set_sub_flags(regs[R_EAX],b,r);regs[R_EAX]=r;eip=ip+4;return 0;}
   case 0x3D: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]-b;set_sub_flags(regs[R_EAX],b,r);eip=ip+4;return 0;} /* CMP EAX,imm32 */
+  case 0xF7: { /* NOT/NEG/MUL/IMUL/DIV/IDIV r/m32 */
+   uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea));
+   if(sub==2){v=~v;if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);eip=ip;return 0;}
+   if(sub==3){uint32_t r=0u-v;uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);if(v)f|=CF;if(v&0xFu)f|=AF;if(r==0)f|=ZF;if(r&0x80000000u)f|=SF;if(v==0x80000000u)f|=OF;eflags=f;if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);eip=ip;return 0;}
+   if(sub==4){uint64_t p=(uint64_t)regs[R_EAX]*(uint64_t)v;regs[R_EAX]=(uint32_t)p;regs[R_EDX]=(uint32_t)(p>>32);eflags=(eflags&~(CF|OF))|(((p>>32)!=0)?(CF|OF):0);eip=ip;return 0;}
+   if(sub==5){int64_t p=(int64_t)(int32_t)regs[R_EAX]*(int64_t)(int32_t)v;uint32_t lo=(uint32_t)p,hi=(uint32_t)((uint64_t)p>>32);regs[R_EAX]=lo;regs[R_EDX]=hi;int64_t sx=(int64_t)(int32_t)lo;eflags=(eflags&~(CF|OF))|((p!=sx)?(CF|OF):0);eip=ip;return 0;}
+   if(sub==6){if(v==0){cpu_error=0xF706u;return -30;}uint64_t dividend=((uint64_t)regs[R_EDX]<<32)|regs[R_EAX];uint64_t q=dividend/v,r=dividend%v;if(q>0xFFFFFFFFull){cpu_error=0xF707u;return -31;}regs[R_EAX]=(uint32_t)q;regs[R_EDX]=(uint32_t)r;eip=ip;return 0;}
+   if(sub==7){if(v==0){cpu_error=0xF708u;return -32;}int64_t dividend=((int64_t)(int32_t)regs[R_EDX]<<32)|(uint32_t)regs[R_EAX];int64_t q=dividend/(int32_t)v,r=dividend%(int32_t)v;if(q>2147483647ll||q<(-2147483647ll-1ll)){cpu_error=0xF709u;return -33;}regs[R_EAX]=(uint32_t)q;regs[R_EDX]=(uint32_t)r;eip=ip;return 0;}
+   cpu_error=0xF700u|sub;return -34;
+  }
   case 0x40:case 0x41:case 0x42:case 0x43:case 0x44:case 0x45:case 0x46:case 0x47:
    {uint32_t r=regs[op-0x40]+1;regs[op-0x40]=r; /* INC does not modify CF */
     uint32_t old=eflags;set_add_flags(regs[op-0x40]-1,1,r);eflags=(eflags&~CF)|(old&CF);eip=ip;return 0;}
@@ -527,10 +563,10 @@ static int load_pe(uint32_t f,uint32_t sz){
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
  for(int i=0;i<8;i++)regs[i]=0; message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
-loglit("XWASM X86 Runtime v0.7");
+loglit("XWASM X86 Runtime v0.8");
 loglit("PE32 + imports + memory + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
-__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00070000u;}
+__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00080000u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
 __attribute__((export_name("x86_run"))) int x86_run(int32_t max_steps){
