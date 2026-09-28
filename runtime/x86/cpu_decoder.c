@@ -396,6 +396,7 @@ static int cpu_step(void) {
     }
 
     last_dispatch_id=X86_DISPATCH_NONE;
+    legacy_execution_count++;
     int result=cpu_step_legacy();
     x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
                      before_opcode,last_dispatch_id);
