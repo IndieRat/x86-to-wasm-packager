@@ -114,7 +114,7 @@ function state(){
   const map=api("x86_get_last_decoded_map")(), dop=api("x86_get_last_decoded_opcode")(), len=api("x86_get_last_decoded_length")(), did=api("x86_get_last_dispatch_id")(), dc=api("x86_get_last_dispatch_count")();
   const names={0:"NONE",1:"INC_R32",2:"DEC_R32"};
   $("decode").textContent=[
-    "decoded map       "+map+" ("+["primary","0F","0F38","0F3A"][map]||"?")",
+    "decoded map       "+map+" ("+((["primary","0F","0F38","0F3A"][map])||"?")+")",
     "decoded opcode    "+hex(dop),
     "decoded length    "+len,
     "semantic dispatch "+(names[did]||("ID "+did)),
