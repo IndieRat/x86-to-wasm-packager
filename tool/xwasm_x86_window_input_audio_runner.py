@@ -53,6 +53,8 @@ canvas{display:block;width:640px;height:360px;max-width:100%;image-rendering:pix
 
   <div class="toolbar">
     <label class="filepick">Open XWASM package<input id="picker" type="file" webkitdirectory directory></label>
+    <button id="copyBtn">Copy current log</button>
+    <button id="copyAllBtn">Copy all logs</button>
     <button id="clearBtn">Clear logs</button>
     <button id="pauseBtn" disabled>Pause CPU</button>
   </div>
@@ -136,6 +138,30 @@ function logTo(kind,text,cls=""){
 function setMeta(kind,text){$(kind+"Meta").textContent=text;}
 function setStatus(text,live=false){$("statusText").textContent=text;$("statusDot").className="dot"+(live?" live":"");}
 function setCheck(id,text,cls){const e=$(id);e.textContent=text;e.className="value "+(cls||"");}
+function copyText(text){
+  if(navigator.clipboard&&window.isSecureContext)return navigator.clipboard.writeText(text);
+  const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";
+  document.body.appendChild(ta);ta.focus();ta.select();document.execCommand("copy");ta.remove();
+  return Promise.resolve();
+}
+function activePanelName(){
+  const active=document.querySelector(".tab.active");
+  return active?.dataset.panel||"system";
+}
+function panelText(name){
+  const el=panels[name]; return el?el.innerText:"";
+}
+$("copyBtn").onclick=async()=>{
+  const name=activePanelName();
+  await copyText(panelText(name));
+  logTo("system","Copied "+name+" log to clipboard.","pass");
+};
+$("copyAllBtn").onclick=async()=>{
+  const order=["system","imports","cpu","input","window","audio"];
+  const text=order.map(name=>"================ "+name.toUpperCase()+" ================\\n"+panelText(name)).join("\\n\\n");
+  await copyText(text);
+  logTo("system","Copied all diagnostic logs to clipboard.","pass");
+};
 function hex(v,w=8){return "0x"+(v>>>0).toString(16).padStart(w,"0");}
 function rgb(c){return "#"+(c&255).toString(16).padStart(2,"0")+((c>>>8)&255).toString(16).padStart(2,"0")+((c>>>16)&255).toString(16).padStart(2,"0");}
 
