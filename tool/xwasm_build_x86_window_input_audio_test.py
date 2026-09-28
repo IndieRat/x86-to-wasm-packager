@@ -81,30 +81,30 @@ def make_pe():
     args = [0, 0, 0, 0x10000000, 0, 0, 640, 360, 0, 0, 0, 0]
     for value in reversed(args):
         code.extend(b"\x68" + struct.pack("<I", value))
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1190))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1390))
     code.extend(b"\x89\xC6")                 # ESI = HWND
     code.extend(b"\x6A\x01\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1194))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1394))
 
     # GetDC(hwnd), draw a surface marker, then release the DC.
     code.extend(b"\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1198))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1398))
     code.extend(b"\x89\xC3")                 # EBX = HDC
     for value in (280, 520, 80, 120):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11BC))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13BC))
     for value in (0x000000FF, 180, 320):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11B8))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13B8))
     code.extend(b"\x53\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x119C))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x139C))
 
     # KERNEL32!Beep(660, 120): browser Web Audio proof.
     code.extend(b"\x68" + struct.pack("<I", 120))
     code.extend(b"\x68" + struct.pack("<I", 660))
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11C4))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13C4))
 
     # Proper persistent Win32-style message loop.
     # PeekMessageA is polled continuously; each browser event wakes the loop,
@@ -114,14 +114,14 @@ def make_pe():
     for value in (1, 0, 0, 0):
         code.extend(b"\x6A" + struct.pack("<B", value))
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A0))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13A0))
     code.extend(b"\x85\xC0")                 # TEST EAX,EAX
     jz = len(code)
     code.extend(b"\x74\x00")
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A4))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13A4))
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x11A8))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13A8))
     back = len(code)
     code.extend(b"\xEB\x00")
     code[jz + 1] = (loop - (jz + 2)) & 0xFF
@@ -129,17 +129,17 @@ def make_pe():
 
     b[SECTION_RAW:SECTION_RAW + len(code)] = code
 
-    import_rva = 0x1100
-    user_oft_rva = 0x1150
-    gdi_oft_rva = 0x1178
-    kernel_oft_rva = 0x1184
-    user_iat_rva = 0x1190
-    gdi_iat_rva = 0x11B8
-    kernel_iat_rva = 0x11C4
-    user_dll = 0x11D0
-    gdi_dll = 0x11E0
-    kernel_dll = 0x11F0
-    names = [0x1200 + i * 0x20 for i in range(12)]
+    import_rva = 0x1300
+    user_oft_rva = 0x1350
+    gdi_oft_rva = 0x1378
+    kernel_oft_rva = 0x1384
+    user_iat_rva = 0x1390
+    gdi_iat_rva = 0x13B8
+    kernel_iat_rva = 0x13C4
+    user_dll = 0x13D0
+    gdi_dll = 0x13E0
+    kernel_dll = 0x13F0
+    names = [0x1400 + i * 0x20 for i in range(12)]
     funcs = [
         b"CreateWindowExA\0", b"ShowWindow\0", b"GetDC\0", b"ReleaseDC\0",
         b"SetPixel\0", b"Rectangle\0",
@@ -149,10 +149,9 @@ def make_pe():
     ]
 
     base = SECTION_RAW
-    # Clear the complete import-descriptor region first. This keeps the
-    # required null descriptor deterministic even if the fixture layout is
-    # edited later.
-    b[base + 0x100:base + 0x150] = b"\0" * 0x50
+    # Keep the import descriptors/data above the executable code so the
+    # machine-code test can grow without corrupting its own PE metadata.
+    b[base + (import_rva - SECTION_RVA):base + (import_rva - SECTION_RVA) + 0x50] = b"\0" * 0x50
     # USER32: CreateWindowExA, ShowWindow, GetDC, ReleaseDC, and five
     # message-loop functions.
     struct.pack_into("<IIIII", b, base + 0x100,
@@ -164,7 +163,7 @@ def make_pe():
     struct.pack_into("<IIIII", b, base + 0x128,
                      kernel_oft_rva, 0, 0, kernel_dll, kernel_iat_rva)
     # Null import descriptor terminator.
-    struct.pack_into("<IIIII", b, base + 0x13C, 0, 0, 0, 0, 0)
+    struct.pack_into("<IIIII", b, base + (import_rva - SECTION_RVA) + 0x3C, 0, 0, 0, 0, 0)
 
     user_names = [names[0], names[1], names[2], names[3],
                   names[7], names[8], names[9], names[10], names[11]]
