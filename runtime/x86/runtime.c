@@ -60,7 +60,8 @@ static uint32_t guest_vm=0x02000000u;
 static uint32_t guest_vm_limit=0x06000000u;
 static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_count=0;
 static uint32_t import_resolved=0,import_failed=0;
-static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0,mouse_right_clicks=0,mouse_middle_clicks=0,mouse_moves=0;\nstatic uint32_t surface_width=640,surface_height=360;
+static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0,mouse_right_clicks=0,mouse_middle_clicks=0,mouse_moves=0;
+static uint32_t surface_width=640,surface_height=360;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 static uint32_t last_failed_import_dll=0,last_failed_import_func=0;
 
