@@ -41,6 +41,40 @@ def make_pe():
 
     code = bytearray()
 
+    # CPU compatibility self-test. EBP receives XOPS when the richer
+    # arithmetic/logic/shift/IMUL/MOVZX/MOVSX/branch operations all pass.
+    # This runs entirely inside the guest before entering the message loop.
+    code.extend(b"\\xB8" + struct.pack("<I", 3))
+    code.extend(b"\\xB9" + struct.pack("<I", 5))
+    code.extend(b"\\x0F\\xAF\\xC1")
+    code.extend(b"\\xC1\\xE0\\x01")
+    code.extend(b"\\x83\\xC0\\x02")
+    code.extend(b"\\xBA" + struct.pack("<I", 0xF0))
+    code.extend(b"\\x0B\\xD0")
+    code.extend(b"\\x23\\xD0")
+    code.extend(b"\\x2B\\xD0")
+    code.extend(b"\\x83\\xFA\\x00")
+    jne_logic = len(code)
+    code.extend(b"\\x75\\x00")
+    code.extend(b"\\xB8" + struct.pack("<I", 0x80))
+    code.extend(b"\\x0F\\xBE\\xC8")
+    code.extend(b"\\x83\\xF9\\x80")
+    jne_movsx = len(code)
+    code.extend(b"\\x75\\x00")
+    code.extend(b"\\x0F\\xB6\\xC8")
+    code.extend(b"\\x83\\xF9\\x80")
+    jne_movzx = len(code)
+    code.extend(b"\\x75\\x00")
+    code.extend(b"\\xBD" + struct.pack("<I", 0x584F5053))
+    rich_fail = len(code)
+    code.extend(b"\\xEB\\x00")
+    rich_pass = len(code)
+    code[jne_logic + 1] = (rich_fail - (jne_logic + 2)) & 0xFF
+    code[jne_movsx + 1] = (rich_fail - (jne_movsx + 2)) & 0xFF
+    code[jne_movzx + 1] = (rich_fail - (jne_movzx + 2)) & 0xFF
+    code[rich_fail + 1] = (rich_pass - (rich_fail + 2)) & 0xFF
+    code.extend(b"\\x31\\xED")
+
     # Create a real Win32-style client surface: exstyle, class, title, style,
     # x, y, width, height, parent, menu, instance, param.
     args = [0, 0, 0, 0x10000000, 0, 0, 640, 360, 0, 0, 0, 0]
