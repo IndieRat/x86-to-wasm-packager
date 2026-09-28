@@ -6,6 +6,7 @@
  * legacy executor remains behind it until each semantic family is migrated.
  */
 #include "generated_decode_table.h"
+#include <string.h>
 
 typedef struct {
     uint32_t start;
@@ -96,6 +97,15 @@ static int x86_decode_modrm_tail(x86_decoded_t *d) {
     return 0;
 }
 
+static void x86_decode_payload_size(x86_decoded_t *d) {
+    const char *id=d->entry?d->entry->id:0;
+    if(!id)return;
+    if(!strcmp(id,"MOV_R32_IMM32")||!strcmp(id,"ADD_RM32_IMM32")||!strcmp(id,"SUB_RM32_IMM32")||!strcmp(id,"CMP_RM32_IMM32")||!strcmp(id,"ADD_EAX_IMM32")||!strcmp(id,"SUB_EAX_IMM32")||!strcmp(id,"CMP_EAX_IMM32")||!strcmp(id,"PUSH_IMM32"))d->imm_size=4;
+    else if(!strcmp(id,"ADD_RM32_IMM8")||!strcmp(id,"SUB_RM32_IMM8")||!strcmp(id,"CMP_RM32_IMM8")||!strcmp(id,"SHL_RM32_IMM8")||!strcmp(id,"SHR_RM32_IMM8")||!strcmp(id,"SAR_RM32_IMM8")||!strcmp(id,"PUSH_IMM8"))d->imm_size=1;
+    else if(!strcmp(id,"CALL_REL32")||!strcmp(id,"JMP_REL32")||!strcmp(id,"JE_REL32")||!strcmp(id,"JNE_REL32"))d->rel_size=4;
+    else if(!strcmp(id,"JMP_REL8")||!strcmp(id,"JE_REL8")||!strcmp(id,"JNE_REL8")||!strcmp(id,"JB_REL8")||!strcmp(id,"JAE_REL8")||!strcmp(id,"JA_REL8")||!strcmp(id,"JBE_REL8")||!strcmp(id,"JL_REL8")||!strcmp(id,"JGE_REL8")||!strcmp(id,"JLE_REL8")||!strcmp(id,"JG_REL8"))d->rel_size=1;
+}
+
 static int x86_decode_instruction(x86_decoded_t *d) {
     d->start = eip;
     d->cursor = eip;
@@ -169,6 +179,10 @@ static int x86_decode_instruction(x86_decoded_t *d) {
         cpu_error = 0xD000u | d->opcode;
         return -2;
     }
+
+    x86_decode_payload_size(d);
+    if(d->imm_size){if(d->cursor-d->start+d->imm_size>15u){cpu_error=0xD003u;return -5;}d->cursor+=d->imm_size;}
+    if(d->rel_size){if(d->cursor-d->start+d->rel_size>15u){cpu_error=0xD004u;return -6;}d->cursor+=d->rel_size;}
 
     /* Operand-size/address-size overrides are decoded correctly, but the
      * current semantic executor only consumes 32-bit forms. */
