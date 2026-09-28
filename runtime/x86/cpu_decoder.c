@@ -312,7 +312,7 @@ static int cpu_step(void) {
             uint32_t mask=bits==16?0xFFFFu:0xFFFFFFFFu;
             uint32_t sign=1u<<(bits-1u);
             uint32_t count=x86_id_is(d.entry->id,"RCR_RM32_1")?1u:
-                          x86_id_is(d.entry->id,"RCR_RM32_CL")?(regs[R_ECX]&31u):MEM8(d.cursor);
+                          x86_id_is(d.entry->id,"RCR_RM32_CL")?(regs[R_ECX]&31u):MEM8(d.cursor-d.imm_size);
             uint32_t modulus=bits==16?17u:33u;
             count&=31u; count%=modulus;
             if(count){
