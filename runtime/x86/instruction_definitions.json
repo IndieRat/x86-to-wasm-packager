@@ -1,0 +1,642 @@
+{
+  "format": "xwasm-x86-instruction-definitions",
+  "version": 1,
+  "architecture": "i386",
+  "source": "XWASM instruction semantics layer; instruction forms cross-checked against Intel IA-32 instruction reference",
+  "operand_kinds": {
+    "reg32": "32-bit general-purpose register",
+    "rm32": "32-bit register or memory operand",
+    "imm8": "8-bit immediate",
+    "imm32": "32-bit immediate",
+    "rel8": "8-bit signed relative displacement",
+    "rel32": "32-bit signed relative displacement"
+  },
+  "flag_bits": {
+    "CF": "carry",
+    "PF": "parity",
+    "ZF": "zero",
+    "SF": "sign",
+    "OF": "overflow"
+  },
+  "instructions": [
+    {
+      "id": "MOV",
+      "mnemonic": "MOV",
+      "family": "data_move",
+      "status": "EXECUTE",
+      "forms": [
+        "MOV_R32_RM32",
+        "MOV_RM32_R32",
+        "MOV_R32_IMM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "LEA",
+      "mnemonic": "LEA",
+      "family": "data_move",
+      "status": "EXECUTE",
+      "forms": [
+        "LEA_R32_M"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "ADD",
+      "mnemonic": "ADD",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "ADD_RM32_R32",
+        "ADD_R32_RM32",
+        "ADD_RM32_IMM32",
+        "ADD_RM32_IMM8",
+        "ADD_EAX_IMM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "PF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "SUB",
+      "mnemonic": "SUB",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "SUB_RM32_R32",
+        "SUB_R32_RM32",
+        "SUB_RM32_IMM32",
+        "SUB_RM32_IMM8",
+        "SUB_EAX_IMM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "PF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "CMP",
+      "mnemonic": "CMP",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "CMP_RM32_R32",
+        "CMP_R32_RM32",
+        "CMP_RM32_IMM32",
+        "CMP_RM32_IMM8",
+        "CMP_EAX_IMM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "PF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "INC",
+      "mnemonic": "INC",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "INC_R32"
+      ],
+      "flags": {
+        "read": [
+          "CF"
+        ],
+        "write": [
+          "PF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "DEC",
+      "mnemonic": "DEC",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "DEC_R32"
+      ],
+      "flags": {
+        "read": [
+          "CF"
+        ],
+        "write": [
+          "PF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "AND",
+      "mnemonic": "AND",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "AND_RM32_R32",
+        "AND_R32_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "PF",
+          "ZF",
+          "SF"
+        ],
+        "clear": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "OR",
+      "mnemonic": "OR",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "OR_RM32_R32",
+        "OR_R32_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "PF",
+          "ZF",
+          "SF"
+        ],
+        "clear": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "XOR",
+      "mnemonic": "XOR",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "XOR_RM32_R32",
+        "XOR_R32_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "PF",
+          "ZF",
+          "SF"
+        ],
+        "clear": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "TEST",
+      "mnemonic": "TEST",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "TEST_RM32_R32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "PF",
+          "ZF",
+          "SF"
+        ],
+        "clear": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "IMUL",
+      "mnemonic": "IMUL",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "IMUL_R32_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "SHL",
+      "mnemonic": "SHL",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "SHL_RM32_IMM8",
+        "SHL_RM32_1"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "PF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "SHR",
+      "mnemonic": "SHR",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "SHR_RM32_IMM8",
+        "SHR_RM32_1"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "PF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "SAR",
+      "mnemonic": "SAR",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "SAR_RM32_IMM8",
+        "SAR_RM32_1"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "PF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "MOVZX",
+      "mnemonic": "MOVZX",
+      "family": "data_move",
+      "status": "EXECUTE",
+      "forms": [
+        "MOVZX_R32_RM8"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MOVSX",
+      "mnemonic": "MOVSX",
+      "family": "data_move",
+      "status": "EXECUTE",
+      "forms": [
+        "MOVSX_R32_RM8"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "PUSH",
+      "mnemonic": "PUSH",
+      "family": "data_move",
+      "status": "EXECUTE",
+      "forms": [
+        "PUSH_R32",
+        "PUSH_IMM32",
+        "PUSH_IMM8"
+      ],
+      "flags": {
+        "read": [
+          "ESP"
+        ],
+        "write": [
+          "ESP"
+        ]
+      }
+    },
+    {
+      "id": "POP",
+      "mnemonic": "POP",
+      "family": "data_move",
+      "status": "EXECUTE",
+      "forms": [
+        "POP_R32"
+      ],
+      "flags": {
+        "read": [
+          "ESP"
+        ],
+        "write": [
+          "ESP"
+        ]
+      }
+    },
+    {
+      "id": "CALL",
+      "mnemonic": "CALL",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "CALL_REL32",
+        "CALL_RM32"
+      ],
+      "flags": {
+        "read": [
+          "ESP"
+        ],
+        "write": [
+          "ESP",
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "RET",
+      "mnemonic": "RET",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "RET"
+      ],
+      "flags": {
+        "read": [
+          "ESP"
+        ],
+        "write": [
+          "ESP",
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JMP",
+      "mnemonic": "JMP",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JMP_REL8",
+        "JMP_REL32",
+        "JMP_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JE",
+      "mnemonic": "JE/JZ",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JE_REL8",
+        "JE_REL32"
+      ],
+      "condition": "ZF=1",
+      "flags": {
+        "read": [
+          "ZF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JNE",
+      "mnemonic": "JNE/JNZ",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JNE_REL8",
+        "JNE_REL32"
+      ],
+      "condition": "ZF=0",
+      "flags": {
+        "read": [
+          "ZF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JB",
+      "mnemonic": "JB/JC",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JB_REL8"
+      ],
+      "condition": "CF=1",
+      "flags": {
+        "read": [
+          "CF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JAE",
+      "mnemonic": "JAE/JNC",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JAE_REL8"
+      ],
+      "condition": "CF=0",
+      "flags": {
+        "read": [
+          "CF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JA",
+      "mnemonic": "JA",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JA_REL8"
+      ],
+      "condition": "CF=0 && ZF=0",
+      "flags": {
+        "read": [
+          "CF",
+          "ZF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JBE",
+      "mnemonic": "JBE",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JBE_REL8"
+      ],
+      "condition": "CF=1 || ZF=1",
+      "flags": {
+        "read": [
+          "CF",
+          "ZF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JL",
+      "mnemonic": "JL",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JL_REL8"
+      ],
+      "condition": "SF!=OF",
+      "flags": {
+        "read": [
+          "SF",
+          "OF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JGE",
+      "mnemonic": "JGE",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JGE_REL8"
+      ],
+      "condition": "SF=OF",
+      "flags": {
+        "read": [
+          "SF",
+          "OF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JLE",
+      "mnemonic": "JLE",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JLE_REL8"
+      ],
+      "condition": "ZF=1 || SF!=OF",
+      "flags": {
+        "read": [
+          "ZF",
+          "SF",
+          "OF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "JG",
+      "mnemonic": "JG",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "JG_REL8"
+      ],
+      "condition": "ZF=0 && SF=OF",
+      "flags": {
+        "read": [
+          "ZF",
+          "SF",
+          "OF"
+        ],
+        "write": [
+          "EIP"
+        ]
+      }
+    },
+    {
+      "id": "HLT",
+      "mnemonic": "HLT",
+      "family": "system",
+      "status": "EXECUTE",
+      "forms": [
+        "HLT"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    }
+  ]
+}
