@@ -1,0 +1,414 @@
+{
+  "format": "xwasm-x86-instruction-db",
+  "version": 1,
+  "architecture": "i386",
+  "scope": "32-bit user-mode x86 compatibility",
+  "source": "Intel 64 and IA-32 Architectures Software Developer's Manual, Volume 2 instruction reference",
+  "status_legend": {
+    "EXECUTE": "Implemented by the current XWASM decoder and covered by a runtime fixture or self-test.",
+    "DECODE": "Decoder work is present but execution semantics are incomplete.",
+    "PLANNED": "Catalogued target instruction; execution support is not yet implemented.",
+    "SYSTEM": "IA-32 instruction exists but belongs to privileged/system execution and is not part of the initial user-mode game target."
+  },
+  "instruction_sets": {
+    "integer_core": [
+      {
+        "mnemonic": "AAA",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "AAD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "AAM",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "AAS",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "ADC",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "ADD",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "AND",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "CMP",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "DEC",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "DIV",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "IDIV",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "IMUL",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "INC",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "MUL",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "NEG",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "NOT",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "OR",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "SBB",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "SUB",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "TEST",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "XOR",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "XCHG",
+        "status": "PLANNED"
+      }
+    ],
+    "data_move": [
+      {
+        "mnemonic": "MOV",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "MOVSX",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "MOVZX",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "LEA",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "PUSH",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "POP",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "PUSHAD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "POPAD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "PUSHFD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "POPFD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "CWDE",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "CDQ",
+        "status": "PLANNED"
+      }
+    ],
+    "control_flow": [
+      {
+        "mnemonic": "CALL",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "RET",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JMP",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JE/JZ",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JNE/JNZ",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JB/JC",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JAE/JNC",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JA",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JBE",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JL",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JGE",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JLE",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JG",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "JO",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "JNO",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "JS",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "JNS",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "JP/JPE",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "JNP/JPO",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "JCXZ",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "LOOP",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "LOOPE/LOOPZ",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "LOOPNE/LOOPNZ",
+        "status": "PLANNED"
+      }
+    ],
+    "bit_and_shift": [
+      {
+        "mnemonic": "SHL/SAL",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "SHR",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "SAR",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "ROL",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "ROR",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "RCL",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "RCR",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "SHLD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "SHRD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "BT",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "BTS",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "BTR",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "BTC",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "BSF",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "BSR",
+        "status": "PLANNED"
+      }
+    ],
+    "string": [
+      {
+        "mnemonic": "MOVSB/MOVSW/MOVSD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "CMPSB/CMPSW/CMPSD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "SCASB/SCASW/SCASD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "LODSB/LODSW/LODSD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "STOSB/STOSW/STOSD",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "REP/REPE/REPNE",
+        "status": "PLANNED"
+      }
+    ],
+    "x87": [
+      {
+        "mnemonic": "x87 ESCAPE GROUP",
+        "status": "PLANNED",
+        "note": "Implement after integer/core decoder has complete prefix and ModR/M handling."
+      }
+    ],
+    "mmx_sse": [
+      {
+        "mnemonic": "MMX",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "SSE",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "SSE2",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "SSE3",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "SSSE3",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "SSE4.x",
+        "status": "PLANNED"
+      }
+    ],
+    "system": [
+      {
+        "mnemonic": "INT/INT3",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "IRET",
+        "status": "SYSTEM"
+      },
+      {
+        "mnemonic": "CLI/STI",
+        "status": "SYSTEM"
+      },
+      {
+        "mnemonic": "HLT",
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "CPUID",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "RDTSC",
+        "status": "PLANNED"
+      },
+      {
+        "mnemonic": "IN/OUT",
+        "status": "SYSTEM"
+      },
+      {
+        "mnemonic": "LGDT/LIDT/LTR/LLDT",
+        "status": "SYSTEM"
+      },
+      {
+        "mnemonic": "MOV CR/DR",
+        "status": "SYSTEM"
+      }
+    ]
+  },
+  "implementation_policy": {
+    "first_target": "Complete 32-bit user-mode integer/control-flow instruction coverage used by Win32 applications.",
+    "second_target": "x87 floating point and common SIMD extensions selected by observed game binaries.",
+    "third_target": "Privileged/system instructions only where the compatibility layer can provide a meaningful user-mode emulation contract.",
+    "unknown_opcode_behavior": "Never silently execute as NOP. Record opcode bytes, EIP, ModR/M/SIB bytes when present, register state, and instruction-db lookup status."
+  }
+}
