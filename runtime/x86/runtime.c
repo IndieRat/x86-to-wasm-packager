@@ -485,7 +485,7 @@ static int cpu_step_legacy(void){
     else if(sub==5){r=v>>count;cf=(v>>(count-1u))&1u;of_valid=count==1;of=(v>>31)&1u;}
     else if(sub==7){r=(uint32_t)((int32_t)v>>count);cf=(v>>(count-1u))&1u;of_valid=0;of=0;}
     else {cpu_error=0xC000u|sub;return -35;}
-    set_shift_flags(v,r,cf,of_valid,of);
+    set_shift_flags(r,cf,of_valid,of);
     if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);
     eip=ip;return 0;
    }
