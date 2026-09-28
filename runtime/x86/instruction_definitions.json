@@ -27,7 +27,8 @@
       "forms": [
         "MOV_R32_RM32",
         "MOV_RM32_R32",
-        "MOV_R32_IMM32"
+        "MOV_R32_IMM32",
+        "MOV_R8_IMM8"
       ],
       "flags": {
         "read": [],
