@@ -638,7 +638,7 @@ static int load_pe(uint32_t f,uint32_t sz){
  }
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
- loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;
+ loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;
  loghex("X86 requested image base=",requested_image_base);
  loghex("X86 mapped image base=",image_base);
  loghex("X86 entry=",eip);
