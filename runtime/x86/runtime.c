@@ -480,10 +480,10 @@ static int cpu_step_legacy(void){
     uint32_t count=(op==0xC0||op==0xC1)?MEM8(ip++):((op==0xD2||op==0xD3)?(regs[R_ECX]&31u):1u);
     count&=31u;
     if(!count){eip=ip;return 0;}
-    uint32_t cf=(eflags&CF)?1u:0u,of=0;
+    uint32_t cf=(eflags&CF)?1u:0u,of=0,of_valid=0;
     if(sub==4){r=v<<count;cf=(v>>(32u-count))&1u;of_valid=count==1;of=((r>>31)&1u)^cf;}
     else if(sub==5){r=v>>count;cf=(v>>(count-1u))&1u;of_valid=count==1;of=(v>>31)&1u;}
-    else if(sub==6){r=(uint32_t)((int32_t)v>>count);cf=(v>>(count-1u))&1u;of_valid=0;of=0;}
+    else if(sub==7){r=(uint32_t)((int32_t)v>>count);cf=(v>>(count-1u))&1u;of_valid=0;of=0;}
     else {cpu_error=0xC000u|sub;return -35;}
     set_shift_flags(v,r,cf,of_valid,of);
     if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);
