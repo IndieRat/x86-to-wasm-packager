@@ -512,14 +512,21 @@ static int cpu_step_legacy(void){
    uint32_t cf=(eflags&CF)?1u:0u,of=0,of_valid=0;
    if(sub<2){count&=31u;if(!count){eip=ip;return 0;}if(sub==0){r=(v<<count)|(v>>(32u-count));cf=r&1u;of_valid=count==1;of=((r>>31)&1u)^cf;}else{r=(v>>count)|(v<<(32u-count));cf=(r>>31)&1u;of_valid=count==1;of=((r>>31)&1u)^((r>>30)&1u);}}
    else{
-    count%=33u;if(!count){eip=ip;return 0;}
-    /* RCL/RCR use CF as a one-bit extension. Iterate so the extracted
-     * carry is the bit actually shifted out of the 32-bit operand. */
-    for(uint32_t n=0;n<count;n++){
-     if(sub==2){uint32_t out=(v>>31)&1u;v=(v<<1)|cf;cf=out;}
-     else{uint32_t out=v&1u;v=(v>>1)|(cf<<31);cf=out;}
-    }
-    r=v;of_valid=count==1;
+    /*
+     * IA-32 RCL/RCR operate on a 33-bit value formed from CF and the
+     * 32-bit operand.  Keep that extension explicit in uint64_t so the
+     * carry-in and carry-out cannot be confused with a 32-bit rotate.
+     */
+    count &= 31u;
+    if(!count){eip=ip;return 0;}
+    uint64_t x=((uint64_t)cf<<32)|(uint64_t)v;
+    if(sub==2)
+     x=((x<<count)|(x>>(33u-count)))&0x1FFFFFFFFull;
+    else
+     x=((x>>count)|(x<<(33u-count)))&0x1FFFFFFFFull;
+    r=(uint32_t)x;
+    cf=(uint32_t)((x>>32)&1u);
+    of_valid=count==1;
     if(sub==2)of=((r>>31)&1u)^cf;
     else of=((r>>31)&1u)^((r>>30)&1u);
    }
