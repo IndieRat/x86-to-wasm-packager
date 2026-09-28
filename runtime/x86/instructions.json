@@ -206,43 +206,43 @@
       },
       {
         "mnemonic": "JO",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "JNO",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "JS",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "JNS",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "JP/JPE",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "JNP/JPO",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "JCXZ",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "LOOP",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "LOOPE/LOOPZ",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "LOOPNE/LOOPNZ",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       }
     ],
     "bit_and_shift": [
