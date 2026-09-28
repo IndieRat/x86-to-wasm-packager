@@ -721,6 +721,26 @@ __attribute__((export_name("x86_get_last_decoded_opcode"))) uint32_t x86_get_las
 __attribute__((export_name("x86_get_last_decoded_length"))) uint32_t x86_get_last_decoded_length(void){return last_decoded_length;}
 __attribute__((export_name("x86_get_last_dispatch_id"))) uint32_t x86_get_last_dispatch_id(void){return last_dispatch_id;}
 __attribute__((export_name("x86_get_last_dispatch_count"))) uint32_t x86_get_last_dispatch_count(void){return last_dispatch_count;}
+
+/* Independent architectural RCR oracle used by the test shell.  This is
+ * deliberately separate from guest state so a failed game fixture cannot
+ * mask a rotate-through-carry regression. */
+__attribute__((export_name("x86_rcr32_self_test")))
+uint32_t x86_rcr32_self_test(void){
+ uint32_t failures=0;
+ const uint32_t values[4]={0x80000000u,0x80000000u,0x00000001u,0xFFFFFFFFu};
+ const uint32_t carries[4]={0u,1u,1u,0u};
+ const uint32_t counts[4]={1u,1u,1u,31u};
+ const uint32_t expected[4]={0x40000000u,0xC0000000u,0x80000000u,0x00000003u};
+ const uint32_t expected_cf[4]={0u,0u,1u,1u};
+ for(uint32_t i=0;i<4u;i++){
+  uint32_t count=counts[i]&31u;
+  uint64_t x=((uint64_t)carries[i]<<32)|values[i];
+  x=((x>>count)|(x<<(33u-count)))&0x1FFFFFFFFull;
+  if((uint32_t)x!=expected[i] || (uint32_t)((x>>32)&1u)!=expected_cf[i]) failures|=(1u<<i);
+ }
+ return failures;
+}
 __attribute__((export_name("x86_get_trace_count"))) uint32_t x86_get_trace_count(void){return trace_count;}
 __attribute__((export_name("x86_get_trace_index"))) uint32_t x86_get_trace_index(uint32_t n){if(n>=trace_count)return 0xFFFFFFFFu;return (trace_head+X86_TRACE_DEPTH-trace_count+n)%X86_TRACE_DEPTH;}
 __attribute__((export_name("x86_get_trace_eip"))) uint32_t x86_get_trace_eip(uint32_t i){return i<X86_TRACE_DEPTH?trace_eip[i]:0;}
