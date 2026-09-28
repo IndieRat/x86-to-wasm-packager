@@ -637,6 +637,273 @@
         "read": [],
         "write": []
       }
+    },
+    {
+      "id": "ADC",
+      "mnemonic": "ADC",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "ADC_RM32_R32",
+        "ADC_R32_RM32",
+        "ADC_RM32_IMM32",
+        "ADC_RM32_IMM8",
+        "ADC_EAX_IMM32"
+      ],
+      "flags": {
+        "read": [
+          "CF"
+        ],
+        "write": [
+          "CF",
+          "PF",
+          "AF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "SBB",
+      "mnemonic": "SBB",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "SBB_RM32_R32",
+        "SBB_R32_RM32",
+        "SBB_RM32_IMM32",
+        "SBB_RM32_IMM8",
+        "SBB_EAX_IMM32"
+      ],
+      "flags": {
+        "read": [
+          "CF"
+        ],
+        "write": [
+          "CF",
+          "PF",
+          "AF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "NEG",
+      "mnemonic": "NEG",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "NEG_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "PF",
+          "AF",
+          "ZF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "NOT",
+      "mnemonic": "NOT",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "NOT_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MUL",
+      "mnemonic": "MUL",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "MUL_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "DIV",
+      "mnemonic": "DIV",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "DIV_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "IDIV",
+      "mnemonic": "IDIV",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "IDIV_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "ROL",
+      "mnemonic": "ROL",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "ROL_RM32_IMM8",
+        "ROL_RM32_1",
+        "ROL_RM32_CL"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "ROR",
+      "mnemonic": "ROR",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "ROR_RM32_IMM8",
+        "ROR_RM32_1",
+        "ROR_RM32_CL"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "RCL",
+      "mnemonic": "RCL",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "RCL_RM32_IMM8",
+        "RCL_RM32_1",
+        "RCL_RM32_CL"
+      ],
+      "flags": {
+        "read": [
+          "CF"
+        ],
+        "write": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "RCR",
+      "mnemonic": "RCR",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "RCR_RM32_IMM8",
+        "RCR_RM32_1",
+        "RCR_RM32_CL"
+      ],
+      "flags": {
+        "read": [
+          "CF"
+        ],
+        "write": [
+          "CF",
+          "OF"
+        ]
+      }
+    },
+    {
+      "id": "BT",
+      "mnemonic": "BT",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "BT_RM32_R32",
+        "BT_RM32_IMM8"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF"
+        ]
+      }
+    },
+    {
+      "id": "BTS",
+      "mnemonic": "BTS",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "BTS_RM32_R32",
+        "BTS_RM32_IMM8"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF"
+        ]
+      }
+    },
+    {
+      "id": "BTR",
+      "mnemonic": "BTR",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "BTR_RM32_R32",
+        "BTR_RM32_IMM8"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF"
+        ]
+      }
+    },
+    {
+      "id": "BTC",
+      "mnemonic": "BTC",
+      "family": "bit_and_shift",
+      "status": "EXECUTE",
+      "forms": [
+        "BTC_RM32_R32",
+        "BTC_RM32_IMM8"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF"
+        ]
+      }
     }
   ]
 }
