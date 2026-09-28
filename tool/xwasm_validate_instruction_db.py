@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the XWASM v0.8 x86 instruction catalog, definitions, and encodings."""
+"""Validate the XWASM v0.8 x86 instruction catalog, definitions, encodings, and opcode map."""
 
 from __future__ import annotations
 import argparse
@@ -12,10 +12,15 @@ REQUIRED_GROUPS = {
 }
 VALID_STATUS = {"EXECUTE", "DECODE", "PLANNED", "SYSTEM"}
 VALID_ACCESS = {"r", "w", "rw"}
-VALID_KINDS = {"reg8", "reg16", "reg32", "rm8", "rm16", "rm32", "imm8", "imm16", "imm32", "rel8", "rel16", "rel32"}
+VALID_KINDS = {
+    "reg8", "reg16", "reg32", "rm8", "rm16", "rm32",
+    "imm8", "imm16", "imm32", "rel8", "rel16", "rel32",
+}
+
 
 def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
 
 def load_catalog(path: Path) -> dict:
     data = read_json(path)
@@ -38,6 +43,7 @@ def load_catalog(path: Path) -> dict:
             if entry.get("status") not in VALID_STATUS:
                 raise ValueError(f"{group}/{entry.get('mnemonic')}: invalid status")
     return data
+
 
 def load_definitions(path: Path) -> dict:
     data = read_json(path)
@@ -69,6 +75,7 @@ def load_definitions(path: Path) -> dict:
             if key not in flags or not isinstance(flags[key], list):
                 raise ValueError(f"{item['id']}: flags.{key} must be a list")
     return data
+
 
 def load_encodings(path: Path) -> dict:
     data = read_json(path)
@@ -113,6 +120,7 @@ def load_encodings(path: Path) -> dict:
                 raise ValueError(f"{item['id']}: invalid ModR/M reg extension")
     return data
 
+
 def load_opcode_map(path: Path) -> dict:
     data = read_json(path)
     if data.get("format") != "xwasm-x86-opcode-map":
@@ -122,6 +130,7 @@ def load_opcode_map(path: Path) -> dict:
     maps = data.get("maps")
     if not isinstance(maps, dict):
         raise ValueError("opcode map is missing maps")
+
     for name in ("primary", "escape_0f", "escape_0f38", "escape_0f3a"):
         slots = maps.get(name)
         if not isinstance(slots, list) or len(slots) != 256:
@@ -133,6 +142,7 @@ def load_opcode_map(path: Path) -> dict:
                 raise ValueError(f"{name}: encoding_ids must be a list")
     return data
 
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("path", nargs="?", type=Path,
@@ -141,13 +151,16 @@ def main() -> int:
                     default=Path("runtime/x86/instruction_definitions.json"))
     ap.add_argument("--encodings", type=Path,
                     default=Path("runtime/x86/instruction_encodings.json"))
-    ap.add_argument("--opcode-map", type=Path,\n                    default=Path("runtime/x86/opcode_map_i386.json"))\n    ap.add_argument("--strict", action="store_true",
+    ap.add_argument("--opcode-map", type=Path,
+                    default=Path("runtime/x86/opcode_map_i386.json"))
+    ap.add_argument("--strict", action="store_true",
                     help="fail if the catalog contains non-EXECUTE entries")
     args = ap.parse_args()
 
     catalog = load_catalog(args.path)
     definitions = load_definitions(args.definitions)
     encodings = load_encodings(args.encodings)
+    opcode_map = load_opcode_map(args.opcode_map)
 
     catalog_ids = {
         entry["mnemonic"].split("/")[0]
@@ -156,6 +169,7 @@ def main() -> int:
     }
     definition_ids = {item["id"] for item in definitions["instructions"]}
     encoding_instructions = {item["instruction"] for item in encodings["encodings"]}
+    encoding_ids = {item["id"] for item in encodings["encodings"]}
 
     missing_definition_links = sorted(
         item["instruction"] for item in encodings["encodings"]
@@ -173,6 +187,26 @@ def main() -> int:
         raise ValueError("EXECUTE definitions without encodings: " +
                          ", ".join(missing_encoding_links))
 
+    map_counts = {}
+    map_references = set()
+    for map_name, slots in opcode_map["maps"].items():
+        mapped = 0
+        for slot in slots:
+            if slot["status"] == "MAPPED":
+                mapped += 1
+                for encoding_id in slot["encoding_ids"]:
+                    map_references.add(encoding_id)
+                    if encoding_id not in encoding_ids:
+                        raise ValueError(
+                            f"{map_name}: opcode slot references undefined encoding {encoding_id}"
+                        )
+        map_counts[map_name] = mapped
+
+    missing_map_links = sorted(encoding_ids - map_references)
+    if missing_map_links:
+        raise ValueError("encodings missing from opcode map: " +
+                         ", ".join(missing_map_links))
+
     counts = {status: 0 for status in sorted(VALID_STATUS)}
     total = 0
     for entries in catalog["instruction_sets"].values():
@@ -189,6 +223,10 @@ def main() -> int:
     print(f"semantic definitions:      {len(definition_ids)}")
     print(f"concrete encodings:        {len(encodings['encodings'])}")
     print(f"catalog mnemonic families: {len(catalog_ids)}")
+    print(f"opcode map primary:        {map_counts['primary']}")
+    print(f"opcode map 0F:             {map_counts['escape_0f']}")
+    print(f"opcode map 0F38:           {map_counts['escape_0f38']}")
+    print(f"opcode map 0F3A:            {map_counts['escape_0f3a']}")
 
     if args.strict and counts["EXECUTE"] != total:
         print("STRICT: instruction catalog still contains non-executing entries")
@@ -196,6 +234,7 @@ def main() -> int:
 
     print("VALID")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
