@@ -246,7 +246,17 @@ static int x86_decode_instruction(x86_decoded_t *d) {
                        x86_id_is(d->entry->id, "SCASW") ||
                        x86_id_is(d->entry->id, "LODSW") ||
                        x86_id_is(d->entry->id, "STOSW");
-        if (!string16) {
+        int group2_16 = x86_id_is(d->entry->id, "SHL_RM32_IMM8") ||
+                        x86_id_is(d->entry->id, "SHR_RM32_IMM8") ||
+                        x86_id_is(d->entry->id, "SAR_RM32_IMM8") ||
+                        x86_id_is(d->entry->id, "ROL_RM32_IMM8") ||
+                        x86_id_is(d->entry->id, "ROR_RM32_IMM8") ||
+                        x86_id_is(d->entry->id, "RCL_RM32_IMM8") ||
+                        x86_id_is(d->entry->id, "RCR_RM32_IMM8") ||
+                        x86_id_is(d->entry->id, "SHL_RM32_1") ||
+                        x86_id_is(d->entry->id, "SHR_RM32_1") ||
+                        x86_id_is(d->entry->id, "SAR_RM32_1");
+        if (!string16 && !group2_16) {
             cpu_error = 0xD100u | d->opcode;
             return -3;
         }
