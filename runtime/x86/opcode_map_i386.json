@@ -1,0 +1,2672 @@
+{
+  "format": "xwasm-x86-opcode-map",
+  "version": 1,
+  "architecture": "i386",
+  "source": "Intel IA-32 instruction opcode maps; XWASM-maintained mapping layer",
+  "notes": [
+    "Every legacy one-byte primary opcode slot and every 0F escape opcode slot is represented.",
+    "RESERVED means no XWASM encoding is currently attached; it does not by itself assert that Intel reserves the opcode in every mode.",
+    "Additional opcode maps such as 0F 38 and 0F 3A are represented by the schema and can be added without changing the file format."
+  ],
+  "maps": {
+    "primary": [
+      {
+        "byte": "00",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "01",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADD_RM32_R32"
+        ]
+      },
+      {
+        "byte": "02",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "03",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADD_R32_RM32"
+        ]
+      },
+      {
+        "byte": "04",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "05",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADD_EAX_IMM32"
+        ]
+      },
+      {
+        "byte": "06",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "07",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "08",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "09",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "OR_RM32_R32"
+        ]
+      },
+      {
+        "byte": "0A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0B",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "OR_R32_RM32"
+        ]
+      },
+      {
+        "byte": "0C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "10",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "11",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "12",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "13",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "14",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "15",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "16",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "17",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "18",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "19",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "20",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "21",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "AND_RM32_R32"
+        ]
+      },
+      {
+        "byte": "22",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "23",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "AND_R32_RM32"
+        ]
+      },
+      {
+        "byte": "24",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "25",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "26",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "27",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "28",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "29",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SUB_RM32_R32"
+        ]
+      },
+      {
+        "byte": "2A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "2B",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SUB_R32_RM32"
+        ]
+      },
+      {
+        "byte": "2C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "2D",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SUB_EAX_IMM32"
+        ]
+      },
+      {
+        "byte": "2E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "2F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "30",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "31",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XOR_RM32_R32"
+        ]
+      },
+      {
+        "byte": "32",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "33",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XOR_R32_RM32"
+        ]
+      },
+      {
+        "byte": "34",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "35",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "36",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "37",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "38",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "39",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CMP_RM32_R32"
+        ]
+      },
+      {
+        "byte": "3A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "3B",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CMP_R32_RM32"
+        ]
+      },
+      {
+        "byte": "3C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "3D",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CMP_EAX_IMM32"
+        ]
+      },
+      {
+        "byte": "3E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "3F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "40",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "41",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "42",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "43",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "44",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "45",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "46",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "47",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "48",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "49",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "50",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "51",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "52",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "53",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "54",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "55",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "56",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "57",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "58",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "59",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "60",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "61",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "62",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "63",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "64",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "65",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "66",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "67",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "68",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_IMM32"
+        ]
+      },
+      {
+        "byte": "69",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6A",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_IMM8"
+        ]
+      },
+      {
+        "byte": "6B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "70",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "71",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "72",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JB_REL8"
+        ]
+      },
+      {
+        "byte": "73",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JAE_REL8"
+        ]
+      },
+      {
+        "byte": "74",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JE_REL8"
+        ]
+      },
+      {
+        "byte": "75",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JNE_REL8"
+        ]
+      },
+      {
+        "byte": "76",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JBE_REL8"
+        ]
+      },
+      {
+        "byte": "77",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JA_REL8"
+        ]
+      },
+      {
+        "byte": "78",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "79",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "7A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "7B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "7C",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JL_REL8"
+        ]
+      },
+      {
+        "byte": "7D",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JGE_REL8"
+        ]
+      },
+      {
+        "byte": "7E",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JLE_REL8"
+        ]
+      },
+      {
+        "byte": "7F",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JG_REL8"
+        ]
+      },
+      {
+        "byte": "80",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "81",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADD_RM32_IMM32",
+          "SUB_RM32_IMM32",
+          "CMP_RM32_IMM32"
+        ]
+      },
+      {
+        "byte": "82",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "83",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADD_RM32_IMM8",
+          "SUB_RM32_IMM8",
+          "CMP_RM32_IMM8"
+        ]
+      },
+      {
+        "byte": "84",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "85",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "TEST_RM32_R32"
+        ]
+      },
+      {
+        "byte": "86",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "87",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "88",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "89",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_RM32_R32"
+        ]
+      },
+      {
+        "byte": "8A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "8B",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R32_RM32"
+        ]
+      },
+      {
+        "byte": "8C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "8D",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "LEA_R32_M"
+        ]
+      },
+      {
+        "byte": "8E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "8F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "90",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "91",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "92",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "93",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "94",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "95",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "96",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "97",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "98",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "99",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C1",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SHL_RM32_IMM8",
+          "SHR_RM32_IMM8",
+          "SAR_RM32_IMM8"
+        ]
+      },
+      {
+        "byte": "C2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C3",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "RET"
+        ]
+      },
+      {
+        "byte": "C4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D1",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SHL_RM32_1",
+          "SHR_RM32_1",
+          "SAR_RM32_1"
+        ]
+      },
+      {
+        "byte": "D2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E8",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CALL_REL32"
+        ]
+      },
+      {
+        "byte": "E9",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JMP_REL32"
+        ]
+      },
+      {
+        "byte": "EA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "EB",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JMP_REL8"
+        ]
+      },
+      {
+        "byte": "EC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "ED",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "EE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "EF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F4",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "HLT"
+        ]
+      },
+      {
+        "byte": "F5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FF",
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CALL_RM32",
+          "JMP_RM32"
+        ]
+      }
+    ],
+    "escape_0f": [
+      {
+        "byte": "00",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "01",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "02",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "03",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "04",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "05",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "06",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "07",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "08",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "09",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "0F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "10",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "11",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "12",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "13",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "14",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "15",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "16",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "17",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "18",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "19",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "1F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "20",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "21",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "22",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "23",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "24",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "25",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "26",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "27",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "28",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "29",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "2A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "2B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "2C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "2D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "2E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "2F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "30",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "31",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "32",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "33",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "34",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "35",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "36",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "37",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "38",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "39",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "3A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "3B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "3C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "3D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "3E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "3F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "40",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "41",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "42",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "43",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "44",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "45",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "46",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "47",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "48",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "49",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "4F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "50",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "51",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "52",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "53",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "54",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "55",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "56",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "57",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "58",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "59",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "5F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "60",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "61",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "62",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "63",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "64",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "65",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "66",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "67",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "68",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "69",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "6F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "70",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "71",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "72",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "73",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "74",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "75",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "76",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "77",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "78",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "79",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "7A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "7B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "7C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "7D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "7E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "7F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "80",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "81",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "82",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "83",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "84",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "85",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "86",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "87",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "88",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "89",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "8A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "8B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "8C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "8D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "8E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "8F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "90",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "91",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "92",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "93",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "94",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "95",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "96",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "97",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "98",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "99",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9A",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9B",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9C",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9D",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9E",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "9F",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "A9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "AF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "B9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "BF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "C9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "CF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "D9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "DF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "E9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "EA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "EB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "EC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "ED",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "EE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "EF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F0",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F1",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F2",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F3",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F4",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F5",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F6",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F7",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F8",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "F9",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FA",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FB",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FC",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FD",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FE",
+        "status": "RESERVED",
+        "encoding_ids": []
+      },
+      {
+        "byte": "FF",
+        "status": "RESERVED",
+        "encoding_ids": []
+      }
+    ]
+  },
+  "extended_maps": [
+    "0F38",
+    "0F3A"
+  ]
+}
