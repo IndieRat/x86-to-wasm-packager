@@ -263,6 +263,16 @@ static void set_sub_flags(uint32_t a,uint32_t b,uint32_t r){
  if(((a^b)&(a^r)&0x80000000u)!=0)f|=OF;
  eflags=f;
 }
+static void set_shift_flags(uint32_t v,uint32_t cf,int of_valid,uint32_t of){
+ uint32_t keep=eflags&(CF|OF);
+ eflags=(eflags&~(CF|PF|ZF|SF|OF))|((v==0)?ZF:0)|((v&0x80000000u)?SF:0);
+ uint32_t p=v; p^=p>>4; p^=p>>2; p^=p>>1;
+ if((p&1u)==0)eflags|=PF;
+ if(cf)eflags|=CF;
+ if(of_valid&&of)eflags|=OF;
+ else if(of_valid)eflags&=~OF;
+ else eflags=(eflags&~OF)|(keep&OF);
+}
 static int cond(uint8_t op){
  switch(op){
   case 0x74:return (eflags&ZF)!=0; /* JE/JZ */
@@ -392,13 +402,13 @@ static int cpu_step_legacy(void){
    else if(sub==5){eflags=(eflags&~CF)|((v>>(count-1u))&1u?CF:0);r=v>>count; if(count==1)eflags=(eflags&~OF)|((v>>31)&1u?OF:0);}
    else if(sub==7){eflags=(eflags&~CF)|((v>>(count-1u))&1u?CF:0);r=(uint32_t)((int32_t)v>>count); if(count==1)eflags&=~OF;}
    else{cpu_error=0xC100u|sub;return -15;}
-   if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);set_logic_flags(r);eip=ip;return 0; } /* SHL/SHR/SAR */
+   if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);{uint32_t cf=(eflags&CF)!=0,of=(eflags&OF)!=0;set_shift_flags(r,cf,1,of);}eip=ip;return 0; } /* SHL/SHR/SAR */
   case 0xD1: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0;uint32_t v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea)),r;
    if(sub==4){eflags=(eflags&~CF)|((v>>31)&1u?CF:0);r=v<<1;eflags=(eflags&~OF)|(((r>>31)^((eflags&CF)?1u:0u))?OF:0);}
    else if(sub==5){eflags=(eflags&~CF)|(v&1u?CF:0);r=v>>1;eflags=(eflags&~OF)|((v>>31)&1u?OF:0);}
    else if(sub==7){eflags=(eflags&~CF)|(v&1u?CF:0);r=(uint32_t)((int32_t)v>>1);eflags&=~OF;}
    else{cpu_error=0xD100u|sub;return -16;}
-   if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);set_logic_flags(r);eip=ip;return 0; }
+   if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);{uint32_t cf=(eflags&CF)!=0,of=(eflags&OF)!=0;set_shift_flags(r,cf,1,of);}eip=ip;return 0; }
   case 0x0F: {
    uint8_t op2=MEM8(ip++);
    if(op2==0xAF){uint8_t m=MEM8(ip++);int64_t v=(int64_t)(int32_t)regs[m&7]*(int64_t)(int32_t)modrm_read32(m,&ip);regs[(m>>3)&7]=(uint32_t)v;set_logic_flags(regs[(m>>3)&7]);eip=ip;return 0;}
