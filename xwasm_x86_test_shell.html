@@ -149,7 +149,11 @@ function state(){
     "relocation needed "+api("x86_get_relocation_needed")(),
     "running           "+api("x86_get_running")(),
     "trace entries     "+api("x86_get_trace_count")(),
-    "failure transition "+(api("x86_get_trace_failure_index")()===0?"none":api("x86_get_trace_failure_index")())
+    "failure transition "+(api("x86_get_trace_failure_index")()===0?"none":api("x86_get_trace_failure_index")()),
+    "",
+    "RCR architectural self-test "+(typeof api("x86_rcr32_self_test")==="function"?
+      (api("x86_rcr32_self_test")()===0?"PASS — 4 vectors":"FAIL — mask 0x"+api("x86_rcr32_self_test")().toString(16)):
+      "unavailable — rebuild runtime")
   ].join("\n");
 }
 async function loadPackage(){
