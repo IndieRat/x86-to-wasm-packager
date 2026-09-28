@@ -247,10 +247,12 @@ static void set_logic_flags(uint32_t v){
  uint32_t p=v; p^=p>>4; p^=p>>2; p^=p>>1;
  eflags=(eflags&~(CF|PF|AF|ZF|SF|OF))|((p&1u)==0?PF:0)|(v==0?ZF:0)|((v&0x80000000u)?SF:0);
 }
+static uint32_t parity_even8(uint32_t v){v&=0xFFu;v^=v>>4;v^=v>>2;v^=v>>1;return (v&1u)==0u;}
 static void set_add_flags(uint32_t a,uint32_t b,uint32_t r){
  uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);
  if(r<a)f|=CF;
  if(((a&0xFu)+(b&0xFu))>0xFu)f|=AF;
+ if(parity_even8(r))f|=PF;
  if(r==0)f|=ZF;
  if(r&0x80000000u)f|=SF;
  if(((~(a^b))&(a^r)&0x80000000u)!=0)f|=OF;
@@ -260,6 +262,7 @@ static void set_sub_flags(uint32_t a,uint32_t b,uint32_t r){
  uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);
  if(a<b)f|=CF;
  if((a&0xFu)<(b&0xFu))f|=AF;
+ if(parity_even8(r))f|=PF;
  if(r==0)f|=ZF;
  if(r&0x80000000u)f|=SF;
  if(((a^b)&(a^r)&0x80000000u)!=0)f|=OF;
@@ -269,6 +272,7 @@ static void set_adc_flags(uint32_t a,uint32_t b,uint32_t cin,uint32_t r){
  uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF),bb=b+cin;
  if(r<a || (cin && r==a))f|=CF;
  if(((a&0xFu)+(b&0xFu)+cin)>0xFu)f|=AF;
+ if(parity_even8(r))f|=PF;
  if(r==0)f|=ZF;
  if(r&0x80000000u)f|=SF;
  if(((~(a^bb))&(a^r)&0x80000000u)!=0)f|=OF;
@@ -278,10 +282,15 @@ static void set_sbb_flags(uint32_t a,uint32_t b,uint32_t bin,uint32_t r){
  uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF),bb=b+bin;
  if(a<bb || bb<b)f|=CF;
  if((a&0xFu)<((b&0xFu)+bin))f|=AF;
+ if(parity_even8(r))f|=PF;
  if(r==0)f|=ZF;
  if(r&0x80000000u)f|=SF;
  if(((a^bb)&(a^r)&0x80000000u)!=0)f|=OF;
  eflags=f;
+}
+static void set_rotate_flags(uint32_t r,uint32_t cf,uint32_t of_valid,uint32_t of){
+ eflags=(eflags&~(CF|OF))|(cf?CF:0u);
+ if(of_valid)eflags=(eflags&~OF)|(of?OF:0u);
 }
 static void set_shift_flags(uint32_t v,uint32_t cf,int of_valid,uint32_t of){
  uint32_t keep=eflags&(CF|OF);
@@ -412,14 +421,14 @@ static int cpu_step_legacy(void){
    if(sub>3){cpu_error=0xC000u|sub;return -35;}
    if(sub<2){count&=31u;if(!count){eip=ip;return 0;}if(sub==0){r=(v<<count)|(v>>(32u-count));cf=r&1u;of_valid=count==1;of=((r>>31)&1u)^cf;}else{r=(v>>count)|(v<<(32u-count));cf=(r>>31)&1u;of_valid=count==1;of=((r>>31)&1u)^((r>>30)&1u);}}
    else{count=(op==0xD2||op==0xD3)?(regs[R_ECX]&31u):count;count%=33u;if(!count){eip=ip;return 0;}uint64_t t=((uint64_t)cf<<32)|v;if(sub==2){t=((t<<count)|(t>>(33u-count)))&0x1FFFFFFFFull;r=(uint32_t)t;cf=(uint32_t)(t>>32);of_valid=count==1;of=((r>>31)&1u)^cf;}else{t=((t>>count)|(t<<(33u-count)))&0x1FFFFFFFFull;r=(uint32_t)t;cf=(uint32_t)(t>>32);of_valid=count==1;of=((r>>31)&1u)^((r>>30)&1u);}}
-   if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);set_shift_flags(r,cf,of_valid,of);eip=ip;return 0;
+   if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);set_rotate_flags(r,cf,of_valid,of);eip=ip;return 0;
   }
   case 0x69: {uint8_t m=MEM8(ip++);uint32_t a=modrm_read32(m,&ip),imm=rd32(ip);ip+=4;int64_t p=(int64_t)(int32_t)a*(int64_t)(int32_t)imm;uint32_t r=(uint32_t)p;uint32_t sx=(uint32_t)(int32_t)r;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);regs[(m>>3)&7]=r;eip=ip;return 0;}
   case 0x6B: {uint8_t m=MEM8(ip++);uint32_t a=modrm_read32(m,&ip);int32_t imm=(int8_t)MEM8(ip++);int64_t p=(int64_t)(int32_t)a*(int64_t)imm;uint32_t r=(uint32_t)p;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);regs[(m>>3)&7]=r;eip=ip;return 0;}
   case 0xF7: { /* NOT/NEG/MUL/IMUL/DIV/IDIV r/m32 */
    uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea));
    if(sub==2){v=~v;if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);eip=ip;return 0;}
-   if(sub==3){uint32_t r=0u-v;uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);if(v)f|=CF;if(v&0xFu)f|=AF;if(r==0)f|=ZF;if(r&0x80000000u)f|=SF;if(v==0x80000000u)f|=OF;eflags=f;if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);eip=ip;return 0;}
+   if(sub==3){uint32_t r=0u-v;set_sub_flags(0u,v,r);if(v)eflags|=CF;else eflags&=~CF;if(v==0x80000000u)eflags|=OF;else eflags&=~OF;if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);eip=ip;return 0;}
    if(sub==4){uint64_t p=(uint64_t)regs[R_EAX]*(uint64_t)v;regs[R_EAX]=(uint32_t)p;regs[R_EDX]=(uint32_t)(p>>32);eflags=(eflags&~(CF|OF))|(((p>>32)!=0)?(CF|OF):0);eip=ip;return 0;}
    if(sub==5){int64_t p=(int64_t)(int32_t)regs[R_EAX]*(int64_t)(int32_t)v;uint32_t lo=(uint32_t)p,hi=(uint32_t)((uint64_t)p>>32);regs[R_EAX]=lo;regs[R_EDX]=hi;int64_t sx=(int64_t)(int32_t)lo;eflags=(eflags&~(CF|OF))|((p!=sx)?(CF|OF):0);eip=ip;return 0;}
    if(sub==6){if(v==0){cpu_error=0xF706u;return -30;}uint64_t dividend=((uint64_t)regs[R_EDX]<<32)|regs[R_EAX];uint64_t q=dividend/v,r=dividend%v;if(q>0xFFFFFFFFull){cpu_error=0xF707u;return -31;}regs[R_EAX]=(uint32_t)q;regs[R_EDX]=(uint32_t)r;eip=ip;return 0;}
