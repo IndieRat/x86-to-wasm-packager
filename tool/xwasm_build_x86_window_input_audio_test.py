@@ -81,10 +81,10 @@ def make_pe():
     args = [0, 0, 0, 0x10000000, 0, 0, 640, 360, 0, 0, 0, 0]
     for value in reversed(args):
         code.extend(b"\x68" + struct.pack("<I", value))
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1390))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1890))
     code.extend(b"\x89\xC6")                 # ESI = HWND
     code.extend(b"\x6A\x01\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1394))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1894))
 
     # GetDC(hwnd), draw a surface marker, then release the DC.
     code.extend(b"\x56")
