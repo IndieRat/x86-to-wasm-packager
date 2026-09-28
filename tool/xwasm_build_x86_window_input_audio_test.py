@@ -154,16 +154,19 @@ def make_pe():
     b[base + (import_rva - SECTION_RVA):base + (import_rva - SECTION_RVA) + 0x50] = b"\0" * 0x50
     # USER32: CreateWindowExA, ShowWindow, GetDC, ReleaseDC, and five
     # message-loop functions.
-    struct.pack_into("<IIIII", b, base + 0x100,
+    import_base = base + (import_rva - SECTION_RVA)
+    # The import directory is at RVA 0x1800. Keep its descriptors anchored
+    # to that RVA rather than the old 0x1100 executable-area layout.
+    struct.pack_into("<IIIII", b, import_base,
                      user_oft_rva, 0, 0, user_dll, user_iat_rva)
     # GDI32: SetPixel and Rectangle.
-    struct.pack_into("<IIIII", b, base + 0x114,
+    struct.pack_into("<IIIII", b, import_base + 0x14,
                      gdi_oft_rva, 0, 0, gdi_dll, gdi_iat_rva)
     # KERNEL32: Beep.
-    struct.pack_into("<IIIII", b, base + 0x128,
+    struct.pack_into("<IIIII", b, import_base + 0x28,
                      kernel_oft_rva, 0, 0, kernel_dll, kernel_iat_rva)
     # Null import descriptor terminator.
-    struct.pack_into("<IIIII", b, base + (import_rva - SECTION_RVA) + 0x3C, 0, 0, 0, 0, 0)
+    struct.pack_into("<IIIII", b, import_base + 0x3C, 0, 0, 0, 0, 0)
 
     user_names = [names[0], names[1], names[2], names[3],
                   names[7], names[8], names[9], names[10], names[11]]
