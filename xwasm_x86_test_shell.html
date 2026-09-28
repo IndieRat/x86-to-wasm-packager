@@ -122,6 +122,23 @@ function state(){
     "",
     "INC verification: "+(did===1?"PASS — 0x40 reached INC_R32 semantic handler":"not currently dispatching INC")
   ].join("\n");
+  const tc=api("x86_get_trace_count")(), fi=api("x86_get_trace_failure_index")();
+  let trace=[];
+  const dnames={0:"legacy",1:"INC_R32",2:"DEC_R32"};
+  for(let n=0;n<tc;n++){
+    const i=api("x86_get_trace_index")(n);
+    trace.push(
+      String(n).padStart(2,"0")+"  "+hex(api("x86_get_trace_eip")(i))+
+      " -> "+hex(api("x86_get_trace_next_eip")(i))+
+      "  op="+hex(api("x86_get_trace_opcode")(i))+
+      "  EAX="+hex(api("x86_get_trace_eax")(i))+
+      "  EFLAGS="+hex(api("x86_get_trace_flags")(i))+
+      "  "+(dnames[api("x86_get_trace_dispatch")(i)]||"legacy")
+    );
+  }
+  const traceText=tc?trace.join("\n"):"No execution trace yet.";
+  $("decode").textContent += "\n\nExecution trace (oldest → newest, last "+tc+")\n"+traceText+
+    (fi!==0?"\n\nFAILURE MARKER TRANSITION: trace entry "+(fi-1)+" changed EAX to DEADC0DE.":"");
   $("diag").textContent=[
     "loaded            "+api("x86_get_loaded")(),
     "load_error        "+hex(api("x86_get_load_error")()),
@@ -130,7 +147,9 @@ function state(){
     "requested base    "+hex(api("x86_get_requested_image_base")()),
     "imports           "+api("x86_get_import_count")()+" resolved="+api("x86_get_import_resolved")()+" failed="+api("x86_get_import_failed")(),
     "relocation needed "+api("x86_get_relocation_needed")(),
-    "running           "+api("x86_get_running")()
+    "running           "+api("x86_get_running")(),
+    "trace entries     "+api("x86_get_trace_count")(),
+    "failure transition "+(api("x86_get_trace_failure_index")()===0?"none":api("x86_get_trace_failure_index")())
   ].join("\n");
 }
 async function loadPackage(){
