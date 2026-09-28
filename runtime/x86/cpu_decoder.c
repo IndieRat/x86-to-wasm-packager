@@ -328,7 +328,7 @@ static int cpu_step(void) {
                 if(decoded_operand16)modrm_write16(d.modrm,&write_ip,(uint16_t)r);
                 else modrm_write32(d.modrm,&write_ip,r);
             }
-            eip=d.cursor+(x86_id_is(d.entry->id,"RCR_RM32_IMM8")?1u:0u);
+            eip=d.cursor;
             last_dispatch_id=X86_DISPATCH_RCR;
             last_dispatch_count++;
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
