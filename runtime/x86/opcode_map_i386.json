@@ -2045,13 +2045,17 @@
       },
       {
         "byte": "84",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JE_REL32"
+        ]
       },
       {
         "byte": "85",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JNE_REL32"
+        ]
       },
       {
         "byte": "86",
@@ -2260,8 +2264,10 @@
       },
       {
         "byte": "AF",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "IMUL_R32_RM32"
+        ]
       },
       {
         "byte": "B0",
@@ -2295,8 +2301,10 @@
       },
       {
         "byte": "B6",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOVZX_R32_RM8"
+        ]
       },
       {
         "byte": "B7",
@@ -2335,8 +2343,10 @@
       },
       {
         "byte": "BE",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOVSX_R32_RM8"
+        ]
       },
       {
         "byte": "BF",
