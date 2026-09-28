@@ -301,6 +301,7 @@ static void set_sub_flags_width(uint32_t a,uint32_t b,uint32_t r,uint32_t bits){
 }
 static uint8_t reg8_read(uint32_t r){uint32_t i=r&7u;return (uint8_t)(i<4u?regs[i]:(regs[i-4u]>>8));}
 static void reg8_write(uint32_t r,uint8_t v){uint32_t i=r&7u;if(i<4u)regs[i]=(regs[i]&~0xFFu)|v;else{uint32_t q=i-4u;regs[q]=(regs[q]&~0xFF00u)|((uint32_t)v<<8);}}
+static uint16_t reg16_read(uint32_t r){return (uint16_t)regs[r&7u];}
 static void reg16_write(uint32_t r,uint16_t v){uint32_t i=r&7u;regs[i]=(regs[i]&~0xFFFFu)|v;}
 static uint8_t modrm_read8(uint8_t m,uint32_t *ip){uint32_t ea=0;if(!modrm_ea(m,ip,&ea))return reg8_read(m&7);return MEM8(ea);}
 static uint16_t modrm_read16(uint8_t m,uint32_t *ip){uint32_t ea=0;if(!modrm_ea(m,ip,&ea))return reg16_read(m&7);return rd16(ea);}
