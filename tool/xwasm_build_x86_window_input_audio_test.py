@@ -66,14 +66,15 @@ def make_pe():
     jne_movzx = len(code)
     code.extend(b"\\x75\\x00")
     code.extend(b"\\xBD" + struct.pack("<I", 0x584F5053))
-    rich_fail = len(code)
+    rich_done_jump = len(code)
     code.extend(b"\\xEB\\x00")
-    rich_pass = len(code)
+    rich_fail = len(code)
+    code.extend(b"\\x31\\xED")
+    rich_done = len(code)
     code[jne_logic + 1] = (rich_fail - (jne_logic + 2)) & 0xFF
     code[jne_movsx + 1] = (rich_fail - (jne_movsx + 2)) & 0xFF
     code[jne_movzx + 1] = (rich_fail - (jne_movzx + 2)) & 0xFF
-    code[rich_fail + 1] = (rich_pass - (rich_fail + 2)) & 0xFF
-    code.extend(b"\\x31\\xED")
+    code[rich_done_jump + 1] = (rich_done - (rich_done_jump + 2)) & 0xFF
 
     # Create a real Win32-style client surface: exstyle, class, title, style,
     # x, y, width, height, parent, menu, instance, param.
