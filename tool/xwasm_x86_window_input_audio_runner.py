@@ -119,7 +119,7 @@ const $=id=>document.getElementById(id);
 const canvas=$("gfx"),gfx=canvas.getContext("2d"),picker=$("picker");
 const inputQueue=[];
 let memory=null,runtimeExports=null,inputReady=false,loopRunning=false,paused=false;
-let frameHandle=0,sliceCount=0,lastSteps=0;
+let frameHandle=0,sliceCount=0,lastSteps=0,richReported=false,windowReported=false,audioReported=false;
 let lastSeen={left:0,right:0,middle:0,moves:0,steps:0,msg:0};
 const panels={cpu:$("cpuLog"),input:$("inputLog"),window:$("windowLog"),audio:$("audioLog"),imports:$("importsLog"),system:$("systemLog")};
 
@@ -215,7 +215,7 @@ async function runFixture(){
     setMeta("cpu","EIP "+hex(ex.x86_get_eip())+" · "+lastSteps.toLocaleString()+" instructions · slice "+sliceCount);
     if(sw&&sh){setMeta("window","Client surface "+sw+"x"+sh);setCheck("checkWindow","PASS","pass");}
     if(ex.x86_get_import_resolved()===12&&ex.x86_get_import_failed()===0){setMeta("imports","12 resolved · 0 unresolved");setCheck("checkCpu",rich?"PASS":"RUNNING",rich?"pass":"warn");}
-    if(rich){logTo("cpu","Rich x86 operation self-test passed: arithmetic / logic / shifts / IMUL / MOVZX / MOVSX / branches.","pass");}
+    if(rich&&!richReported){richReported=true;logTo("cpu","Rich x86 operation self-test passed: arithmetic / logic / shifts / IMUL / MOVZX / MOVSX / branches.","pass");}
     if(left>lastSeen.left){logTo("input","x86 DispatchMessageA received WM_LBUTTONDOWN. Click count="+left,"pass");setCheck("checkInput","PASS","pass");}
     if(right>lastSeen.right){logTo("input","x86 DispatchMessageA received WM_RBUTTONDOWN. Right-click count="+right,"pass");setCheck("checkInput","PASS","pass");}
     if(middle>lastSeen.middle){logTo("input","x86 DispatchMessageA received WM_MBUTTONDOWN. Middle-click count="+middle,"pass");setCheck("checkInput","PASS","pass");}
@@ -226,8 +226,8 @@ async function runFixture(){
     if(ex.x86_get_import_resolved()!==12||ex.x86_get_import_failed()!==0)throw Error("import resolution changed unexpectedly");
     lastSeen={left,right,middle,moves,steps:lastSteps,msg};
     setCheck("checkAudio","PASS","pass");
-    if(sliceCount===1)logTo("audio","KERNEL32 Beep bridge executed during fixture startup.","pass");
-    if(sliceCount===1)logTo("window","CreateWindowExA created the browser-backed client surface.","pass");
+    if(sliceCount===1&&!audioReported){audioReported=true;logTo("audio","KERNEL32 Beep bridge executed during fixture startup.","pass");}
+    if(sw&&sh&&!windowReported){windowReported=true;logTo("window","CreateWindowExA created the browser-backed client surface.","pass");}
   }catch(err){logTo("system","ERROR: "+err.message,"fail");setStatus("ERROR",false);}
 }
 function scheduleCpu(){if(!loopRunning)return;runFixture().finally(()=>{frameHandle=requestAnimationFrame(scheduleCpu);});}
@@ -278,7 +278,7 @@ picker.onchange=async e=>{
     logTo("imports","Resolved imports: "+resolved+"/12","pass");
     logTo("imports","Unresolved imports: "+failed,(failed===0?"pass":"fail"));
     if(resolved!==12||failed!==0)throw Error("expected 12 resolved imports and 0 unresolved imports");
-    setCheck("checkWindow","PASS","pass");setCheck("checkAudio","RUNNING","warn");
+    setCheck("checkWindow","WAIT","warn");setCheck("checkAudio","RUNNING","warn");
     inputReady=true;installInput();startCpuLoop();
     $("pauseBtn").disabled=false;
     logTo("system","Compatibility shell is live. Use the canvas for input tests.","pass");
