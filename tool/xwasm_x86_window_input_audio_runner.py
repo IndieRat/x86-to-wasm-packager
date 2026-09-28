@@ -27,6 +27,9 @@ let memory=null;
 const inputQueue=[];
 let inputReady=false;
 let runtimeExports=null;
+let loopRunning=false;
+let frameHandle=0;
+let lastSteps=0;
 
 function queueKeyMessage(type,keyCode){
   inputQueue.push({hwnd:0,message:type,wParam:keyCode>>>0,lParam:0,time:Date.now()>>>0,x:0,y:0});
@@ -68,13 +71,13 @@ function installInput(){
   canvas.addEventListener("mousedown",e=>{
     if(!inputReady)return;
     const flag=e.button===0?1:e.button===2?2:4;
-    queueMouseMessage(e.button===0?0x0201:0x0204,e,flag);
+    queueMouseMessage(e.button===0?0x0201:e.button===2?0x0204:0x0207,e,flag);
     runFixture();
   });
   canvas.addEventListener("mouseup",e=>{
     if(!inputReady)return;
     const flag=e.button===0?1:e.button===2?2:4;
-    queueMouseMessage(e.button===0?0x0202:0x0205,e,flag);
+    queueMouseMessage(e.button===0?0x0202:e.button===2?0x0205:0x0208,e,flag);
     runFixture();
   });
 }
@@ -85,101 +88,29 @@ async function runFixture(){
     const ex=runtimeExports;
     const result=ex.x86_run(512);
     if(result<0)throw Error("x86 CPU execution failed: EIP=0x"+ex.x86_get_eip().toString(16));
-    say("CPU slice: "+result+" | steps="+ex.x86_get_steps()+" | msg=0x"+ex.x86_get_last_message().toString(16).padStart(4,"0")+" | clicks="+(ex.x86_get_mouse_clicks?.()??0)+" | queue="+inputQueue.length);
+    lastSteps=ex.x86_get_steps();
+    say("CPU slice: "+result+" | steps="+lastSteps+" | msg=0x"+ex.x86_get_last_message().toString(16).padStart(4,"0")+" | clicks="+(ex.x86_get_mouse_clicks?.()??0)+" | queue="+inputQueue.length);
     if(ex.x86_get_import_resolved()!==12)throw Error("expected 12 resolved imports");
     if(ex.x86_get_import_failed()!==0)throw Error("fixture has unresolved imports");
     if(ex.x86_get_cpu_error()!==0)throw Error("CPU error opcode=0x"+ex.x86_get_cpu_error().toString(16));
     say("WINDOW PASS — USER32 surface reached browser Canvas.");
     say("INPUT PASS — browser pointer/keyboard -> Win32 MSG -> x86 PeekMessageA.");
     if((ex.x86_get_mouse_clicks?.()??0)>0) say("MOUSE CLICK PASS — WM_LBUTTONDOWN reached x86 DispatchMessageA and drew a click marker.");
+    if((ex.x86_get_mouse_right_clicks?.()??0)>0) say("RIGHT CLICK PASS — WM_RBUTTONDOWN reached x86 DispatchMessageA.");
+    if((ex.x86_get_mouse_middle_clicks?.()??0)>0) say("MIDDLE CLICK PASS — WM_MBUTTONDOWN reached x86 DispatchMessageA.");
+    if((ex.x86_get_mouse_moves?.()??0)>0) say("MOUSE MOVE PASS — WM_MOUSEMOVE reached x86 DispatchMessageA.");
     say("AUDIO PASS — KERNEL32 Beep -> browser Web Audio.");
-    say("LOOP PASS — CPU remains live between browser events.");
-  }catch(err){
-    say("ERROR: "+err.message);
-  }
+    if(ex.x86_get_rich_ops_pass?.()===1) say("X86 OPS PASS — arithmetic, logic, shifts, IMUL, MOVZX, and conditional branches passed the fixture.");
+    if(ex.x86_get_surface_width?.()&&ex.x86_get_surface_height?.()) say("SURFACE PASS — "+ex.x86_get_surface_width()+"x"+ex.x86_get_surface_height()+" client surface active.");
+  }catch(err){ say("ERROR: "+err.message); }
+}
+function scheduleCpu(){
+  if(!loopRunning)return;
+  runFixture().finally(()=>{ frameHandle=requestAnimationFrame(scheduleCpu); });
+}
+function startCpuLoop(){
+  if(loopRunning)return;
+  loopRunning=true;
+  frameHandle=requestAnimationFrame(scheduleCpu);
 }
 
-picker.onchange=async e=>{
-  const files=new Map();
-  for(const f of e.target.files)
-    files.set(f.webkitRelativePath.split("/").slice(1).join("/")||f.name,f);
-  try{
-    const mf=files.get("manifest.xwasm.json");
-    if(!mf)throw Error("manifest.xwasm.json is missing");
-    const manifest=JSON.parse(await mf.text());
-    if(manifest.architecture!=="x86")throw Error("Not an XWASM x86 package");
-    say("Package: "+manifest.name);
-
-    const rt=files.get(manifest.runtime||"runtime.wasm");
-    const payload=files.get(manifest.payload);
-    if(!rt||!payload)throw Error("runtime.wasm or payload.exe is missing");
-
-    memory=new WebAssembly.Memory({initial:1024,maximum:4096});
-    const imports={env:{
-      memory,
-      xwasm_log:(level,ptr,len)=>say(new TextDecoder().decode(new Uint8Array(memory.buffer,ptr,len))),
-      xwasm_gfx_create:(w,h)=>{canvas.width=w;canvas.height=h;},
-      xwasm_gfx_clear:c=>{gfx.fillStyle=rgb(c);gfx.fillRect(0,0,canvas.width,canvas.height);},
-      xwasm_gfx_pixel:(x,y,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(x,y,1,1);},
-      xwasm_gfx_rect:(l,t,r,b,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(l,t,r-l,b-t);},
-      xwasm_gfx_present:()=>{},
-      xwasm_input_poll:(ptr,remove)=>{
-        if(!inputQueue.length)return 0;
-        const m=remove?inputQueue.shift():inputQueue[0];
-        writeMsg(ptr,m);
-        return 1;
-      },
-      xwasm_input_quit:()=>{},
-      xwasm_audio_beep:(frequency,duration)=>{
-        const AudioCtx=window.AudioContext||window.webkitAudioContext;
-        if(!AudioCtx)return;
-        const ctx=new AudioCtx();
-        const osc=ctx.createOscillator();
-        const gain=ctx.createGain();
-        osc.type="square";
-        osc.frequency.value=Math.max(20,Math.min(20000,frequency||440));
-        gain.gain.value=0.05;
-        osc.connect(gain);gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime+Math.max(0.02,Math.min(2,duration/1000)));
-        osc.addEventListener("ended",()=>ctx.close());
-      }
-    }};
-
-    const {instance}=await WebAssembly.instantiate(await rt.arrayBuffer(),imports);
-    runtimeExports=instance.exports;
-    say("Runtime WASM instantiated.");
-    say("Runtime version: 0x"+runtimeExports.x86_get_runtime_version().toString(16));
-    runtimeExports.xwasm_init?.();
-
-    const buf=new Uint8Array(await payload.arrayBuffer());
-    const stage=0x02000000;
-    if(stage+buf.length>memory.buffer.byteLength)throw Error("payload staging address exceeds WASM memory");
-    new Uint8Array(memory.buffer,stage,buf.length).set(buf);
-    if(runtimeExports.x86_debug_probe(stage)!==0x5a4d)throw Error("runtime MZ probe failed");
-    if(runtimeExports.x86_load_pe(stage,buf.length)!==0)throw Error("PE loader rejected fixture");
-
-    say("PE32 fixture loaded.");
-    say("Imports resolved: "+runtimeExports.x86_get_import_resolved());
-    say("Imports unresolved: "+runtimeExports.x86_get_import_failed());
-    if(runtimeExports.x86_get_import_resolved()!==12)throw Error("expected 12 resolved imports");
-    if(runtimeExports.x86_get_import_failed()!==0)throw Error("expected zero unresolved imports");
-
-    inputReady=true;
-    runButton.disabled=false;
-    runButton.textContent="Live x86 window loop — click or press a key";
-    say("Window bridge ready. Click the canvas to test WM_LBUTTONDOWN; move the mouse to test WM_MOUSEMOVE.");
-    installInput();
-    await runFixture();
-  }catch(err){say("ERROR: "+err.message);}
-};
-</script>"""
-def main():
-    ap=argparse.ArgumentParser()
-    ap.add_argument("--output",type=Path,required=True)
-    a=ap.parse_args()
-    a.output.parent.mkdir(parents=True,exist_ok=True)
-    a.output.write_text(HTML,encoding="utf-8")
-    print(a.output)
-if __name__=="__main__":
-    main()
