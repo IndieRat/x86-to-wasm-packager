@@ -511,7 +511,18 @@ static int cpu_step_legacy(void){
    uint32_t count=(op==0xC0||op==0xC1)?MEM8(ip++):((op==0xD2||op==0xD3)?(regs[R_ECX]&31u):1u);
    uint32_t cf=(eflags&CF)?1u:0u,of=0,of_valid=0;
    if(sub<2){count&=31u;if(!count){eip=ip;return 0;}if(sub==0){r=(v<<count)|(v>>(32u-count));cf=r&1u;of_valid=count==1;of=((r>>31)&1u)^cf;}else{r=(v>>count)|(v<<(32u-count));cf=(r>>31)&1u;of_valid=count==1;of=((r>>31)&1u)^((r>>30)&1u);}}
-   else{count%=33u;if(!count){eip=ip;return 0;}uint64_t t=((uint64_t)cf<<32)|v;if(sub==2){t=((t<<count)|(t>>(33u-count)))&0x1FFFFFFFFull;r=(uint32_t)t;cf=(uint32_t)(t>>32);of_valid=count==1;of=((r>>31)&1u)^cf;}else{t=((t>>count)|(t<<(33u-count)))&0x1FFFFFFFFull;r=(uint32_t)t;cf=(uint32_t)(t>>32);of_valid=count==1;of=((r>>31)&1u)^((r>>30)&1u);}}
+   else{
+    count%=33u;if(!count){eip=ip;return 0;}
+    /* RCL/RCR use CF as a one-bit extension. Iterate so the extracted
+     * carry is the bit actually shifted out of the 32-bit operand. */
+    for(uint32_t n=0;n<count;n++){
+     if(sub==2){uint32_t out=(v>>31)&1u;v=(v<<1)|cf;cf=out;}
+     else{uint32_t out=v&1u;v=(v>>1)|(cf<<31);cf=out;}
+    }
+    r=v;of_valid=count==1;
+    if(sub==2)of=((r>>31)&1u)^cf;
+    else of=((r>>31)&1u)^((r>>30)&1u);
+   }
    if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);set_rotate_flags(r,cf,of_valid,of);eip=ip;return 0;
   }
   case 0x69: {uint8_t m=MEM8(ip++);uint32_t a=modrm_read32(m,&ip),imm=rd32(ip);ip+=4;int64_t p=(int64_t)(int32_t)a*(int64_t)(int32_t)imm;uint32_t r=(uint32_t)p;uint32_t sx=(uint32_t)(int32_t)r;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);regs[(m>>3)&7]=r;eip=ip;return 0;}
