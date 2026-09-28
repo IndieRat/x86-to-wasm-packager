@@ -119,3 +119,34 @@ Before calling the CPU portion of v0.8 complete, the fixture suite should be abl
 - deterministic instruction-db validation
 
 The real-game gate is separate: a game is allowed to expose missing instructions and drive the next implementation slice.
+
+
+## JSON definition layers
+
+The high-level catalog remains at `runtime/x86/instructions.json`. v0.8 now also has two machine-readable layers:
+
+- `runtime/x86/instruction_definitions.json` — one semantic definition per instruction, including instruction family, supported forms, operand kinds, and flag effects.
+- `runtime/x86/instruction_encodings.json` — concrete legacy i386 encodings, including opcode bytes, opcode maps, ModR/M requirements and extensions, operand sources, immediate widths, sign extension, and relative branches.
+
+The intended pipeline is:
+
+    instructions.json
+          |
+          +--> instruction_definitions.json
+          |       semantic identity / forms / flags
+          |
+          +--> instruction_encodings.json
+                  exact byte-level encoding
+                          |
+                          v
+                    compiled lookup tables
+                          |
+                          v
+                       decoder
+                          |
+                          v
+                    execution handler
+
+The JSON files are the authoring/source format. The runtime should eventually compile them into compact lookup tables rather than parse JSON for every guest instruction.
+
+The encoding structure follows the same useful separation used by Intel XED: decoded instructions have structured operands and encoding data, while the byte-level encoding rules select the concrete form. Intel documents ModR/M, operand encoding, and opcode-map information separately in Volume 2. 
