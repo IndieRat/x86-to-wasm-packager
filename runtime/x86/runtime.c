@@ -304,7 +304,7 @@ static void modrm_write32(uint8_t m,uint32_t *ip,uint32_t v){
  uint32_t ea=0; if(!modrm_ea(m,ip,&ea)){regs[m&7]=v;return;} wr32(ea,v);
 }
 
-static int cpu_step(void){
+static int cpu_step_legacy(void){
  uint32_t ip=eip; uint8_t op=MEM8(ip++); steps++;
  switch(op){
   case 0x90: eip=ip; return 0; /* NOP */
@@ -415,6 +415,8 @@ static int cpu_step(void){
   default: cpu_error=op; return -10;
  }
 }
+
+#include "cpu_decoder.c"
 
 static int image_rva_valid(uint32_t rva,uint32_t size){
  return rva<=image_size && size<=image_size-rva;
