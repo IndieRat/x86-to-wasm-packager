@@ -25,7 +25,10 @@ static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last
 static uint32_t regs[8],eflags=0x00000002u;
 static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
+static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
+static uint32_t last_dispatch_id=0,last_dispatch_count=0;
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea);
+enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2 };
 
 /* v0.4 guest memory/import foundation. The guest-visible address space is
  * intentionally separate from the WASM allocator used for diagnostics. */
@@ -644,7 +647,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
- for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
+ for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0; message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.8");
 loglit("PE32 + imports + memory + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
@@ -669,6 +672,11 @@ __attribute__((export_name("x86_get_edi"))) uint32_t x86_get_edi(void){return re
 __attribute__((export_name("x86_get_eflags"))) uint32_t x86_get_eflags(void){return eflags;}
 __attribute__((export_name("x86_get_halted"))) uint32_t x86_get_halted(void){return halted;}
 __attribute__((export_name("x86_get_cpu_error"))) uint32_t x86_get_cpu_error(void){return cpu_error;}
+__attribute__((export_name("x86_get_last_decoded_map"))) uint32_t x86_get_last_decoded_map(void){return last_decoded_map;}
+__attribute__((export_name("x86_get_last_decoded_opcode"))) uint32_t x86_get_last_decoded_opcode(void){return last_decoded_opcode;}
+__attribute__((export_name("x86_get_last_decoded_length"))) uint32_t x86_get_last_decoded_length(void){return last_decoded_length;}
+__attribute__((export_name("x86_get_last_dispatch_id"))) uint32_t x86_get_last_dispatch_id(void){return last_dispatch_id;}
+__attribute__((export_name("x86_get_last_dispatch_count"))) uint32_t x86_get_last_dispatch_count(void){return last_dispatch_count;}
 __attribute__((export_name("x86_get_current_opcode")))
 uint32_t x86_get_current_opcode(void){
  if(!loaded)return 0xFFFFFFFFu;
