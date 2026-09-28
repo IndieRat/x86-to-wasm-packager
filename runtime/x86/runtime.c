@@ -164,7 +164,9 @@ static uint32_t call_builtin(uint32_t target){
  if(target==API_USER32_GETMESSAGEA || target==API_USER32_PEEKMESSAGEA){
   /* 32-bit MSG: hwnd, message, wParam, lParam, time, pt.x, pt.y. */
   uint32_t sp=regs[R_ESP],msg=rd32(sp+4u);
-  int32_t got=xwasm_input_poll((int32_t)msg,target==API_USER32_GETMESSAGEA);
+  /* PeekMessageA(MSG*, hWnd, min, max, removeMsg): removeMsg is arg 5. */
+  uint32_t remove=target==API_USER32_GETMESSAGEA?1u:rd32(sp+20u);
+  int32_t got=xwasm_input_poll((int32_t)msg,(int32_t)remove);
   if(got>0){
    message_count++; message_last=rd32(msg+4u);
    if(message_last==0x0012u)message_quit=1;
