@@ -67,6 +67,35 @@
       }
     },
     {
+      "id": "MOV_R8_IMM8",
+      "instruction": "MOV",
+      "opcode": [
+        "B0",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "B6",
+        "B7"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "opcode_reg": "low3",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "w",
+          "source": "opcode.low3"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
       "id": "MOV_R32_IMM32",
       "instruction": "MOV",
       "opcode": [
