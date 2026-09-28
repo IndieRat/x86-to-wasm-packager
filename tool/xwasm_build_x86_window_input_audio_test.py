@@ -88,23 +88,23 @@ def make_pe():
 
     # GetDC(hwnd), draw a surface marker, then release the DC.
     code.extend(b"\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1398))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x1898))
     code.extend(b"\x89\xC3")                 # EBX = HDC
     for value in (280, 520, 80, 120):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13BC))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x18BC))
     for value in (0x000000FF, 180, 320):
         code.extend(b"\x68" + struct.pack("<I", value))
     code.extend(b"\x53")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13B8))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x18B8))
     code.extend(b"\x53\x56")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x139C))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x189C))
 
     # KERNEL32!Beep(660, 120): browser Web Audio proof.
     code.extend(b"\x68" + struct.pack("<I", 120))
     code.extend(b"\x68" + struct.pack("<I", 660))
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13C4))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x18C4))
 
     # Proper persistent Win32-style message loop.
     # PeekMessageA is polled continuously; each browser event wakes the loop,
@@ -114,14 +114,14 @@ def make_pe():
     for value in (1, 0, 0, 0):
         code.extend(b"\x6A" + struct.pack("<B", value))
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13A0))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x18A0))
     code.extend(b"\x85\xC0")                 # TEST EAX,EAX
     jz = len(code)
     code.extend(b"\x74\x00")
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13A4))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x18A4))
     code.extend(b"\x57")
-    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x13A8))
+    code.extend(b"\xFF\x15" + struct.pack("<I", IMAGE_BASE + 0x18A8))
     back = len(code)
     code.extend(b"\xEB\x00")
     code[jz + 1] = (loop - (jz + 2)) & 0xFF
@@ -129,17 +129,17 @@ def make_pe():
 
     b[SECTION_RAW:SECTION_RAW + len(code)] = code
 
-    import_rva = 0x1300
-    user_oft_rva = 0x1350
-    gdi_oft_rva = 0x1378
-    kernel_oft_rva = 0x1384
-    user_iat_rva = 0x1390
-    gdi_iat_rva = 0x13B8
-    kernel_iat_rva = 0x13C4
-    user_dll = 0x13D0
-    gdi_dll = 0x13E0
-    kernel_dll = 0x13F0
-    names = [0x1400 + i * 0x20 for i in range(12)]
+    import_rva = 0x1800
+    user_oft_rva = 0x1850
+    gdi_oft_rva = 0x1878
+    kernel_oft_rva = 0x1884
+    user_iat_rva = 0x1890
+    gdi_iat_rva = 0x18B8
+    kernel_iat_rva = 0x18C4
+    user_dll = 0x18D0
+    gdi_dll = 0x18E0
+    kernel_dll = 0x18F0
+    names = [0x1900 + i * 0x20 for i in range(12)]
     funcs = [
         b"CreateWindowExA\0", b"ShowWindow\0", b"GetDC\0", b"ReleaseDC\0",
         b"SetPixel\0", b"Rectangle\0",
