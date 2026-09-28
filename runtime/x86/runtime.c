@@ -143,6 +143,7 @@ static uint32_t call_builtin(uint32_t target){
   uint32_t width=rd32(sp+28u),height=rd32(sp+32u);
   if(width<64u||width>1920u)width=640u;
   if(height<64u||height>1080u)height=360u;
+  surface_width=width; surface_height=height;
   xwasm_gfx_create((int32_t)width,(int32_t)height);
   xwasm_gfx_clear(0x00101820);
   xwasm_gfx_present();
@@ -178,14 +179,19 @@ static uint32_t call_builtin(uint32_t target){
  }
  if(target==API_USER32_DISPATCHMESSAGEA){
   uint32_t sp=regs[R_ESP],msg=rd32(sp+4u),type=msg?rd32(msg+4u):0;
-  if(msg&&type==0x0201u){
+  if(msg){
    uint32_t lp=rd32(msg+12u);
-   int32_t x=(int16_t)(lp&0xFFFFu),y=(int16_t)((lp>>16)&0xFFFFu);
-   mouse_clicks++;
-   xwasm_gfx_rect(x-4,y-4,x+5,y+5,0x0000FF00);
-   xwasm_gfx_pixel(x,y,0x00FFFFFF);
-   xwasm_gfx_present();
-   xwasm_audio_beep(880,70);
+   if(type==0x0200u) mouse_moves++;
+   else if(type==0x0204u) mouse_right_clicks++;
+   else if(type==0x0207u) mouse_middle_clicks++;
+   if(type==0x0201u){
+    int32_t x=(int16_t)(lp&0xFFFFu),y=(int16_t)((lp>>16)&0xFFFFu);
+    mouse_clicks++;
+    xwasm_gfx_rect(x-4,y-4,x+5,y+5,0x0000FF00);
+    xwasm_gfx_pixel(x,y,0x00FFFFFF);
+    xwasm_gfx_present();
+    xwasm_audio_beep(880,70);
+   }
   }
   regs[R_EAX]=0u; regs[R_ESP]+=4u; return 1;
  }
