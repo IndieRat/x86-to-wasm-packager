@@ -27,7 +27,12 @@ class Asm:
         self.patches.append(("rel8", len(self.b)-1, label, 1))
 
     def rel32(self, op, label):
-        self.emit(op, *b"\0\0\0\0")
+        # Accept either a single-byte opcode (E8/E9) or a multi-byte
+        # opcode tuple such as (0x0F, 0x85) for near Jcc.
+        if isinstance(op, (tuple, list)):
+            self.emit(*op, *b"\\0\\0\\0\\0")
+        else:
+            self.emit(op, *b"\\0\\0\\0\\0")
         self.patches.append(("rel32", len(self.b)-4, label, 4))
 
     def finish(self):
