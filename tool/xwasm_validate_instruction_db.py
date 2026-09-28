@@ -12,7 +12,7 @@ REQUIRED_GROUPS = {
 }
 VALID_STATUS = {"EXECUTE", "DECODE", "PLANNED", "SYSTEM"}
 VALID_ACCESS = {"r", "w", "rw"}
-VALID_KINDS = {"reg32", "rm32", "imm8", "imm32", "rel8", "rel32"}
+VALID_KINDS = {"reg8", "reg16", "reg32", "rm8", "rm16", "rm32", "imm8", "imm16", "imm32", "rel8", "rel16", "rel32"}
 
 def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -113,6 +113,26 @@ def load_encodings(path: Path) -> dict:
                 raise ValueError(f"{item['id']}: invalid ModR/M reg extension")
     return data
 
+def load_opcode_map(path: Path) -> dict:
+    data = read_json(path)
+    if data.get("format") != "xwasm-x86-opcode-map":
+        raise ValueError("unexpected opcode map format")
+    if data.get("architecture") != "i386":
+        raise ValueError("opcode map must target i386")
+    maps = data.get("maps")
+    if not isinstance(maps, dict):
+        raise ValueError("opcode map is missing maps")
+    for name in ("primary", "escape_0f", "escape_0f38", "escape_0f3a"):
+        slots = maps.get(name)
+        if not isinstance(slots, list) or len(slots) != 256:
+            raise ValueError(f"{name}: expected exactly 256 opcode slots")
+        for slot in slots:
+            if not isinstance(slot, dict) or slot.get("status") not in {"RESERVED", "MAPPED"}:
+                raise ValueError(f"{name}: invalid opcode slot")
+            if not isinstance(slot.get("encoding_ids"), list):
+                raise ValueError(f"{name}: encoding_ids must be a list")
+    return data
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("path", nargs="?", type=Path,
@@ -121,7 +141,7 @@ def main() -> int:
                     default=Path("runtime/x86/instruction_definitions.json"))
     ap.add_argument("--encodings", type=Path,
                     default=Path("runtime/x86/instruction_encodings.json"))
-    ap.add_argument("--strict", action="store_true",
+    ap.add_argument("--opcode-map", type=Path,\n                    default=Path("runtime/x86/opcode_map_i386.json"))\n    ap.add_argument("--strict", action="store_true",
                     help="fail if the catalog contains non-EXECUTE entries")
     args = ap.parse_args()
 
