@@ -1,0 +1,95 @@
+{
+  "format": "xwasm-x86-encoding-schema",
+  "version": 1,
+  "architecture": "i386",
+  "purpose": "Describe all byte-level components needed to turn an IA-32 instruction definition into a decoder lookup entry.",
+  "components": {
+    "legacy_prefixes": [
+      "F0",
+      "F2",
+      "F3",
+      "2E",
+      "36",
+      "3E",
+      "26",
+      "64",
+      "65",
+      "66",
+      "67"
+    ],
+    "opcode_maps": [
+      "primary",
+      "escape_0f",
+      "escape_0f38",
+      "escape_0f3a"
+    ],
+    "opcode_forms": [
+      "fixed",
+      "opcode_reg",
+      "modrm",
+      "modrm_group",
+      "accumulator_special",
+      "relative",
+      "immediate"
+    ],
+    "modrm": {
+      "fields": [
+        "mod",
+        "reg",
+        "rm"
+      ],
+      "reg_extensions": "0..7",
+      "memory_when_mod": "00/01/10",
+      "register_when_mod": "11"
+    },
+    "sib": {
+      "fields": [
+        "scale",
+        "index",
+        "base"
+      ],
+      "scales": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "present_when": "32-bit addressing with ModR/M rm=100 and mod!=11"
+    },
+    "displacement": [
+      "none",
+      "disp8",
+      "disp16",
+      "disp32"
+    ],
+    "immediates": [
+      "none",
+      "imm8",
+      "imm16",
+      "imm32",
+      "imm8_sign_extended_to_16",
+      "imm8_sign_extended_to_32"
+    ],
+    "relative": [
+      "rel8",
+      "rel16",
+      "rel32"
+    ],
+    "operand_size": "16 or 32 bits in i386; 66h toggles the default operand size.",
+    "address_size": "16 or 32 bits in i386; 67h toggles the default address size.",
+    "implicit_operands": "Allow fixed registers such as EAX, EDX:EAX, ESP, EIP, segment registers, flags, and string-operation indices.",
+    "validity": "Encoding records may impose memory_only, register_only, fixed_mod, fixed_rm, fixed_reg, prefix_required, prefix_forbidden, and mode restrictions."
+  },
+  "lookup_order": [
+    "consume legacy prefixes",
+    "select opcode map",
+    "read opcode byte(s)",
+    "apply opcode-embedded register or fixed opcode constraints",
+    "decode ModR/M when required",
+    "decode SIB when required",
+    "decode displacement",
+    "decode immediate/relative bytes",
+    "validate encoding constraints",
+    "resolve semantic instruction definition"
+  ]
+}\n
