@@ -236,9 +236,20 @@ static int x86_decode_instruction(x86_decoded_t *d) {
 
     /* Operand-size/address-size overrides are decoded correctly, but the
      * current semantic executor only consumes 32-bit forms. */
-    if (d->operand16 || d->address16) {
+    if (d->address16) {
         cpu_error = 0xD100u | d->opcode;
         return -3;
+    }
+    if (d->operand16) {
+        int string16 = x86_id_is(d->entry->id, "MOVSW") ||
+                       x86_id_is(d->entry->id, "CMPSW") ||
+                       x86_id_is(d->entry->id, "SCASW") ||
+                       x86_id_is(d->entry->id, "LODSW") ||
+                       x86_id_is(d->entry->id, "STOSW");
+        if (!string16) {
+            cpu_error = 0xD100u | d->opcode;
+            return -3;
+        }
     }
 
     if (d->cursor - d->start > 15u) {
@@ -263,5 +274,7 @@ static int cpu_step(void) {
      * instruction family independently without maintaining two decoders.
      */
     eip = saved_eip;
+    decoded_prefixes = d.prefixes;
+    decoded_operand16 = d.operand16;
     return cpu_step_legacy();
 }
