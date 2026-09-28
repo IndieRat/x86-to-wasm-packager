@@ -112,7 +112,7 @@ function state(){
     "cpu_error   "+hex(api("x86_get_cpu_error")())
   ].join("\n");
   const map=api("x86_get_last_decoded_map")(), dop=api("x86_get_last_decoded_opcode")(), len=api("x86_get_last_decoded_length")(), did=api("x86_get_last_dispatch_id")(), dc=api("x86_get_last_dispatch_count")();
-  const names={0:"NONE",1:"INC_R32",2:"DEC_R32"};
+  const names={0:"NONE",1:"INC_R32",2:"DEC_R32",3:"RCR"};
   $("decode").textContent=[
     "decoded map       "+map+" ("+((["primary","0F","0F38","0F3A"][map])||"?")+")",
     "decoded opcode    "+hex(dop),
@@ -124,7 +124,7 @@ function state(){
   ].join("\n");
   const tc=api("x86_get_trace_count")(), fi=api("x86_get_trace_failure_index")();
   let trace=[];
-  const dnames={0:"legacy",1:"INC_R32",2:"DEC_R32"};
+  const dnames={0:"legacy",1:"INC_R32",2:"DEC_R32",3:"RCR"};
   for(let n=0;n<tc;n++){
     const i=api("x86_get_trace_index")(n);
     trace.push(
