@@ -342,6 +342,7 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
+    }
     if (d.entry && d.entry->id) {
         if (x86_id_is(d.entry->id,"RCR_RM32_1") ||
             x86_id_is(d.entry->id,"RCR_RM32_IMM8") ||
