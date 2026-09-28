@@ -44,7 +44,7 @@ def make_pe():
     # CPU compatibility self-test. EBP receives XOPS when the richer
     # arithmetic/logic/shift/IMUL/MOVZX/MOVSX/branch operations all pass.
     # This runs entirely inside the guest before entering the message loop.
-    code.extend(b"\\xB8" + struct.pack("<I", 3))
+    code.extend(b"\xB8" + struct.pack("<I", 3))
     code.extend(b"\\xB9" + struct.pack("<I", 5))
     code.extend(b"\\x0F\\xAF\\xC1")
     code.extend(b"\\xC1\\xE0\\x01")
