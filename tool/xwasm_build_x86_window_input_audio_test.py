@@ -228,7 +228,24 @@ def main():
         "payload_architecture": "i386",
         "entry": {"init": "xwasm_init", "tick": "xwasm_tick", "shutdown": "xwasm_shutdown"},
         "bundled_dlls": ["USER32.dll", "GDI32.dll", "KERNEL32.dll"],
-        "execution_status": "v0.7_window_input_audio_fixture"
+        "execution_status": "v0.7_compatibility_fixture",
+        "test_suite": {
+            "name": "XWASM v0.7 Compatibility Foundation",
+            "tests": [
+                "PE32 loading and image mapping",
+                "x86 import resolution",
+                "USER32 window creation and client surface",
+                "GDI32 drawing bridge",
+                "Win32 keyboard messages",
+                "Win32 mouse move and button messages",
+                "persistent PeekMessageA/DispatchMessageA loop",
+                "KERNEL32 Beep audio bridge",
+                "x86 arithmetic and logic operations",
+                "x86 shifts and IMUL",
+                "x86 MOVZX/MOVSX",
+                "x86 conditional branches"
+            ]
+        }
     }
     (root / "manifest.xwasm.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(root)
