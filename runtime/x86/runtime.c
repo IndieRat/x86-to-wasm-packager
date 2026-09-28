@@ -492,45 +492,54 @@ static int cpu_step_legacy(void){
   case 0x2D: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]-b;set_sub_flags(regs[R_EAX],b,r);regs[R_EAX]=r;eip=ip+4;return 0;}
   case 0x3D: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]-b;set_sub_flags(regs[R_EAX],b,r);eip=ip+4;return 0;} /* CMP EAX,imm32 */
   case 0xC0: case 0xC1: case 0xD0: case 0xD1: case 0xD2: case 0xD3: {
-   /* Group 2: shifts (subop 4-7) and rotates (subop 0-3). */
+   /* Group 2: 8/16/32-bit shifts and rotates. */
    uint8_t m=MEM8(ip++),sub=(m>>3)&7;
-   uint32_t ea=0,v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea)),r=v;
+   uint32_t bits=(op==0xC0||op==0xD0||op==0xD2)?8u:(decoded_operand16?16u:32u);
+   uint32_t mask=bits==8?0xFFu:(bits==16?0xFFFFu:0xFFFFFFFFu);
+   uint32_t sign=1u<<(bits-1u);
+   uint32_t ea=0,v;
+   if((m>>6)==3) v=bits==8?reg8_read(m&7):bits==16?reg16_read(m&7):regs[m&7];
+   else {modrm_ea(m,&ip,&ea);v=bits==8?MEM8(ea):bits==16?rd16(ea):rd32(ea);}
+   v&=mask;
+   uint32_t count=(op==0xC0||op==0xC1)?MEM8(ip++):((op==0xD2||op==0xD3)?(regs[R_ECX]&31u):1u);
+   uint32_t cf=(eflags&CF)?1u:0u,of=0,of_valid=0,r=v;
    if(sub>=4){
-    uint32_t count=(op==0xC0||op==0xC1)?MEM8(ip++):((op==0xD2||op==0xD3)?(regs[R_ECX]&31u):1u);
-    count&=31u;
-    if(!count){eip=ip;return 0;}
-    uint32_t cf=(eflags&CF)?1u:0u,of=0,of_valid=0;
-    if(sub==4){r=v<<count;cf=(v>>(32u-count))&1u;of_valid=count==1;of=((r>>31)&1u)^cf;}
-    else if(sub==5){r=v>>count;cf=(v>>(count-1u))&1u;of_valid=count==1;of=(v>>31)&1u;}
-    else if(sub==7){r=(uint32_t)((int32_t)v>>count);cf=(v>>(count-1u))&1u;of_valid=0;of=0;}
+    count&=31u;if(!count){eip=ip;return 0;}
+    if(sub==4){r=(v<<count)&mask;cf=(v>>(bits-count))&1u;of_valid=count==1;of=((r&sign)?1u:0u)^cf;}
+    else if(sub==5){r=v>>count;cf=(v>>(count-1u))&1u;of_valid=count==1;of=(v&sign)?1u:0u;}
+    else if(sub==7){r=(uint32_t)(((int32_t)(v|((v&sign)?~mask:0u)))>>count)&mask;cf=(v>>(count-1u))&1u;of_valid=0;}
     else {cpu_error=0xC000u|sub;return -35;}
     set_shift_flags(r,cf,of_valid,of);
-    if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);
-    eip=ip;return 0;
+   }else{
+    uint32_t modulus=bits==8?9u:(bits==16?17u:33u);
+    count&=31u;count%=modulus;if(!count){eip=ip;return 0;}
+    uint64_t x=((uint64_t)cf<<bits)|v;
+    uint64_t fullmask=(1ull<<(bits+1u))-1ull;
+    if(sub==0){
+     r=(uint32_t)(((uint64_t)v<<count)|(v>>(bits-count)))&mask;
+     cf=r&1u;of_valid=count==1;of=((r&sign)?1u:0u)^cf;
+    }else if(sub==1){
+     r=(v>>count)|(v<<(bits-count));r&=mask;
+     cf=(r&sign)?1u:0u;of_valid=count==1;of=((r&sign)?1u:0u)^((r>>(bits-2u))&1u);
+    }else if(sub==2){
+     x=((x<<count)|(x>>(bits+1u-count)))&fullmask;r=(uint32_t)x&mask;cf=(uint32_t)((x>>bits)&1u);
+     of_valid=count==1;of=((r&sign)?1u:0u)^cf;
+    }else{
+     x=((x>>count)|(x<<(bits+1u-count)))&fullmask;r=(uint32_t)x&mask;cf=(uint32_t)((x>>bits)&1u);
+     of_valid=count==1;of=((r&sign)?1u:0u)^((r>>(bits-2u))&1u);
+    }
+    set_rotate_flags(r,cf,of_valid,of);
    }
-   uint32_t count=(op==0xC0||op==0xC1)?MEM8(ip++):((op==0xD2||op==0xD3)?(regs[R_ECX]&31u):1u);
-   uint32_t cf=(eflags&CF)?1u:0u,of=0,of_valid=0;
-   if(sub<2){count&=31u;if(!count){eip=ip;return 0;}if(sub==0){r=(v<<count)|(v>>(32u-count));cf=r&1u;of_valid=count==1;of=((r>>31)&1u)^cf;}else{r=(v>>count)|(v<<(32u-count));cf=(r>>31)&1u;of_valid=count==1;of=((r>>31)&1u)^((r>>30)&1u);}}
-   else{
-    /*
-     * IA-32 RCL/RCR operate on a 33-bit value formed from CF and the
-     * 32-bit operand.  Keep that extension explicit in uint64_t so the
-     * carry-in and carry-out cannot be confused with a 32-bit rotate.
-     */
-    count &= 31u;
-    if(!count){eip=ip;return 0;}
-    uint64_t x=((uint64_t)cf<<32)|(uint64_t)v;
-    if(sub==2)
-     x=((x<<count)|(x>>(33u-count)))&0x1FFFFFFFFull;
-    else
-     x=((x>>count)|(x<<(33u-count)))&0x1FFFFFFFFull;
-    r=(uint32_t)x;
-    cf=(uint32_t)((x>>32)&1u);
-    of_valid=count==1;
-    if(sub==2)of=((r>>31)&1u)^cf;
-    else of=((r>>31)&1u)^((r>>30)&1u);
+   if((m>>6)==3){
+    if(bits==8)reg8_write(m&7,(uint8_t)r);
+    else if(bits==16)reg16_write(m&7,(uint16_t)r);
+    else regs[m&7]=r;
+   }else{
+    if(bits==8)wr8(ea,(uint8_t)r);
+    else if(bits==16)modrm_write16(m,&(uint32_t){ip},(uint16_t)r);
+    else wr32(ea,r);
    }
-   if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);set_rotate_flags(r,cf,of_valid,of);eip=ip;return 0;
+   eip=ip;return 0;
   }
   case 0x69: {uint8_t m=MEM8(ip++);uint32_t a=modrm_read32(m,&ip),imm=rd32(ip);ip+=4;int64_t p=(int64_t)(int32_t)a*(int64_t)(int32_t)imm;uint32_t r=(uint32_t)p;uint32_t sx=(uint32_t)(int32_t)r;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);regs[(m>>3)&7]=r;eip=ip;return 0;}
   case 0x6B: {uint8_t m=MEM8(ip++);uint32_t a=modrm_read32(m,&ip);int32_t imm=(int8_t)MEM8(ip++);int64_t p=(int64_t)(int32_t)a*(int64_t)imm;uint32_t r=(uint32_t)p;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);regs[(m>>3)&7]=r;eip=ip;return 0;}
