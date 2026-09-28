@@ -65,6 +65,7 @@ def make_code():
     a.emit(0x2D, *struct.pack("<I", 5))          # SUB EAX,5 -> 2B
     a.emit(0x3D, *struct.pack("<I", 0x2B))        # CMP EAX,2B
     a.rel32((0x0F, 0x85), "fail")                         # JNE
+    mark(0)  # Integer 32-bit execution
 
     # Logic.
     a.imm32(0xBA, 0, 0x0F0F0F0F)                # EDX
