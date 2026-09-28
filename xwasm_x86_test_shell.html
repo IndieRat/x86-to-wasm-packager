@@ -1,0 +1,186 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>XWASM x86 v0.8 — Unified Diagnostic Shell</title>
+<style>
+:root{color-scheme:dark}
+body{margin:0;background:#0b0d10;color:#e8edf2;font:14px system-ui,sans-serif}
+header{padding:14px 18px;border-bottom:1px solid #29303a;background:#12161b}
+h1{font-size:18px;margin:0 0 4px}.sub{color:#9da8b4}
+main{display:grid;grid-template-columns:minmax(360px,1fr) minmax(420px,1.25fr);gap:12px;padding:12px}
+section{border:1px solid #29303a;border-radius:8px;background:#11151a;padding:12px}
+button,input{font:inherit}button{padding:7px 10px;margin:3px;border:1px solid #3a4653;border-radius:6px;background:#1a222b;color:#e8edf2;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}
+pre{margin:8px 0;padding:10px;background:#080a0d;border-radius:6px;white-space:pre-wrap;overflow:auto}
+.ok{color:#8ee28e}.bad{color:#ff8d8d}.warn{color:#ffd27a}.mono{font-family:ui-monospace,monospace}
+.row{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.kv{display:grid;grid-template-columns:180px 1fr;gap:4px 10px}.kv b{color:#aeb9c5}
+#log{max-height:55vh}
+</style>
+<header>
+  <h1>XWASM x86 v0.8 — Unified Diagnostic Shell</h1>
+  <div class="sub">One shell for package loading, CPU stepping, decoder/refined-dispatch diagnostics, and stress tests.</div>
+</header>
+<main>
+<section>
+  <b>Package</b>
+  <div class="row">
+    <input id="folder" type="file" webkitdirectory directory multiple>
+    <button id="load" disabled>Load package</button>
+  </div>
+  <pre id="pkg">Choose one generated XWASM x86 package directory.</pre>
+  <div class="row">
+    <button id="step" disabled>Step ×1</button>
+    <button id="ten" disabled>Step ×10</button>
+    <button id="run" disabled>Run ×1000</button>
+    <button id="halt" disabled>Run to halt</button>
+    <button id="reset" disabled>Reload PE</button>
+  </div>
+</section>
+<section>
+  <b>Runtime / CPU state</b>
+  <pre id="state">No runtime loaded.</pre>
+</section>
+<section>
+  <b>Decoder → refined dispatcher</b>
+  <pre id="decode">No instruction decoded yet.</pre>
+</section>
+<section>
+  <b>Diagnostics</b>
+  <pre id="diag">No diagnostics yet.</pre>
+</section>
+<section style="grid-column:1/-1">
+  <b>Log</b>
+  <pre id="log"></pre>
+</section>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+let files=[], manifest=null, wasm=null, instance=null, memory=null, payload=null;
+
+function log(s){$("log").textContent += s+"\n"; $("log").scrollTop=$("log").scrollHeight; console.log("[XWASM]",s)}
+function hex(v){return "0x"+(v>>>0).toString(16).padStart(8,"0").toUpperCase()}
+function setButtons(on){for(const id of ["step","ten","run","halt","reset"]) $(id).disabled=!on}
+function fileBy(path){return files.find(f=>(f.webkitRelativePath||f.name).replaceAll("\\","/").endsWith(path))}
+function readU8(ptr,n){return new Uint8Array(memory.buffer,ptr,n)}
+function textAt(ptr,len){return new TextDecoder().decode(readU8(ptr,len))}
+function importsFor(mod){
+  const imp=WebAssembly.Module.imports(mod);
+  const out={};
+  for(const x of imp){
+    if(!out[x.module]) out[x.module]={};
+    if(x.kind==="memory"){
+      out[x.module][x.name]=memory=new WebAssembly.Memory({initial:1024,maximum:4096});
+    }else if(x.kind==="function"){
+      out[x.module][x.name]=hostFunction(x.name);
+    }
+  }
+  log("Imports: "+imp.map(x=>x.module+"."+x.name+" ["+x.kind+"]").join(", "));
+  return out;
+}
+function hostFunction(name){
+  if(name==="xwasm_log") return (level,ptr,len)=>log("HOST LOG["+level+"]: "+textAt(ptr>>>0,len>>>0));
+  if(name==="xwasm_input_poll") return (msg,remove)=>{
+    return 0;
+  };
+  if(name==="xwasm_input_quit") return ()=>{};
+  if(name==="xwasm_audio_beep") return (f,d)=>log("AUDIO bridge: "+f+" Hz / "+d+" ms");
+  if(name==="xwasm_gfx_create") return (w,h)=>log("GFX surface: "+w+"×"+h);
+  if(name==="xwasm_gfx_clear") return c=>{};
+  if(name==="xwasm_gfx_pixel") return (x,y,c)=>{};
+  if(name==="xwasm_gfx_rect") return (l,t,r,b,c)=>{};
+  if(name==="xwasm_gfx_present") return ()=>{};
+  return (...args)=>{log("UNIMPLEMENTED HOST IMPORT: "+name+"("+args.join(", ")+")");return 0};
+}
+function api(name){return instance.exports[name]}
+function state(){
+  if(!instance)return;
+  const e=api("x86_get_eflags")(), ep=api("x86_get_eip")(), op=api("x86_get_current_opcode")();
+  $("state").textContent=[
+    "version     "+hex(api("x86_get_runtime_version")()),
+    "EIP         "+hex(ep),
+    "EAX         "+hex(api("x86_get_eax")()),
+    "ECX         "+hex(api("x86_get_ecx")()),
+    "EDX         "+hex(api("x86_get_edx")()),
+    "EBX         "+hex(api("x86_get_ebx")()),
+    "ESP         "+hex(api("x86_get_esp")()),
+    "EBP         "+hex(api("x86_get_ebp")()),
+    "ESI         "+hex(api("x86_get_esi")()),
+    "EDI         "+hex(api("x86_get_edi")()),
+    "EFLAGS      "+hex(e),
+    "steps       "+api("x86_get_steps")(),
+    "current op  "+hex(op),
+    "halted      "+api("x86_get_halted")(),
+    "cpu_error   "+hex(api("x86_get_cpu_error")())
+  ].join("\n");
+  const map=api("x86_get_last_decoded_map")(), dop=api("x86_get_last_decoded_opcode")(), len=api("x86_get_last_decoded_length")(), did=api("x86_get_last_dispatch_id")(), dc=api("x86_get_last_dispatch_count")();
+  const names={0:"NONE",1:"INC_R32",2:"DEC_R32"};
+  $("decode").textContent=[
+    "decoded map       "+map+" ("+["primary","0F","0F38","0F3A"][map]||"?")",
+    "decoded opcode    "+hex(dop),
+    "decoded length    "+len,
+    "semantic dispatch "+(names[did]||("ID "+did)),
+    "refined count     "+dc,
+    "",
+    "INC verification: "+(did===1?"PASS — 0x40 reached INC_R32 semantic handler":"not currently dispatching INC")
+  ].join("\n");
+  $("diag").textContent=[
+    "loaded            "+api("x86_get_loaded")(),
+    "load_error        "+hex(api("x86_get_load_error")()),
+    "image base        "+hex(api("x86_get_image_base")()),
+    "image size        "+hex(api("x86_get_image_size")()),
+    "requested base    "+hex(api("x86_get_requested_image_base")()),
+    "imports           "+api("x86_get_import_count")()+" resolved="+api("x86_get_import_resolved")()+" failed="+api("x86_get_import_failed")(),
+    "relocation needed "+api("x86_get_relocation_needed")(),
+    "running           "+api("x86_get_running")()
+  ].join("\n");
+}
+async function loadPackage(){
+  try{
+    const mf=fileBy("manifest.xwasm.json"), rw=fileBy("runtime.wasm"), pe=fileBy("resources/__x86__/payload.exe");
+    if(!mf||!rw||!pe) throw new Error("Package must contain manifest.xwasm.json, runtime.wasm, and resources/__x86__/payload.exe");
+    manifest=JSON.parse(await mf.text());
+    if(manifest.architecture!=="x86") throw new Error("Selected package is not architecture=x86");
+    const wb=await rw.arrayBuffer(); if(!WebAssembly.validate(wb)) throw new Error("runtime.wasm failed WebAssembly validation");
+    wasm=await WebAssembly.compile(wb);
+    const imports=importsFor(wasm);
+    const res=await WebAssembly.instantiate(wasm,imports);
+    instance=res;
+    api("xwasm_init")();
+    payload=new Uint8Array(await pe.arrayBuffer());
+    $("pkg").textContent=[
+      "name:       "+manifest.name,
+      "architecture: "+manifest.architecture,
+      "payload:    "+manifest.payload,
+      "payload bytes: "+payload.byteLength,
+      "runtime:    OK",
+      "WASM imports: "+WebAssembly.Module.imports(wasm).length,
+      "WASM exports: "+WebAssembly.Module.exports(wasm).length
+    ].join("\n");
+    setButtons(true);
+    log("Runtime instantiated.");
+    log("Runtime version: "+hex(api("x86_get_runtime_version")()));
+    reloadPE();
+  }catch(e){setButtons(false); $("pkg").textContent="LOAD FAILED\n"+(e.stack||e); log("ERROR: "+(e.stack||e))}
+}
+function reloadPE(){
+  if(!instance||!payload)return;
+  const ptr=0x02000000;
+  readU8(ptr,payload.length).set(payload);
+  const rc=api("x86_load_pe")(ptr,payload.length);
+  log("x86_load_pe("+hex(ptr)+", "+payload.length+") => "+rc);
+  if(rc<0) log("LOAD ERROR "+hex(api("x86_get_load_error")()));
+  state();
+}
+function step(n){
+  if(!instance)return;
+  const rc=api("x86_run")(n);
+  log("x86_run("+n+") => "+rc+" EIP="+hex(api("x86_get_eip")())+" EAX="+hex(api("x86_get_eax")()));
+  state();
+}
+$("folder").addEventListener("change",e=>{files=[...e.target.files];$("pkg").textContent=files.length+" files selected. Click Load package."; $("load").disabled=false});
+$("load").onclick=loadPackage;
+$("step").onclick=()=>step(1);
+$("ten").onclick=()=>step(10);
+$("run").onclick=()=>step(1000);
+$("halt").onclick=()=>{for(let i=0;i<100&&api("x86_get_halted")()===0;i++){const rc=api("x86_run")(10000);if(rc<0)break}state();log("Run-to-halt finished.")};
+$("reset").onclick=reloadPE;
+</script>
