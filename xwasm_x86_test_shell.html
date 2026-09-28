@@ -43,6 +43,10 @@ pre{margin:8px 0;padding:10px;background:#080a0d;border-radius:6px;white-space:p
   <pre id="decode">No instruction decoded yet.</pre>
 </section>
 <section>
+  <b>CPU foundation gates</b>
+  <pre id="coverage">No stress-test gates reported.</pre>
+</section>
+<section>
   <b>Diagnostics</b>
   <pre id="diag">No diagnostics yet.</pre>
 </section>
@@ -139,6 +143,20 @@ function state(){
   const traceText=tc?trace.join("\n"):"No execution trace yet.";
   $("decode").textContent += "\n\nExecution trace (oldest → newest, last "+tc+")\n"+traceText+
     (fi!==0?"\n\nFAILURE MARKER TRANSITION: trace entry "+(fi-1)+" changed EAX to DEADC0DE.":"");
+  const legacy=typeof api("x86_get_legacy_execution_count")==="function"?api("x86_get_legacy_execution_count")():0;
+  const gate=i=>typeof api("x86_get_stress_report_word")==="function"?api("x86_get_stress_report_word")(i):0;
+  const gateText=v=>v===1?"PASS":v===0?"NOT CONFIRMED":"INVALID";
+  $("coverage").textContent=[
+    "Integer 32-bit execution : "+gateText(gate(0)),
+    "Byte/word register access: "+gateText(gate(1)),
+    "Correct flags / edge cases: "+gateText(gate(2)),
+    "",
+    "Next CPU gate — x87     : NOT TESTED",
+    "Next CPU gate — MMX/SSE : NOT TESTED",
+    "",
+    "Legacy executor steps    : "+legacy,
+    "Decoder-only requirement : "+(legacy===0?"PASS":"NOT YET — legacy execution observed")
+  ].join("\n");
   $("diag").textContent=[
     "loaded            "+api("x86_get_loaded")(),
     "load_error        "+hex(api("x86_get_load_error")()),
@@ -149,6 +167,7 @@ function state(){
     "relocation needed "+api("x86_get_relocation_needed")(),
     "running           "+api("x86_get_running")(),
     "trace entries     "+api("x86_get_trace_count")(),
+    "legacy executions "+(typeof api("x86_get_legacy_execution_count")==="function"?api("x86_get_legacy_execution_count")():"unavailable"),
     "failure transition "+(api("x86_get_trace_failure_index")()===0?"none":api("x86_get_trace_failure_index")()),
     "",
     "RCR architectural self-test "+(typeof api("x86_rcr32_self_test")==="function"?
