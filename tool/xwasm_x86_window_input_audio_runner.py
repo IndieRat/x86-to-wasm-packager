@@ -61,24 +61,20 @@ function installInput(){
     if(!inputReady)return;
     e.preventDefault();
     queueKeyMessage(0x0100,e.keyCode||e.which||0);
-    runFixture();
   });
   canvas.addEventListener("mousemove",e=>{
     if(!inputReady)return;
     queueMouseMessage(0x0200,e,0);
-    runFixture();
   });
   canvas.addEventListener("mousedown",e=>{
     if(!inputReady)return;
     const flag=e.button===0?1:e.button===2?2:4;
     queueMouseMessage(e.button===0?0x0201:e.button===2?0x0204:0x0207,e,flag);
-    runFixture();
   });
   canvas.addEventListener("mouseup",e=>{
     if(!inputReady)return;
     const flag=e.button===0?1:e.button===2?2:4;
     queueMouseMessage(e.button===0?0x0202:e.button===2?0x0205:0x0208,e,flag);
-    runFixture();
   });
 }
 
