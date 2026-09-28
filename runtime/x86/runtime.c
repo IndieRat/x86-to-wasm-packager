@@ -15,12 +15,14 @@ enum { R_EAX=0,R_ECX,R_EDX,R_EBX,R_ESP,R_EBP,R_ESI,R_EDI };
 #define ZF 0x00000040u
 #define SF 0x00000080u
 #define OF 0x00000800u
+#define DF 0x00000400u
 
 static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,eip=0,steps=0,loaded=0;
 static uint32_t requested_image_base=0,reloc_rva=0,reloc_size=0,import_rva=0,import_size=0;
 static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last_load_ptr=0,last_load_size=0;
 static uint32_t regs[8],eflags=0x00000002u;
 static uint32_t halted=0,cpu_error=0;
+static uint8_t decoded_prefixes=0,decoded_operand16=0;
 
 /* v0.4 guest memory/import foundation. The guest-visible address space is
  * intentionally separate from the WASM allocator used for diagnostics. */
@@ -288,6 +290,25 @@ static void set_sbb_flags(uint32_t a,uint32_t b,uint32_t bin,uint32_t r){
  if(((a^bb)&(a^r)&0x80000000u)!=0)f|=OF;
  eflags=f;
 }
+static void set_sub_flags_width(uint32_t a,uint32_t b,uint32_t r,uint32_t bits){
+ uint32_t mask=bits==8?0xFFu:(bits==16?0xFFFFu:0xFFFFFFFFu),sign=1u<<(bits-1u);
+ a&=mask;b&=mask;r&=mask;uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);
+ if(a<b)f|=CF;if((a&0xFu)<(b&0xFu))f|=AF;if(parity_even8(r))f|=PF;if(r==0)f|=ZF;if(r&sign)f|=SF;if(((a^b)&(a^r)&sign)!=0)f|=OF;eflags=f;
+}
+static uint8_t reg8_read(uint32_t r){uint32_t i=r&7u;return (uint8_t)(i<4u?regs[i]:(regs[i-4u]>>8));}
+static void reg8_write(uint32_t r,uint8_t v){uint32_t i=r&7u;if(i<4u)regs[i]=(regs[i]&~0xFFu)|v;else{uint32_t q=i-4u;regs[q]=(regs[q]&~0xFF00u)|((uint32_t)v<<8);}}
+static void reg16_write(uint32_t r,uint16_t v){uint32_t i=r&7u;regs[i]=(regs[i]&~0xFFFFu)|v;}
+static uint8_t modrm_read8(uint8_t m,uint32_t *ip){uint32_t ea=0;if(!modrm_ea(m,ip,&ea))return reg8_read(m&7);return MEM8(ea);}
+static void modrm_write8(uint8_t m,uint32_t *ip,uint8_t v){uint32_t ea=0;if(!modrm_ea(m,ip,&ea)){reg8_write(m&7,v);return;}wr8(ea,v);}
+static void string_step(uint8_t op){
+ uint32_t width=(op==0xA4||op==0xA6||op==0xAC||op==0xAE||op==0xAA)?1u:(decoded_operand16?2u:4u),si=regs[R_ESI],di=regs[R_EDI],step=(eflags&DF)?(uint32_t)(-(int32_t)width):width;
+ if(op==0xA4||op==0xA5){for(uint32_t i=0;i<width;i++)wr8(di+i,MEM8(si+i));regs[R_ESI]+=step;regs[R_EDI]+=step;}
+ else if(op==0xA6||op==0xA7){uint32_t a=width==1?MEM8(si):(width==2?rd16(si):rd32(si)),b=width==1?MEM8(di):(width==2?rd16(di):rd32(di));set_sub_flags_width(a,b,a-b,width*8u);regs[R_ESI]+=step;regs[R_EDI]+=step;}
+ else if(op==0xAA||op==0xAB){uint32_t v=width==1?(regs[R_EAX]&0xFFu):(width==2?(regs[R_EAX]&0xFFFFu):regs[R_EAX]);for(uint32_t i=0;i<width;i++)wr8(di+i,(uint8_t)(v>>(8u*i)));regs[R_EDI]+=step;}
+ else if(op==0xAC||op==0xAD){uint32_t v=width==1?MEM8(si):(width==2?rd16(si):rd32(si));if(width==1)reg8_write(0,(uint8_t)v);else if(width==2)reg16_write(0,(uint16_t)v);else regs[R_EAX]=v;regs[R_ESI]+=step;}
+ else if(op==0xAE||op==0xAF){uint32_t a=width==1?(regs[R_EAX]&0xFFu):(width==2?(regs[R_EAX]&0xFFFFu):regs[R_EAX]),b=width==1?MEM8(di):(width==2?rd16(di):rd32(di));set_sub_flags_width(a,b,a-b,width*8u);regs[R_EDI]+=step;}
+}
+static void string_execute(uint8_t op){uint32_t repeat=(decoded_prefixes&(X86_PREFIX_REP|X86_PREFIX_REPNZ))?1u:0u;if(!repeat){string_step(op);return;}uint32_t count=regs[R_ECX];while(count){string_step(op);count--;regs[R_ECX]=count;if((op==0xA6||op==0xA7||op==0xAE||op==0xAF)){if((decoded_prefixes&X86_PREFIX_REP)&&!(eflags&ZF))break;if((decoded_prefixes&X86_PREFIX_REPNZ)&&(eflags&ZF))break;}}}
 static void set_rotate_flags(uint32_t r,uint32_t cf,uint32_t of_valid,uint32_t of){
  eflags=(eflags&~(CF|OF))|(cf?CF:0u);
  if(of_valid)eflags=(eflags&~OF)|(of?OF:0u);
@@ -353,6 +374,11 @@ static void modrm_write32(uint8_t m,uint32_t *ip,uint32_t v){
 static int cpu_step_legacy(void){
  uint32_t ip=eip; uint8_t op=MEM8(ip++); steps++;
  switch(op){
+  case 0xFC:eflags&=~DF;eip=ip;return 0;
+  case 0xFD:eflags|=DF;eip=ip;return 0;
+  case 0xA4:case 0xA5:case 0xA6:case 0xA7:case 0xAA:case 0xAB:case 0xAC:case 0xAD:case 0xAE:case 0xAF:string_execute(op);eip=ip;return 0;
+  case 0x88:{uint8_t m=MEM8(ip++),v=reg8_read((m>>3)&7);modrm_write8(m,&ip,v);eip=ip;return 0;}
+  case 0x8A:{uint8_t m=MEM8(ip++);reg8_write((m>>3)&7,modrm_read8(m,&ip));eip=ip;return 0;}
   case 0x90: eip=ip; return 0; /* NOP */
   case 0xF4: eip=ip; halted=1; return 1; /* HLT */
   case 0x31: { /* XOR r/m32,r32; v0.2 supports register form */
@@ -582,7 +608,7 @@ static int load_pe(uint32_t f,uint32_t sz){
  }
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
- loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;
+ loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;
  loghex("X86 requested image base=",requested_image_base);
  loghex("X86 mapped image base=",image_base);
  loghex("X86 entry=",eip);
@@ -591,7 +617,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
- for(int i=0;i<8;i++)regs[i]=0; message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
+ for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.8");
 loglit("PE32 + imports + memory + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
