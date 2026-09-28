@@ -160,7 +160,7 @@ static int x86_decode_instruction(x86_decoded_t *d) {
             if ((d->opcode >= 0xB8 && d->opcode <= 0xBF) ||
                 (d->opcode >= 0x40 && d->opcode <= 0x4F) ||
                 (d->opcode >= 0x50 && d->opcode <= 0x5F)) {
-                d->entry = x86_find_entry(0, (uint8_t)(d->opcode & 0xF8u), 0, 0);
+                d->entry = x86_find_entry(0, d->opcode, 0, 0);
             }
         }
     }
