@@ -152,6 +152,107 @@ def make_code():
     a.emit(0x3B, 0xC2)
     a.rel32((0x0F, 0x85), "fail")
 
+    # ADC/SBB carry and borrow propagation.
+    a.imm32(0xB8, 0, 0)
+    a.imm32(0xBA, 0, 1)
+    a.emit(0x3B, 0xC2)                           # CMP EAX,EDX -> CF=1
+    a.imm32(0xB8, 0, 0xFFFFFFFF)
+    a.imm32(0xBA, 0, 0)
+    a.emit(0x13, 0xC2)                           # ADC EAX,EDX -> 0, CF=1
+    a.rel8(0x72, "adc_cf_ok")
+    a.rel32(0xE9, "fail")
+    a.label("adc_cf_ok")
+    a.emit(0x1B, 0xC2)                           # SBB EAX,EDX -> FFFFFFFF, CF=1
+    a.rel8(0x72, "sbb_cf_ok")
+    a.rel32(0xE9, "fail")
+    a.label("sbb_cf_ok")
+
+    # NEG / NOT.
+    a.imm32(0xB8, 0, 1)
+    a.emit(0xF7, 0xD8)                           # NEG EAX -> FFFFFFFF, CF=1
+    a.rel8(0x72, "neg_cf_ok")
+    a.rel32(0xE9, "fail")
+    a.label("neg_cf_ok")
+    a.emit(0xF7, 0xD0)                           # NOT EAX -> 0
+    a.emit(0x3D, *struct.pack("<I", 0))
+    a.rel32((0x0F, 0x85), "fail")
+
+    # MUL / IMUL forms.
+    a.imm32(0xB8, 0, 0x00010000)
+    a.imm32(0xB9, 0, 0x00010000)
+    a.emit(0xF7, 0xE1)                           # MUL ECX -> EDX:EAX = 1:0
+    a.imm32(0xBA, 0, 1)
+    a.emit(0x3B, 0xD2)                           # EDX == 1
+    a.rel32((0x0F, 0x85), "fail")
+    a.imm32(0xB8, 0, 2)
+    a.imm32(0xB9, 0, 3)
+    a.emit(0xF7, 0xE9)                           # IMUL ECX -> 6
+    a.emit(0x3D, *struct.pack("<I", 6))
+    a.rel32((0x0F, 0x85), "fail")
+    a.imm32(0xBA, 0, 4)
+    a.emit(0x69, 0xC2, *struct.pack("<I", 5))    # IMUL EAX,EDX,5 -> 20
+    a.emit(0x3D, *struct.pack("<I", 20))
+    a.rel32((0x0F, 0x85), "fail")
+    a.emit(0x6B, 0xC2, 2)                        # IMUL EAX,EDX,2 -> 8
+    a.emit(0x3D, *struct.pack("<I", 8))
+    a.rel32((0x0F, 0x85), "fail")
+
+    # DIV / IDIV.
+    a.imm32(0xBA, 0, 0)
+    a.imm32(0xB8, 0, 100)
+    a.imm32(0xB9, 0, 7)
+    a.emit(0xF7, 0xF1)                           # DIV ECX -> EAX=14, EDX=2
+    a.imm32(0xBB, 0, 14)
+    a.emit(0x3B, 0xC3)
+    a.rel32((0x0F, 0x85), "fail")
+    a.imm32(0xBB, 0, 2)
+    a.emit(0x3B, 0xD3)
+    a.rel32((0x0F, 0x85), "fail")
+    a.imm32(0xBA, 0xFFFFFFFF)
+    a.imm32(0xB8, 0, 0xFFFFFF9C)                 # -100
+    a.imm32(0xB9, 0, 7)
+    a.emit(0xF7, 0xF9)                           # IDIV ECX -> EAX=-14, EDX=-2
+    a.imm32(0xBB, 0, 0xFFFFFFF2)
+    a.emit(0x3B, 0xC3)
+    a.rel32((0x0F, 0x85), "fail")
+
+    # ROL/ROR/RCL/RCR.
+    a.imm32(0xB8, 0, 0x80000001)
+    a.emit(0xC1, 0xC0, 1)                        # ROL EAX,1 -> 3
+    a.emit(0x3D, *struct.pack("<I", 3))
+    a.rel32((0x0F, 0x85), "fail")
+    a.imm32(0xB8, 0, 3)
+    a.emit(0xC1, 0xC8, 1)                        # ROR EAX,1 -> 80000001
+    a.emit(0x3D, *struct.pack("<I", 0x80000001))
+    a.rel32((0x0F, 0x85), "fail")
+    a.imm32(0xB8, 0, 0x80000000)
+    a.emit(0xD1, 0xD0)                           # RCL EAX,1 with CF from ROR
+    a.imm32(0xB9, 0, 1)
+    a.emit(0x3B, 0xC1)
+    a.rel32((0x0F, 0x85), "fail")
+    a.imm32(0xB8, 0x80000000)
+    a.emit(0xD1, 0xD8)                           # RCR EAX,1
+    a.imm32(0xB9, 0, 0x40000000)
+    a.emit(0x3B, 0xC1)
+    a.rel32((0x0F, 0x85), "fail")
+
+    # BT/BTS/BTR/BTC register and immediate forms.
+    a.imm32(0xB8, 0xFFFFFFFF)
+    a.imm32(0xB9, 0, 4)
+    a.emit(0x0F, 0xA3, 0xC8)                    # BT EAX,ECX -> CF=1
+    a.rel8(0x72, "bt_ok")
+    a.rel32(0xE9, "fail")
+    a.label("bt_ok")
+    a.emit(0x0F, 0xB3, 0xC8)                    # BTR EAX,ECX -> clear bit 4
+    a.emit(0x0F, 0xBA, 0xE8, 4)                # BTS EAX,4 -> set bit 4
+    a.emit(0x0F, 0xBA, 0xF0, 4)                # BTR EAX,4 -> clear bit 4
+    a.emit(0x0F, 0xBA, 0xF8, 4)                # BTC EAX,4 -> toggle bit 4
+    a.emit(0x0F, 0xBA, 0xE0, 4)                # BTS EAX,4 -> set bit 4
+    a.emit(0x0F, 0xA3, 0xC8)                    # BT EAX,ECX -> CF=1
+    a.rel8(0x72, "bit_ok")
+    a.rel32(0xE9, "fail")
+    a.label("bit_ok")
+
     # Success/failure markers.
     a.imm32(0xB8, 0, 0xC0DEF00D)
     a.emit(0xF4)
@@ -204,7 +305,7 @@ def main():
     if manifest.get("architecture")!="x86": raise SystemExit("package is not x86")
     print(f"Created CPU foundation stress package: {out}")
     print(f"Instruction bytes: {len(code)}")
-    print("Coverage: MOV, ADD, SUB, CMP, AND, OR, XOR, TEST, SHL, SHR, SAR, IMUL, MOVZX, MOVSX, PUSH, POP, ModR/M, SIB, CALL, RET, JE/JNE, HLT")
+    print("Coverage: MOV, ADD, ADC, SUB, SBB, CMP, AND, OR, XOR, TEST, SHL, SHR, SAR, ROL, ROR, RCL, RCR, NEG, NOT, MUL, IMUL, DIV, IDIV, BT, BTS, BTR, BTC, MOVZX, MOVSX, PUSH, POP, ModR/M, SIB, CALL, RET, JE/JNE, HLT")
     return 0
 
 if __name__=="__main__": raise SystemExit(main())
