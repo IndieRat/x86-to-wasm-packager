@@ -144,7 +144,17 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
              x86_id_is(id, "JL_REL8") ||
              x86_id_is(id, "JGE_REL8") ||
              x86_id_is(id, "JLE_REL8") ||
-             x86_id_is(id, "JG_REL8")) d->rel_size = 1;
+             x86_id_is(id, "JG_REL8") ||
+             x86_id_is(id, "JO_REL8") ||
+             x86_id_is(id, "JNO_REL8") ||
+             x86_id_is(id, "JS_REL8") ||
+             x86_id_is(id, "JNS_REL8") ||
+             x86_id_is(id, "JP_REL8") ||
+             x86_id_is(id, "JNP_REL8") ||
+             x86_id_is(id, "JCXZ_REL8") ||
+             x86_id_is(id, "LOOP_REL8") ||
+             x86_id_is(id, "LOOPE_REL8") ||
+             x86_id_is(id, "LOOPNE_REL8")) d->rel_size = 1;
 }
 static int x86_decode_instruction(x86_decoded_t *d) {
     d->start = eip;
