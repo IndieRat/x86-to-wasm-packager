@@ -86,6 +86,69 @@ extern void xwasm_gfx_pixel(int32_t x,int32_t y,int32_t color);
 extern void xwasm_gfx_rect(int32_t left,int32_t top,int32_t right,int32_t bottom,int32_t color);
 extern void xwasm_gfx_present(void);
 
+/* v0.9 memory subsystem: explicit guest regions plus checked bulk-memory helpers.
+ * The current instruction core still uses its established little-endian accessors;
+ * these APIs establish the common memory contract that future CPU/CRT code can use
+ * without exposing raw WASM addresses to guest-facing allocation code. */
+#define X86_MEM_REGION_MAX 64u
+#define X86_MEM_READ  0x01u
+#define X86_MEM_WRITE 0x02u
+#define X86_MEM_EXEC  0x04u
+
+typedef struct {
+ uint32_t base;
+ uint32_t size;
+ uint32_t flags;
+ uint32_t kind;
+ uint32_t active;
+} x86_mem_region_t;
+
+static x86_mem_region_t x86_mem_regions[X86_MEM_REGION_MAX];
+static uint32_t x86_mem_region_count=0;
+static uint32_t x86_mem_faults=0;
+
+static void x86_mem_reset(void){
+ for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)x86_mem_regions[i].active=0;
+ x86_mem_region_count=0; x86_mem_faults=0;
+}
+static int x86_mem_region_add(uint32_t base,uint32_t size,uint32_t flags,uint32_t kind){
+ if(!size||base+size<base)return 0;
+ for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(!x86_mem_regions[i].active){
+  x86_mem_regions[i].base=base; x86_mem_regions[i].size=size;
+  x86_mem_regions[i].flags=flags; x86_mem_regions[i].kind=kind; x86_mem_regions[i].active=1;
+  x86_mem_region_count++; return 1;
+ }
+ return 0;
+}
+static int x86_mem_region_find(uint32_t p,uint32_t n,uint32_t need){
+ if(n==0)return 1;
+ uint32_t end=p+n; if(end<p)return 0;
+ for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(x86_mem_regions[i].active){
+  uint32_t r_end=x86_mem_regions[i].base+x86_mem_regions[i].size;
+  if(p>=x86_mem_regions[i].base&&end<=r_end&&(x86_mem_regions[i].flags&need))return 1;
+ }
+ return 0;
+}
+static int x86_mem_ensure_wasm(uint32_t end){
+ uint32_t pages=__builtin_wasm_memory_size(0u);
+ uint32_t have=pages*65536u;
+ if(end<=have)return 1;
+ uint32_t want=(end+65535u)/65536u;
+ if(want>4096u)return 0;
+ uint32_t grow=want-pages;
+ if(grow==0)return 1;
+ return __builtin_wasm_memory_grow(0u,grow)>=0;
+}
+static uint32_t x86_mem_alloc_region(uint32_t size,uint32_t flags,uint32_t kind){
+ uint32_t a=al4(guest_vm),n=al4(size),end=a+n;
+ if(!size||end<a||end>guest_vm_limit||!x86_mem_ensure_wasm(end))return 0;
+ if(!x86_mem_region_add(a,n,flags,kind))return 0;
+ guest_vm=end; last_virtual_alloc=a; last_virtual_alloc_size=n; return a;
+}
+static void x86_mem_register_image(void){
+ x86_mem_region_add(image_base,image_size,X86_MEM_READ|X86_MEM_EXEC|X86_MEM_WRITE,1u);
+}
+
 static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t guest_vm=0x02000000u;
 static uint32_t guest_vm_limit=0x06000000u;
@@ -160,11 +223,8 @@ static uint32_t call_builtin(uint32_t target){
   uint32_t sp=regs[R_ESP];
   uint32_t size=al4(rd32(sp+8u));
   if(!size){regs[R_EAX]=0;regs[R_ESP]+=16u;return 1;}
-  uint32_t a=al4(guest_vm),end=a+size;
-  if(end<a||end>guest_vm_limit){regs[R_EAX]=0;regs[R_ESP]+=16u;return 1;}
-  guest_vm=end;
-  last_virtual_alloc=a;
-  last_virtual_alloc_size=size;
+  uint32_t a=x86_mem_alloc_region(size,X86_MEM_READ|X86_MEM_WRITE,2u);
+  if(!a){regs[R_EAX]=0;regs[R_ESP]+=16u;return 1;}
   regs[R_EAX]=a;
   regs[R_ESP]+=16u;
   return 1;
@@ -688,6 +748,7 @@ static int load_pe(uint32_t f,uint32_t sz){
  }
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
+ x86_mem_reset(); x86_mem_register_image();
  loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset();
  legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
@@ -697,10 +758,10 @@ static int load_pe(uint32_t f,uint32_t sz){
 }
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
- heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
+ heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
  for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
-loglit("XWASM X86 Runtime v0.8");
-loglit("PE32 + imports + memory + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
+loglit("XWASM X86 Runtime v0.9");
+loglit("PE32 + decoder CPU + guest memory regions + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
 __attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00080000u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
@@ -796,7 +857,13 @@ __attribute__((export_name("x86_get_last_failed_import_dll_rva"))) uint32_t x86_
 __attribute__((export_name("x86_get_last_failed_import_func_rva"))) uint32_t x86_get_last_failed_import_func_rva(void){return last_failed_import_func;}
 __attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
 __attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(void){return guest_heap;}
-__attribute__((export_name("x86_virtual_alloc"))) uint32_t x86_virtual_alloc(uint32_t size){uint32_t a=al4(guest_vm),end=a+al4(size);if(!size||end<a||end>guest_vm_limit)return 0;guest_vm=end;return a;}
+__attribute__((export_name("x86_virtual_alloc"))) uint32_t x86_virtual_alloc(uint32_t size){return x86_mem_alloc_region(size,X86_MEM_READ|X86_MEM_WRITE,2u);}
+__attribute__((export_name("x86_virtual_free"))) uint32_t x86_virtual_free(uint32_t address){for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(x86_mem_regions[i].active&&x86_mem_regions[i].base==address&&x86_mem_regions[i].kind==2u){x86_mem_regions[i].active=0;x86_mem_region_count--;virtual_free_count++;return 1;}return 0;}
+__attribute__((export_name("x86_mem_validate"))) uint32_t x86_mem_validate(uint32_t address,uint32_t size,uint32_t flags){uint32_t need=flags&(X86_MEM_READ|X86_MEM_WRITE|X86_MEM_EXEC);if(!x86_mem_region_find(address,size,need)){x86_mem_faults++;return 0;}return 1;}
+__attribute__((export_name("x86_mem_copy"))) uint32_t x86_mem_copy(uint32_t dst,uint32_t src,uint32_t size){if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE))return 0;copy_bytes(dst,src,size);return 1;}
+__attribute__((export_name("x86_mem_set"))) uint32_t x86_mem_set(uint32_t dst,uint32_t value,uint32_t size){if(!x86_mem_region_find(dst,size,X86_MEM_WRITE))return 0;for(uint32_t i=0;i<size;i++)wr8(dst+i,(uint8_t)value);return 1;}
+__attribute__((export_name("x86_get_memory_region_count"))) uint32_t x86_get_memory_region_count(void){return x86_mem_region_count;}
+__attribute__((export_name("x86_get_memory_faults"))) uint32_t x86_get_memory_faults(void){return x86_mem_faults;}
 __attribute__((export_name("x86_get_virtual_heap"))) uint32_t x86_get_virtual_heap(void){return guest_vm;}
 __attribute__((export_name("x86_get_last_virtual_alloc"))) uint32_t x86_get_last_virtual_alloc(void){return last_virtual_alloc;}
 __attribute__((export_name("x86_get_last_virtual_alloc_size"))) uint32_t x86_get_last_virtual_alloc_size(void){return last_virtual_alloc_size;}
