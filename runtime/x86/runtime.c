@@ -93,6 +93,14 @@ enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_
 #define API_KERNEL32_CLOSEHANDLE (API_BASE+0x0000800Cu)
 #define API_KERNEL32_SETFILEPOINTER (API_BASE+0x00008010u)
 #define API_KERNEL32_GETFILESIZE (API_BASE+0x00008014u)
+#define API_KERNEL32_REGOPENKEYEXA (API_BASE+0x00008018u)
+#define API_KERNEL32_REGCREATEKEYEXA (API_BASE+0x0000801Cu)
+#define API_KERNEL32_REGQUERYVALUEEXA (API_BASE+0x00008020u)
+#define API_KERNEL32_REGSETVALUEEXA (API_BASE+0x00008024u)
+#define API_KERNEL32_REGCLOSEKEY (API_BASE+0x00008028u)
+#define API_KERNEL32_REGDELETEVALUEA (API_BASE+0x0000802Cu)
+#define API_KERNEL32_GETLASTERROR (API_BASE+0x00008030u)
+#define API_KERNEL32_SETLASTERROR (API_BASE+0x00008034u)
 extern int32_t xwasm_input_poll(int32_t msg_ptr,int32_t remove);
 extern void xwasm_input_quit(void);
 extern void xwasm_audio_beep(int32_t frequency,int32_t duration_ms);
@@ -405,6 +413,184 @@ static uint32_t x86_fs_exists_impl(const char *raw_path){
  return x86_fs_find_file(path)>=0?1u:0u;
 }
 
+/* C4 game registry: a deterministic, in-memory Win32-compatible subset.
+ * It intentionally avoids the host OS registry. Keys and values are small and
+ * fixed-capacity because this is a game compatibility facility, not OS emulation. */
+#define X86_REG_MAX_KEYS 64u
+#define X86_REG_MAX_VALUES 128u
+#define X86_REG_MAX_PATH 256u
+#define X86_REG_MAX_VALUE_NAME 128u
+#define X86_REG_MAX_VALUE_DATA 4096u
+#define X86_REG_HANDLE_BASE 0x2000u
+#define X86_REG_HKEY_CURRENT_USER  0x80000001u
+#define X86_REG_HKEY_LOCAL_MACHINE 0x80000002u
+#define X86_REG_REG_SZ 1u
+#define X86_REG_REG_EXPAND_SZ 2u
+#define X86_REG_REG_BINARY 3u
+#define X86_REG_REG_DWORD 4u
+#define X86_REG_ERROR_SUCCESS 0u
+#define X86_REG_ERROR_FILE_NOT_FOUND 2u
+#define X86_REG_ERROR_ACCESS_DENIED 5u
+#define X86_REG_ERROR_INVALID_HANDLE 6u
+#define X86_REG_ERROR_INVALID_PARAMETER 87u
+#define X86_REG_ERROR_MORE_DATA 234u
+#define X86_REG_ERROR_ALREADY_EXISTS 183u
+#define X86_REG_ERROR_OUTOFMEMORY 14u
+
+typedef struct {
+ uint32_t used;
+ uint32_t hive;
+ char path[X86_REG_MAX_PATH];
+} x86_reg_key_t;
+typedef struct {
+ uint32_t used;
+ uint32_t key;
+ uint32_t type;
+ uint32_t size;
+ char name[X86_REG_MAX_VALUE_NAME];
+ uint8_t data[X86_REG_MAX_VALUE_DATA];
+} x86_reg_value_t;
+static x86_reg_key_t x86_reg_keys[X86_REG_MAX_KEYS];
+static x86_reg_value_t x86_reg_values[X86_REG_MAX_VALUES];
+static uint32_t x86_reg_last_error=0;
+
+static void x86_reg_set_error(uint32_t error){x86_reg_last_error=error;crt_last_error=error;}
+static void x86_reg_reset(void){
+ for(uint32_t i=0;i<X86_REG_MAX_KEYS;i++){x86_reg_keys[i].used=0;x86_reg_keys[i].hive=0;x86_reg_keys[i].path[0]=0;}
+ for(uint32_t i=0;i<X86_REG_MAX_VALUES;i++){x86_reg_values[i].used=0;x86_reg_values[i].key=0;x86_reg_values[i].type=0;x86_reg_values[i].size=0;x86_reg_values[i].name[0]=0;}
+ x86_reg_last_error=0;
+}
+static int x86_reg_hive(uint32_t handle){
+ if(handle==X86_REG_HKEY_CURRENT_USER)return 1;
+ if(handle==X86_REG_HKEY_LOCAL_MACHINE)return 2;
+ if(handle>=X86_REG_HANDLE_BASE&&handle<X86_REG_HANDLE_BASE+X86_REG_MAX_KEYS){
+  uint32_t i=handle-X86_REG_HANDLE_BASE;
+  if(x86_reg_keys[i].used)return (int)x86_reg_keys[i].hive;
+ }
+ return 0;
+}
+static int x86_reg_key_index(uint32_t handle){
+ if(handle<X86_REG_HANDLE_BASE||handle>=X86_REG_HANDLE_BASE+X86_REG_MAX_KEYS)return -1;
+ uint32_t i=handle-X86_REG_HANDLE_BASE;
+ return x86_reg_keys[i].used?(int)i:-1;
+}
+static int x86_reg_path_equal(const char *a,const char *b){
+ uint32_t i=0;while(i<X86_REG_MAX_PATH&&a[i]&&b[i]){
+  char ca=a[i],cb=b[i];
+  if(ca>='a'&&ca<='z')ca=(char)(ca-'a'+'A');
+  if(cb>='a'&&cb<='z')cb=(char)(cb-'a'+'A');
+  if(ca!=cb)return 0;i++;
+ }
+ return i<X86_REG_MAX_PATH&&a[i]==0&&b[i]==0;
+}
+static int x86_reg_normalize_subkey(const char *src,char *dst,uint32_t cap){
+ uint32_t di=0;
+ if(!dst||cap<2u)return 0;
+ for(uint32_t i=0;src&&src[i];){
+  while(src[i]=='\\'||src[i]=='/')i++;
+  uint32_t start=i;
+  while(src[i]&&src[i]!='\\'&&src[i]!='/')i++;
+  uint32_t n=i-start;
+  if(!n)continue;
+  if(n==1u&&src[start]=='.')continue;
+  if(n==2u&&src[start]=='.')return 0;
+  if(di&&di+1u>=cap)return 0;
+  if(di)dst[di++]='\\';
+  if(di+n>=cap)return 0;
+  for(uint32_t j=0;j<n;j++)dst[di++]=src[start+j];
+ }
+ dst[di]=0;return 1;
+}
+static int x86_reg_find_key_path(uint32_t hive,const char *path){
+ for(uint32_t i=0;i<X86_REG_MAX_KEYS;i++)if(x86_reg_keys[i].used&&x86_reg_keys[i].hive==hive&&x86_reg_path_equal(x86_reg_keys[i].path,path))return (int)i;
+ return -1;
+}
+static int x86_reg_find_free_key(void){for(uint32_t i=0;i<X86_REG_MAX_KEYS;i++)if(!x86_reg_keys[i].used)return (int)i;return -1;}
+static int x86_reg_find_value(uint32_t key,const char *name){
+ for(uint32_t i=0;i<X86_REG_MAX_VALUES;i++)if(x86_reg_values[i].used&&x86_reg_values[i].key==key&&x86_reg_path_equal(x86_reg_values[i].name,name))return (int)i;
+ return -1;
+}
+static int x86_reg_find_free_value(void){for(uint32_t i=0;i<X86_REG_MAX_VALUES;i++)if(!x86_reg_values[i].used)return (int)i;return -1;}
+static uint32_t x86_reg_key_handle(uint32_t index){return X86_REG_HANDLE_BASE+index;}
+static uint32_t x86_reg_build_path(uint32_t parent,const char *sub,char *out,uint32_t cap,uint32_t *hive_out){
+ uint32_t hive=0;int pi=x86_reg_key_index(parent);
+ if(parent==X86_REG_HKEY_CURRENT_USER)hive=1;else if(parent==X86_REG_HKEY_LOCAL_MACHINE)hive=2;else if(pi>=0)hive=x86_reg_keys[pi].hive;else return 0;
+ char norm[X86_REG_MAX_PATH];
+ if(!x86_reg_normalize_subkey(sub?sub:"",norm,sizeof(norm)))return 0;
+ uint32_t di=0;
+ if(pi>=0){while(di+1u<cap&&x86_reg_keys[pi].path[di]){out[di]=x86_reg_keys[pi].path[di];di++;}if(norm[0]){if(di+1u>=cap)return 0;out[di++]='\\';}}
+ else if(norm[0]){ /* root handles have an empty relative path */ }
+ for(uint32_t i=0;norm[i];i++){if(di+1u>=cap)return 0;out[di++]=norm[i];}
+ out[di]=0;if(hive_out)*hive_out=hive;return 1;
+}
+static uint32_t x86_reg_open_impl(uint32_t parent,const char *sub,uint32_t *out_handle){
+ if(out_handle)*out_handle=0;
+ char path[X86_REG_MAX_PATH];uint32_t hive=0;
+ if(!x86_reg_build_path(parent,sub,path,sizeof(path),&hive)){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
+ if(!path[0]){if(out_handle)*out_handle=parent; x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
+ int ki=x86_reg_find_key_path(hive,path);
+ if(ki<0){x86_reg_set_error(X86_REG_ERROR_FILE_NOT_FOUND);return X86_REG_ERROR_FILE_NOT_FOUND;}
+ if(out_handle)*out_handle=x86_reg_key_handle((uint32_t)ki);x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
+}
+static uint32_t x86_reg_create_impl(uint32_t parent,const char *sub,uint32_t *out_handle,uint32_t *disposition){
+ if(out_handle)*out_handle=0;if(disposition)*disposition=1u;
+ char norm[X86_REG_MAX_PATH];uint32_t hive=0;int pi=x86_reg_key_index(parent);
+ if(parent!=X86_REG_HKEY_CURRENT_USER&&parent!=X86_REG_HKEY_LOCAL_MACHINE&&pi<0){x86_reg_set_error(X86_REG_ERROR_INVALID_HANDLE);return X86_REG_ERROR_INVALID_HANDLE;}
+ if(!x86_reg_normalize_subkey(sub?sub:"",norm,sizeof(norm))){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
+ if(!x86_reg_build_path(parent,norm,norm,sizeof(norm),&hive)){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
+ if(!norm[0]){if(out_handle)*out_handle=parent;if(disposition)*disposition=2u;x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
+ int existing=x86_reg_find_key_path(hive,norm);
+ if(existing>=0){if(out_handle)*out_handle=x86_reg_key_handle((uint32_t)existing);if(disposition)*disposition=2u;x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
+ int created=x86_reg_find_free_key();
+ if(created<0){x86_reg_set_error(X86_REG_ERROR_OUTOFMEMORY);return X86_REG_ERROR_OUTOFMEMORY;}
+ x86_reg_keys[created].used=1;x86_reg_keys[created].hive=hive;
+ for(uint32_t i=0;i<X86_REG_MAX_PATH;i++){x86_reg_keys[created].path[i]=norm[i];if(!norm[i])break;}
+ if(out_handle)*out_handle=x86_reg_key_handle((uint32_t)created);if(disposition)*disposition=1u;x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
+}
+static uint32_t x86_reg_close_impl(uint32_t handle){
+ if(handle==X86_REG_HKEY_CURRENT_USER||handle==X86_REG_HKEY_LOCAL_MACHINE){x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
+ int ki=x86_reg_key_index(handle);if(ki<0){x86_reg_set_error(X86_REG_ERROR_INVALID_HANDLE);return X86_REG_ERROR_INVALID_HANDLE;}
+ x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
+}
+static uint32_t x86_reg_set_value_impl(uint32_t handle,const char *name,uint32_t type,const uint8_t *data,uint32_t size){
+ int ki=x86_reg_key_index(handle);if(ki<0){x86_reg_set_error(X86_REG_ERROR_INVALID_HANDLE);return X86_REG_ERROR_INVALID_HANDLE;}
+ if(type!=X86_REG_REG_SZ&&type!=X86_REG_REG_EXPAND_SZ&&type!=X86_REG_REG_BINARY&&type!=X86_REG_REG_DWORD){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
+ if(size>X86_REG_MAX_VALUE_DATA||(type==X86_REG_REG_DWORD&&size!=4u)){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
+ if(size&&!data){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
+ int vi=x86_reg_find_value((uint32_t)ki,name?name:"");
+ if(vi<0){vi=x86_reg_find_free_value();if(vi<0){x86_reg_set_error(X86_REG_ERROR_OUTOFMEMORY);return X86_REG_ERROR_OUTOFMEMORY;}x86_reg_values[vi].used=1;x86_reg_values[vi].key=(uint32_t)ki;}
+ x86_reg_value_t *v=&x86_reg_values[vi];v->type=type;v->size=size;
+ for(uint32_t i=0;i<X86_REG_MAX_VALUE_NAME;i++){v->name[i]=(name&&name[i])?name[i]:0;if(!name||!name[i])break;}
+ for(uint32_t i=0;i<size;i++)v->data[i]=data[i];
+ x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
+}
+static uint32_t x86_reg_query_value_impl(uint32_t handle,const char *name,uint32_t *type,uint8_t *data,uint32_t *size){
+ int ki=x86_reg_key_index(handle);if(ki<0){x86_reg_set_error(X86_REG_ERROR_INVALID_HANDLE);return X86_REG_ERROR_INVALID_HANDLE;}
+ int vi=x86_reg_find_value((uint32_t)ki,name?name:"");if(vi<0){x86_reg_set_error(X86_REG_ERROR_FILE_NOT_FOUND);return X86_REG_ERROR_FILE_NOT_FOUND;}
+ x86_reg_value_t *v=&x86_reg_values[vi];
+ if(type)*type=v->type;
+ if(!size){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
+ uint32_t capacity=*size;*size=v->size;
+ if(v->size&&!data){x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
+ if(capacity<v->size){x86_reg_set_error(X86_REG_ERROR_MORE_DATA);return X86_REG_ERROR_MORE_DATA;}
+ if(v->size&&data)for(uint32_t i=0;i<v->size;i++)data[i]=v->data[i];
+ x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
+}
+static uint32_t x86_reg_delete_value_impl(uint32_t handle,const char *name){
+ int ki=x86_reg_key_index(handle);if(ki<0){x86_reg_set_error(X86_REG_ERROR_INVALID_HANDLE);return X86_REG_ERROR_INVALID_HANDLE;}
+ int vi=x86_reg_find_value((uint32_t)ki,name?name:"");if(vi<0){x86_reg_set_error(X86_REG_ERROR_FILE_NOT_FOUND);return X86_REG_ERROR_FILE_NOT_FOUND;}
+ x86_reg_values[vi].used=0;x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
+}
+static uint32_t x86_reg_key_exists_impl(uint32_t parent,const char *sub){
+ char path[X86_REG_MAX_PATH];uint32_t hive=0;
+ if(!x86_reg_build_path(parent,sub,path,sizeof(path),&hive))return 0;
+ return x86_reg_find_key_path(hive,path)>=0?1u:0u;
+}
+static uint32_t x86_reg_value_exists_impl(uint32_t handle,const char *name){
+ int ki=x86_reg_key_index(handle);if(ki<0)return 0;
+ return x86_reg_find_value((uint32_t)ki,name?name:"")>=0?1u:0u;
+}
+
 static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t import_resolved=0,import_failed=0;
 static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0,mouse_right_clicks=0,mouse_middle_clicks=0,mouse_moves=0;
@@ -467,6 +653,14 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"CloseHandle"))return API_KERNEL32_CLOSEHANDLE;
   if(streq_ascii(name,"SetFilePointer"))return API_KERNEL32_SETFILEPOINTER;
   if(streq_ascii(name,"GetFileSize"))return API_KERNEL32_GETFILESIZE;
+  if(streq_ascii(name,"RegOpenKeyExA"))return API_KERNEL32_REGOPENKEYEXA;
+  if(streq_ascii(name,"RegCreateKeyExA"))return API_KERNEL32_REGCREATEKEYEXA;
+  if(streq_ascii(name,"RegQueryValueExA"))return API_KERNEL32_REGQUERYVALUEEXA;
+  if(streq_ascii(name,"RegSetValueExA"))return API_KERNEL32_REGSETVALUEEXA;
+  if(streq_ascii(name,"RegCloseKey"))return API_KERNEL32_REGCLOSEKEY;
+  if(streq_ascii(name,"RegDeleteValueA"))return API_KERNEL32_REGDELETEVALUEA;
+  if(streq_ascii(name,"GetLastError"))return API_KERNEL32_GETLASTERROR;
+  if(streq_ascii(name,"SetLastError"))return API_KERNEL32_SETLASTERROR;
  }
  return 0;
 }
@@ -583,6 +777,45 @@ static uint32_t call_builtin(uint32_t target){
  if(target==API_KERNEL32_CLOSEHANDLE){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_fs_close_impl(rd32(sp+4u));regs[R_ESP]+=4u;return 1;}
  if(target==API_KERNEL32_SETFILEPOINTER){uint32_t sp=regs[R_ESP],h=rd32(sp+4u),distance=rd32(sp+8u),origin=rd32(sp+16u);regs[R_EAX]=x86_fs_seek_impl(h,(int32_t)distance,origin);regs[R_ESP]+=16u;return 1;}
  if(target==API_KERNEL32_GETFILESIZE){uint32_t sp=regs[R_ESP],h=rd32(sp+4u),high=rd32(sp+8u),size=x86_fs_size_impl(h);if(high&&x86_mem_region_find(high,4u,X86_MEM_WRITE))wr32(high,0);regs[R_EAX]=size;regs[R_ESP]+=8u;return 1;}
+ if(target==API_KERNEL32_REGOPENKEYEXA){
+  uint32_t sp=regs[R_ESP],parent=rd32(sp+4u),sub=rd32(sp+8u),out=rd32(sp+20u);char raw[X86_REG_MAX_PATH];uint32_t result=0;
+  if(sub&&!x86_fs_guest_string(sub,raw,sizeof(raw))){result=X86_REG_ERROR_INVALID_PARAMETER;}else result=x86_reg_open_impl(parent,sub?raw:"",&result);
+  if(result==X86_REG_ERROR_SUCCESS&&out&&x86_mem_region_find(out,4u,X86_MEM_WRITE))wr32(out,result);
+  regs[R_EAX]=result;regs[R_ESP]+=20u;return 1;
+ }
+ if(target==API_KERNEL32_REGCREATEKEYEXA){
+  uint32_t sp=regs[R_ESP],parent=rd32(sp+4u),sub=rd32(sp+8u),out=rd32(sp+32u),disp_ptr=rd32(sp+36u);char raw[X86_REG_MAX_PATH];uint32_t handle=0,disp=0,result=0;
+  if(sub&&!x86_fs_guest_string(sub,raw,sizeof(raw)))result=X86_REG_ERROR_INVALID_PARAMETER;
+  else result=x86_reg_create_impl(parent,sub?raw:"",&handle,&disp);
+  if(result==X86_REG_ERROR_SUCCESS&&out&&x86_mem_region_find(out,4u,X86_MEM_WRITE))wr32(out,handle);
+  if(result==X86_REG_ERROR_SUCCESS&&disp_ptr&&x86_mem_region_find(disp_ptr,4u,X86_MEM_WRITE))wr32(disp_ptr,disp);
+  regs[R_EAX]=result;regs[R_ESP]+=36u;return 1;
+ }
+ if(target==API_KERNEL32_REGQUERYVALUEEXA){
+  uint32_t sp=regs[R_ESP],handle=rd32(sp+4u),name=rd32(sp+8u),type_ptr=rd32(sp+16u),data=rd32(sp+20u),size_ptr=rd32(sp+24u);char raw[X86_REG_MAX_VALUE_NAME];uint32_t type=0,size=0,result;
+  if(name&&!x86_fs_guest_string(name,raw,sizeof(raw))){result=X86_REG_ERROR_INVALID_PARAMETER;regs[R_EAX]=result;regs[R_ESP]+=24u;return 1;}
+  if(size_ptr&&!x86_mem_region_find(size_ptr,4u,X86_MEM_READ|X86_MEM_WRITE)){result=X86_REG_ERROR_INVALID_PARAMETER;regs[R_EAX]=result;regs[R_ESP]+=24u;return 1;}
+  if(size_ptr)size=rd32(size_ptr);
+  result=x86_reg_query_value_impl(handle,name?raw:"",&type,data?((uint8_t*)(uintptr_t)data):0,&size);
+  if(type_ptr&&x86_mem_region_find(type_ptr,4u,X86_MEM_WRITE))wr32(type_ptr,type);
+  if(size_ptr&&x86_mem_region_find(size_ptr,4u,X86_MEM_WRITE))wr32(size_ptr,size);
+  regs[R_EAX]=result;regs[R_ESP]+=24u;return 1;
+ }
+ if(target==API_KERNEL32_REGSETVALUEEXA){
+  uint32_t sp=regs[R_ESP],handle=rd32(sp+4u),name=rd32(sp+8u),type=rd32(sp+16u),data=rd32(sp+20u),size=rd32(sp+24u);char raw[X86_REG_MAX_VALUE_NAME];
+  if(name&&!x86_fs_guest_string(name,raw,sizeof(raw))){regs[R_EAX]=X86_REG_ERROR_INVALID_PARAMETER;regs[R_ESP]+=24u;return 1;}
+  if(size&&!x86_mem_region_find(data,size,X86_MEM_READ)){regs[R_EAX]=X86_REG_ERROR_INVALID_PARAMETER;regs[R_ESP]+=24u;return 1;}
+  uint8_t tmp[X86_REG_MAX_VALUE_DATA];if(size>sizeof(tmp)){regs[R_EAX]=X86_REG_ERROR_INVALID_PARAMETER;regs[R_ESP]+=24u;return 1;}for(uint32_t i=0;i<size;i++)tmp[i]=MEM8(data+i);
+  uint32_t result=x86_reg_set_value_impl(handle,name?raw:"",type,tmp,size);regs[R_EAX]=result;regs[R_ESP]+=24u;return 1;
+ }
+ if(target==API_KERNEL32_REGCLOSEKEY){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_reg_close_impl(rd32(sp+4u));regs[R_ESP]+=4u;return 1;}
+ if(target==API_KERNEL32_REGDELETEVALUEA){
+  uint32_t sp=regs[R_ESP],handle=rd32(sp+4u),name=rd32(sp+8u);char raw[X86_REG_MAX_VALUE_NAME];
+  if(name&&!x86_fs_guest_string(name,raw,sizeof(raw))){regs[R_EAX]=X86_REG_ERROR_INVALID_PARAMETER;regs[R_ESP]+=8u;return 1;}
+  regs[R_EAX]=x86_reg_delete_value_impl(handle,name?raw:"");regs[R_ESP]+=8u;return 1;
+ }
+ if(target==API_KERNEL32_GETLASTERROR){regs[R_EAX]=crt_last_error;return 1;}
+ if(target==API_KERNEL32_SETLASTERROR){uint32_t sp=regs[R_ESP];crt_last_error=rd32(sp+4u);regs[R_ESP]+=4u;return 1;}
  if(target==API_KERNEL32_BEEP){
   uint32_t sp=regs[R_ESP],freq=rd32(sp+4u),duration=rd32(sp+8u);
   xwasm_audio_beep((int32_t)freq,(int32_t)duration);
@@ -1057,6 +1290,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;
  x86_fs_reset();
+ x86_reg_reset();
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
  for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.9");
@@ -1224,6 +1458,23 @@ __attribute__((export_name("x86_fs_seek"))) uint32_t x86_fs_seek(uint32_t handle
 __attribute__((export_name("x86_fs_size"))) uint32_t x86_fs_size(uint32_t handle){return x86_fs_size_impl(handle);}
 __attribute__((export_name("x86_fs_exists"))) uint32_t x86_fs_exists(uint32_t path_ptr){char raw[X86_FS_MAX_PATH];if(!x86_fs_guest_string(path_ptr,raw,sizeof(raw)))return 0;return x86_fs_exists_impl(raw);}
 __attribute__((export_name("x86_fs_get_last_error"))) uint32_t x86_fs_get_last_error(void){return x86_fs_last_error;}
+__attribute__((export_name("x86_reg_open_key"))) uint32_t x86_reg_open_key(uint32_t parent,uint32_t sub_ptr,uint32_t out_handle_ptr){
+ char raw[X86_REG_MAX_PATH];uint32_t handle=0;if(sub_ptr&&!x86_fs_guest_string(sub_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;uint32_t result=x86_reg_open_impl(parent,sub_ptr?raw:"",&handle);if(result==X86_REG_ERROR_SUCCESS&&out_handle_ptr&&x86_mem_region_find(out_handle_ptr,4u,X86_MEM_WRITE))wr32(out_handle_ptr,handle);return result;
+}
+__attribute__((export_name("x86_reg_create_key"))) uint32_t x86_reg_create_key(uint32_t parent,uint32_t sub_ptr,uint32_t out_handle_ptr){
+ char raw[X86_REG_MAX_PATH];uint32_t handle=0,disp=0;if(sub_ptr&&!x86_fs_guest_string(sub_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;uint32_t result=x86_reg_create_impl(parent,sub_ptr?raw:"",&handle,&disp);if(result==X86_REG_ERROR_SUCCESS&&out_handle_ptr&&x86_mem_region_find(out_handle_ptr,4u,X86_MEM_WRITE))wr32(out_handle_ptr,handle);return result;
+}
+__attribute__((export_name("x86_reg_close_key"))) uint32_t x86_reg_close_key(uint32_t handle){return x86_reg_close_impl(handle);}
+__attribute__((export_name("x86_reg_query_value"))) uint32_t x86_reg_query_value(uint32_t handle,uint32_t name_ptr,uint32_t type_ptr,uint32_t data_ptr,uint32_t size_ptr){
+ char raw[X86_REG_MAX_VALUE_NAME];uint32_t type=0,size=0,result;if(name_ptr&&!x86_fs_guest_string(name_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;if(!size_ptr||!x86_mem_region_find(size_ptr,4u,X86_MEM_READ|X86_MEM_WRITE))return X86_REG_ERROR_INVALID_PARAMETER;size=rd32(size_ptr);result=x86_reg_query_value_impl(handle,name_ptr?raw:"",&type,data_ptr?((uint8_t*)(uintptr_t)data_ptr):0,&size);if(type_ptr&&x86_mem_region_find(type_ptr,4u,X86_MEM_WRITE))wr32(type_ptr,type);if(x86_mem_region_find(size_ptr,4u,X86_MEM_WRITE))wr32(size_ptr,size);return result;
+}
+__attribute__((export_name("x86_reg_set_value"))) uint32_t x86_reg_set_value(uint32_t handle,uint32_t name_ptr,uint32_t type,uint32_t data_ptr,uint32_t size){
+ char raw[X86_REG_MAX_VALUE_NAME];if(name_ptr&&!x86_fs_guest_string(name_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;if(size&&!x86_mem_region_find(data_ptr,size,X86_MEM_READ))return X86_REG_ERROR_INVALID_PARAMETER;uint8_t tmp[X86_REG_MAX_VALUE_DATA];if(size>sizeof(tmp))return X86_REG_ERROR_INVALID_PARAMETER;for(uint32_t i=0;i<size;i++)tmp[i]=MEM8(data_ptr+i);return x86_reg_set_value_impl(handle,name_ptr?raw:"",type,tmp,size);
+}
+__attribute__((export_name("x86_reg_delete_value"))) uint32_t x86_reg_delete_value(uint32_t handle,uint32_t name_ptr){char raw[X86_REG_MAX_VALUE_NAME];if(name_ptr&&!x86_fs_guest_string(name_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;return x86_reg_delete_value_impl(handle,name_ptr?raw:"");}
+__attribute__((export_name("x86_reg_key_exists"))) uint32_t x86_reg_key_exists(uint32_t parent,uint32_t sub_ptr){char raw[X86_REG_MAX_PATH];if(sub_ptr&&!x86_fs_guest_string(sub_ptr,raw,sizeof(raw)))return 0;return x86_reg_key_exists_impl(parent,sub_ptr?raw:"");}
+__attribute__((export_name("x86_reg_value_exists"))) uint32_t x86_reg_value_exists(uint32_t handle,uint32_t name_ptr){char raw[X86_REG_MAX_VALUE_NAME];if(name_ptr&&!x86_fs_guest_string(name_ptr,raw,sizeof(raw)))return 0;return x86_reg_value_exists_impl(handle,name_ptr?raw:"");}
+__attribute__((export_name("x86_reg_get_last_error"))) uint32_t x86_reg_get_last_error(void){return x86_reg_last_error;}
 __attribute__((export_name("x86_get_loaded"))) uint32_t x86_get_loaded(void){return loaded;}
 __attribute__((export_name("x86_get_load_error"))) uint32_t x86_get_load_error(void){return load_error;}
 __attribute__((export_name("x86_get_load_ptr"))) uint32_t x86_get_load_ptr(void){return last_load_ptr;}
