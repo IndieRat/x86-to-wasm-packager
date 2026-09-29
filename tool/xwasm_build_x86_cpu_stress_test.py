@@ -273,25 +273,9 @@ def make_code():
     a.imm32(0xB9, 0, 0xC0000000)
     a.emit(0x3B, 0xC1)
     a.rel32((0x0F, 0x85), "fail")
-    a.rel8(0x73, "rcr_cf1_ok")                  # CF must be 0
+    a.rel8(0x73, "rcr_cf1_ok_2")                  # CF must be 0
     a.rel32(0xE9, "fail")
-    a.label("rcr_cf1_ok")
-    a.rel8(0x73, "rcr_cf0_ok")                  # CF must be 0
-    a.rel32(0xE9, "fail")
-    a.label("rcr_cf0_ok")
-
-    # RCR with CF=1: 80000000 -> C0000000; old bit 0 becomes CF=0.
-    a.imm32(0xB8, 0, 0)
-    a.imm32(0xB9, 0, 1)
-    a.emit(0x3B, 0xC1)                           # CMP 0,1 -> CF=1
-    a.imm32(0xB8, 0, 0x80000000)
-    a.emit(0xD1, 0xD8)                           # RCR EAX,1
-    a.imm32(0xB9, 0, 0xC0000000)
-    a.emit(0x3B, 0xC1)
-    a.rel32((0x0F, 0x85), "fail")
-    a.rel8(0x73, "rcr_cf1_ok")                  # CF must be 0
-    a.rel32(0xE9, "fail")
-    a.label("rcr_cf1_ok")
+    a.label("rcr_cf1_ok_2")
 
     # BT/BTS/BTR/BTC register and immediate forms.
     a.imm32(0xB8, 0, 0xFFFFFFFF)
