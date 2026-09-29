@@ -102,7 +102,7 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
     const char *id = d->entry ? d->entry->id : 0;
     if (!id) return;
     if (x86_id_is(id, "RET_IMM16")) d->imm_size = 2;
-    if (x86_id_is(id, "MOV_R8_IMM8")) d->imm_size = 1;
+    if (x86_id_is(id, "MOV_R8_IMM8") || x86_id_is(id, "MOV_RM8_IMM8")) d->imm_size = 1;
     else if (x86_id_is(id, "MOV_R32_IMM32") && !d->operand16) d->imm_size = 4;
     else if (x86_id_is(id, "MOV_R32_IMM32") && d->operand16) d->imm_size = 2;
     else if (d->operand16 &&
@@ -557,6 +557,26 @@ static int cpu_step(void) {
                 last_dispatch_id=X86_DISPATCH_MOV_RM32_R32;
             }
             eip=d.cursor;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"MOV_RM8_IMM8")) {
+            uint32_t op_ip=d.cursor-d.imm_size-d.disp_size-(d.has_sib?1u:0u);
+            uint8_t value=MEM8(d.cursor-1u);
+            if ((d.modrm>>6)==3) {
+                reg8_write(d.modrm&7u,value);
+            } else {
+                uint32_t ea=0;
+                if (!modrm_ea(d.modrm,&op_ip,&ea)) {
+                    cpu_error=0xC601u;
+                    return -48;
+                }
+                wr8(ea,value);
+            }
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_MOV_R8_IMM8;
             last_dispatch_count++;
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
                              before_opcode,last_dispatch_id);
