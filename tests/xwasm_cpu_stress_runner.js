@@ -248,11 +248,11 @@
         if (!p) throw new Error("[FAIL] stress allocation " + i);
         stress.push(p);
       }
-      check("region table after stress", e.x86_get_memory_region_count(), initialRegions + 2 + stress.length);
+      check("region table after stress", e.x86_get_memory_region_count(), initialRegions + 4 + stress.length);
       for (const p of stress) check("stress region valid", e.x86_mem_validate(p, 0x1000, 3), 1);
       for (const p of stress) check("free stress region", e.x86_virtual_free(p), 1);
 
-      check("regions after stress frees", e.x86_get_memory_region_count(), initialRegions + 2);
+      check("regions after stress frees", e.x86_get_memory_region_count(), initialRegions + 4);
       check("near-stack survives", e.x86_mem_validate(nearStack, 0x1000, 3), 1);
       check("post-stack survives", e.x86_mem_validate(afterStack, 0x1000, 3), 1);
 
