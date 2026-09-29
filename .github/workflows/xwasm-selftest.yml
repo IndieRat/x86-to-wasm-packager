@@ -1,0 +1,29 @@
+name: XWASM self-test
+
+on:
+  push:
+    branches:
+      - main
+      - xwasm-selftest-env
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM/Clang and LLD
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld python3
+
+      - name: Build XWASM x86 runtime
+        run: |
+          python3 tool/xwasm_build_x86_runtime.py \
+            --clang "$(command -v clang)" \
+            --output dist/x86-runtime-selftest/runtime.wasm
+
+      - name: Run WASM memory self-test
+        run: |
+          node tests/xwasm_memory_selftest.js dist/x86-runtime-selftest/runtime.wasm
