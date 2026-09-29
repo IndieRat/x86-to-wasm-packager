@@ -319,6 +319,32 @@ static int cpu_step(void) {
      * the raw opcode in the legacy switch.
      */
     if (d.entry && d.entry->id) {
+        if (x86_id_is(d.entry->id,"JE_REL8") || x86_id_is(d.entry->id,"JE_REL32") ||
+            x86_id_is(d.entry->id,"JNE_REL8") || x86_id_is(d.entry->id,"JNE_REL32") ||
+            x86_id_is(d.entry->id,"JB_REL8") || x86_id_is(d.entry->id,"JAE_REL8") ||
+            x86_id_is(d.entry->id,"JA_REL8") || x86_id_is(d.entry->id,"JBE_REL8") ||
+            x86_id_is(d.entry->id,"JL_REL8") || x86_id_is(d.entry->id,"JGE_REL8") ||
+            x86_id_is(d.entry->id,"JLE_REL8") || x86_id_is(d.entry->id,"JG_REL8")) {
+            int take=0;
+            const char *id=d.entry->id;
+            if (x86_id_is(id,"JE_REL8") || x86_id_is(id,"JE_REL32")) take=(eflags&ZF)!=0;
+            else if (x86_id_is(id,"JNE_REL8") || x86_id_is(id,"JNE_REL32")) take=(eflags&ZF)==0;
+            else if (x86_id_is(id,"JB_REL8")) take=(eflags&CF)!=0;
+            else if (x86_id_is(id,"JAE_REL8")) take=(eflags&CF)==0;
+            else if (x86_id_is(id,"JA_REL8")) take=(eflags&CF)==0 && (eflags&ZF)==0;
+            else if (x86_id_is(id,"JBE_REL8")) take=(eflags&CF)!=0 || (eflags&ZF)!=0;
+            else if (x86_id_is(id,"JL_REL8")) take=((eflags&SF)!=0) != ((eflags&OF)!=0);
+            else if (x86_id_is(id,"JGE_REL8")) take=((eflags&SF)!=0) == ((eflags&OF)!=0);
+            else if (x86_id_is(id,"JLE_REL8")) take=(eflags&ZF)!=0 || (((eflags&SF)!=0) != ((eflags&OF)!=0));
+            else if (x86_id_is(id,"JG_REL8")) take=(eflags&ZF)==0 && (((eflags&SF)!=0) == ((eflags&OF)!=0));
+            int32_t rel=(d.rel_size==1)?(int8_t)MEM8(d.cursor-1u):(int32_t)rd32(d.cursor-4u);
+            eip=take?(uint32_t)((int32_t)d.cursor+rel):d.cursor;
+            last_dispatch_id=X86_DISPATCH_JCC;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"MOV_R32_IMM32") && !decoded_operand16) {
             uint32_t reg=(uint32_t)(d.opcode-0xB8u);
             uint32_t value=rd32(d.cursor-4u);
