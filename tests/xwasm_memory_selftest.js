@@ -7,11 +7,13 @@ const bytes = fs.readFileSync(wasmPath);
 const module = new WebAssembly.Module(bytes);
 const imports = WebAssembly.Module.imports(module);
 const env = {};
+let importedMemory = null;
 
 for (const imp of imports) {
   if (imp.module !== "env") continue;
   if (imp.kind === "memory") {
-    env[imp.name] = new WebAssembly.Memory({initial: 1024, maximum: 4096});
+    importedMemory = new WebAssembly.Memory({initial: 1024, maximum: 4096});
+    env[imp.name] = importedMemory;
   } else if (imp.kind === "function") {
     env[imp.name] = (...args) => {
       if (imp.name === "xwasm_input_poll") return 0;
@@ -46,8 +48,8 @@ check("fault count after rejected exec", e.x86_get_memory_faults(), 1);
 check("memset a", e.x86_mem_set(a, 0x5a, 0x1000), 1);
 check("copy a -> b", e.x86_mem_copy(b, a, 0x1000), 1);
 
-const mem = e.memory;
-const view = new Uint8Array(mem.buffer);
+if (!importedMemory) throw new Error("[FAIL] runtime did not import a memory");
+const view = new Uint8Array(importedMemory.buffer);
 check("copied byte 0", view[b], 0x5a);
 check("copied byte 0x3ff", view[b + 0x3ff], 0x5a);
 
@@ -57,5 +59,9 @@ check("freed a rejected", e.x86_mem_validate(a, 1, 1), 0);
 check("fault count after freed access", e.x86_get_memory_faults(), 2);
 check("free count", e.x86_get_virtual_free_count(), 1);
 check("b remains valid", e.x86_mem_validate(b, 0x2000, 3), 1);
+check("invalid copy rejected", e.x86_mem_copy(a, b, 1), 0);
+check("fault count after invalid copy", e.x86_get_memory_faults(), 3);
+check("invalid memset rejected", e.x86_mem_set(a, 0, 1), 0);
+check("fault count after invalid memset", e.x86_get_memory_faults(), 4);
 
 console.log("[PASS] XWASM v0.9 memory self-test complete");
