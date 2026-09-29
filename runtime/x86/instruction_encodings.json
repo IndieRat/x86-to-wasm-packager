@@ -2611,13 +2611,14 @@
           "source": "next4"
         }
       ]
-    }
+    },
     {
       "id": "LEAVE",
       "instruction": "LEAVE",
       "opcode": ["C9"],
       "opcode_map": "primary",
-      "encoding": "ZO"
+      "encoding": "ZO",
+      "operands": []
     },
     {
       "id": "RET_IMM16",
@@ -2628,6 +2629,6 @@
       "operands": [
         {"kind": "imm16", "access": "r", "source": "next2"}
       ]
-    },
+    }
   ]
 }
