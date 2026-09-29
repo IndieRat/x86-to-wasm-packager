@@ -143,8 +143,22 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
              x86_id_is(id, "PUSH_IMM8")) d->imm_size = 1;
     else if (x86_id_is(id, "CALL_REL32") ||
              x86_id_is(id, "JMP_REL32") ||
+             x86_id_is(id, "JO_REL32") ||
+             x86_id_is(id, "JNO_REL32") ||
+             x86_id_is(id, "JB_REL32") ||
+             x86_id_is(id, "JAE_REL32") ||
              x86_id_is(id, "JE_REL32") ||
-             x86_id_is(id, "JNE_REL32")) d->rel_size = 4;
+             x86_id_is(id, "JNE_REL32") ||
+             x86_id_is(id, "JBE_REL32") ||
+             x86_id_is(id, "JA_REL32") ||
+             x86_id_is(id, "JS_REL32") ||
+             x86_id_is(id, "JNS_REL32") ||
+             x86_id_is(id, "JP_REL32") ||
+             x86_id_is(id, "JNP_REL32") ||
+             x86_id_is(id, "JL_REL32") ||
+             x86_id_is(id, "JGE_REL32") ||
+             x86_id_is(id, "JLE_REL32") ||
+             x86_id_is(id, "JG_REL32")) d->rel_size = 4;
     else if (x86_id_is(id, "JMP_REL8") ||
              x86_id_is(id, "JE_REL8") ||
              x86_id_is(id, "JNE_REL8") ||
@@ -321,22 +335,35 @@ static int cpu_step(void) {
     if (d.entry && d.entry->id) {
         if (x86_id_is(d.entry->id,"JE_REL8") || x86_id_is(d.entry->id,"JE_REL32") ||
             x86_id_is(d.entry->id,"JNE_REL8") || x86_id_is(d.entry->id,"JNE_REL32") ||
-            x86_id_is(d.entry->id,"JB_REL8") || x86_id_is(d.entry->id,"JAE_REL8") ||
-            x86_id_is(d.entry->id,"JA_REL8") || x86_id_is(d.entry->id,"JBE_REL8") ||
-            x86_id_is(d.entry->id,"JL_REL8") || x86_id_is(d.entry->id,"JGE_REL8") ||
-            x86_id_is(d.entry->id,"JLE_REL8") || x86_id_is(d.entry->id,"JG_REL8")) {
+            x86_id_is(d.entry->id,"JB_REL8") || x86_id_is(d.entry->id,"JB_REL32") ||
+            x86_id_is(d.entry->id,"JAE_REL8") || x86_id_is(d.entry->id,"JAE_REL32") ||
+            x86_id_is(d.entry->id,"JA_REL8") || x86_id_is(d.entry->id,"JA_REL32") ||
+            x86_id_is(d.entry->id,"JBE_REL8") || x86_id_is(d.entry->id,"JBE_REL32") ||
+            x86_id_is(d.entry->id,"JL_REL8") || x86_id_is(d.entry->id,"JL_REL32") ||
+            x86_id_is(d.entry->id,"JGE_REL8") || x86_id_is(d.entry->id,"JGE_REL32") ||
+            x86_id_is(d.entry->id,"JLE_REL8") || x86_id_is(d.entry->id,"JLE_REL32") ||
+            x86_id_is(d.entry->id,"JG_REL8") || x86_id_is(d.entry->id,"JG_REL32") ||
+            x86_id_is(d.entry->id,"JO_REL32") || x86_id_is(d.entry->id,"JNO_REL32") ||
+            x86_id_is(d.entry->id,"JS_REL32") || x86_id_is(d.entry->id,"JNS_REL32") ||
+            x86_id_is(d.entry->id,"JP_REL32") || x86_id_is(d.entry->id,"JNP_REL32")) {
             int take=0;
             const char *id=d.entry->id;
             if (x86_id_is(id,"JE_REL8") || x86_id_is(id,"JE_REL32")) take=(eflags&ZF)!=0;
             else if (x86_id_is(id,"JNE_REL8") || x86_id_is(id,"JNE_REL32")) take=(eflags&ZF)==0;
-            else if (x86_id_is(id,"JB_REL8")) take=(eflags&CF)!=0;
-            else if (x86_id_is(id,"JAE_REL8")) take=(eflags&CF)==0;
-            else if (x86_id_is(id,"JA_REL8")) take=(eflags&CF)==0 && (eflags&ZF)==0;
-            else if (x86_id_is(id,"JBE_REL8")) take=(eflags&CF)!=0 || (eflags&ZF)!=0;
-            else if (x86_id_is(id,"JL_REL8")) take=((eflags&SF)!=0) != ((eflags&OF)!=0);
-            else if (x86_id_is(id,"JGE_REL8")) take=((eflags&SF)!=0) == ((eflags&OF)!=0);
-            else if (x86_id_is(id,"JLE_REL8")) take=(eflags&ZF)!=0 || (((eflags&SF)!=0) != ((eflags&OF)!=0));
-            else if (x86_id_is(id,"JG_REL8")) take=(eflags&ZF)==0 && (((eflags&SF)!=0) == ((eflags&OF)!=0));
+            else if (x86_id_is(id,"JB_REL8") || x86_id_is(id,"JB_REL32")) take=(eflags&CF)!=0;
+            else if (x86_id_is(id,"JAE_REL8") || x86_id_is(id,"JAE_REL32")) take=(eflags&CF)==0;
+            else if (x86_id_is(id,"JA_REL8") || x86_id_is(id,"JA_REL32")) take=(eflags&CF)==0 && (eflags&ZF)==0;
+            else if (x86_id_is(id,"JBE_REL8") || x86_id_is(id,"JBE_REL32")) take=(eflags&CF)!=0 || (eflags&ZF)!=0;
+            else if (x86_id_is(id,"JL_REL8") || x86_id_is(id,"JL_REL32")) take=((eflags&SF)!=0) != ((eflags&OF)!=0);
+            else if (x86_id_is(id,"JGE_REL8") || x86_id_is(id,"JGE_REL32")) take=((eflags&SF)!=0) == ((eflags&OF)!=0);
+            else if (x86_id_is(id,"JLE_REL8") || x86_id_is(id,"JLE_REL32")) take=(eflags&ZF)!=0 || (((eflags&SF)!=0) != ((eflags&OF)!=0));
+            else if (x86_id_is(id,"JG_REL8") || x86_id_is(id,"JG_REL32")) take=(eflags&ZF)==0 && (((eflags&SF)!=0) == ((eflags&OF)!=0));
+            else if (x86_id_is(id,"JO_REL32")) take=(eflags&OF)!=0;
+            else if (x86_id_is(id,"JNO_REL32")) take=(eflags&OF)==0;
+            else if (x86_id_is(id,"JS_REL32")) take=(eflags&SF)!=0;
+            else if (x86_id_is(id,"JNS_REL32")) take=(eflags&SF)==0;
+            else if (x86_id_is(id,"JP_REL32")) take=(eflags&PF)!=0;
+            else if (x86_id_is(id,"JNP_REL32")) take=(eflags&PF)==0;
             int32_t rel=(d.rel_size==1)?(int8_t)MEM8(d.cursor-1u):(int32_t)rd32(d.cursor-4u);
             eip=take?(uint32_t)((int32_t)d.cursor+rel):d.cursor;
             last_dispatch_id=X86_DISPATCH_JCC;
