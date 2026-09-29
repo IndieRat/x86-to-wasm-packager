@@ -114,8 +114,10 @@ def make_test_pe() -> bytes:
         raise AssertionError("synthetic PE CALL placeholder is missing")
     code.extend(b"\x00" * 16)
     call_target_file_offset = len(code)
-    code.extend((0x8B, 0x45, 0x08,                  # MOV EAX,[EBP+8] (argument)
-                 0xC3))                             # RET
+    code.extend((0x55,                             # PUSH EBP
+                 0x89, 0xE5,                       # MOV EBP,ESP
+                 0x8B, 0x45, 0x08,                 # MOV EAX,[EBP+8] (argument)
+                 0xC9))                            # LEAVE
 
     hello_string_file_offset = len(code)
     code.extend(b"VirtualAlloc PASS!")
