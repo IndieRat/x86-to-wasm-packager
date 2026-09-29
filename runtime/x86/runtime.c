@@ -91,6 +91,9 @@ static uint32_t guest_vm=0x02000000u;
 static uint32_t guest_vm_limit=0x06000000u;
 static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_count=0;
 static uint32_t al4(uint32_t x);
+static uint32_t rd32(uint32_t p);
+static void wr32(uint32_t p,uint32_t v);
+static void wr8(uint32_t p,uint8_t v);
 
 /* v0.9 memory subsystem: explicit guest regions plus checked bulk-memory helpers.
  * The current instruction core still uses its established little-endian accessors;
@@ -229,10 +232,6 @@ static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0,mou
 static uint32_t surface_width=640,surface_height=360;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 static uint32_t last_failed_import_dll=0,last_failed_import_func=0;
-
-static uint32_t rd32(uint32_t p);
-static void wr32(uint32_t p,uint32_t v);
-static void wr8(uint32_t p,uint8_t v);
 
 static uint32_t al4(uint32_t x){return(x+3u)&~3u;}
 static int streq_ascii(uint32_t p,const char*s){
