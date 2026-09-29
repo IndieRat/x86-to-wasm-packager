@@ -27,3 +27,15 @@ jobs:
       - name: Run WASM memory self-test
         run: |
           node tests/xwasm_memory_selftest.js dist/x86-runtime-selftest/runtime.wasm
+
+      - name: Build CPU + guest-memory stress package
+        run: |
+          python3 tool/xwasm_build_cpu_stress.py \
+            --clang "$(command -v clang)" \
+            --output dist/xwasm-cpu-stress
+
+      - name: Run CPU + guest-memory stress gate
+        run: |
+          node tests/xwasm_cpu_stress.js \
+            dist/xwasm-cpu-stress/runtime.wasm \
+            dist/xwasm-cpu-stress/resources/__x86__/payload.exe
