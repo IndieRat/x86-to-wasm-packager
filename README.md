@@ -198,3 +198,21 @@ Recommended order:
 4. Only then continue expanding CPU instructions, DLL/API resolution, memory mapping, graphics, audio, input, and filesystem support.
 
 The v0.1 runtime is a bring-up foundation, not yet a complete Windows compatibility layer.
+
+## XWASM C5 compiled-C integration fixture
+
+C5 moves the milestone suite from isolated runtime-export tests to a real compiler-generated 32-bit C program.
+
+Build the fixture with LLVM/Clang and lld-link:
+
+    python3 tool/xwasm_build_c5_fixture.py --output ./dist/c5-fixture.exe
+
+The fixture is freestanding C and does not depend on a Windows CRT. It uses cdecl calls into the XWASM game-runtime ABI for:
+
+- checked CRT allocation and string handling
+- virtual game filesystem mount/open/read/close
+- virtual registry key/value creation and storage
+
+The C5 browser runner is tests/xwasm_c5_runner.html. It expects the rebuilt runtime.wasm and the compiled C5 PE32 fixture.
+
+C5 intentionally uses direct cdecl XWASM compatibility addresses (the 0x70010000 range) rather than pretending these are normal Windows DLL exports. This keeps the fixture focused on the CPU/ABI/runtime integration boundary; real MSVCRT/ADVAPI32 import compatibility remains a later expansion.
