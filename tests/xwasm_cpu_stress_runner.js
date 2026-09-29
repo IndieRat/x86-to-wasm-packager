@@ -62,7 +62,8 @@
       log("[INFO] CPU run=" + result + " steps=" + e.x86_get_steps() +
           " EIP=" + hex(e.x86_get_eip()) + " EAX=" + hex(e.x86_get_eax()) +
           " EFLAGS=" + hex(e.x86_get_eflags()));
-      check("CPU halted", e.x86_get_halted(), 1);\n      check("C0 callback return preserved", e.x86_get_esi(), 0x2a);\n      check("C0 callback return preserved", e.x86_get_esi(), 0x2a);
+      check("CPU halted", e.x86_get_halted(), 1);
+      check("C0 callback return preserved", e.x86_get_esi(), 0x2a);
       check("CPU error", e.x86_get_cpu_error(), 0);
       check("RCR architectural self-test", e.x86_rcr32_self_test(), 0);
       if (e.x86_get_trace_count() === 0) throw new Error("[FAIL] CPU trace is empty");
