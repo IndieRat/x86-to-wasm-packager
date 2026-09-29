@@ -134,6 +134,13 @@ def make_code():
     a.emit(0x66, 0xB8, 0xDD, 0xCC)
     a.emit(0x66, 0x3D, 0xDD, 0xCC)
     a.rel32((0x0F, 0x85), "fail")
+    # Operand-size immediate regression vectors: these must consume 16-bit
+    # immediates, not four bytes, or the next opcode is skipped.
+    a.emit(0x66, 0xB8, 0x01, 0x00)             # MOV AX,1
+    a.emit(0x66, 0x05, 0x02, 0x00)             # ADD AX,2 -> 3
+    a.emit(0x66, 0x2D, 0x01, 0x00)             # SUB AX,1 -> 2
+    a.emit(0x66, 0x3D, 0x02, 0x00)             # CMP AX,2
+    a.rel32((0x0F, 0x85), "fail")
     mark(1)  # Byte/word register access
     a.imm32(0xB8, 0, 0xFFFFFF80)
     a.emit(0x3B, 0xD0)                           # CMP EDX,EAX
