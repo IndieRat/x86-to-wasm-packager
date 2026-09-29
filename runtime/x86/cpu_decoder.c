@@ -104,6 +104,14 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
     if (x86_id_is(id, "MOV_R8_IMM8")) d->imm_size = 1;
     else if (x86_id_is(id, "MOV_R32_IMM32") && !d->operand16) d->imm_size = 4;
     else if (x86_id_is(id, "MOV_R32_IMM32") && d->operand16) d->imm_size = 2;
+    else if (d->operand16 &&
+             (x86_id_is(id, "ADD_EAX_IMM32") ||
+              x86_id_is(id, "SUB_EAX_IMM32") ||
+              x86_id_is(id, "CMP_EAX_IMM32") ||
+              x86_id_is(id, "ADC_EAX_IMM32") ||
+              x86_id_is(id, "SBB_EAX_IMM32") ||
+              x86_id_is(id, "PUSH_IMM32") ||
+              x86_id_is(id, "IMUL_R32_RM32_IMM32"))) d->imm_size = 2;
     else if (x86_id_is(id, "MOV_R32_IMM32") ||
         x86_id_is(id, "ADD_RM32_IMM32") ||
         x86_id_is(id, "SUB_RM32_IMM32") ||
@@ -245,18 +253,6 @@ static int x86_decode_instruction(x86_decoded_t *d) {
         return -3;
     }
     if (d->operand16) {
-        /* 66h changes the width of the normal imm32 forms to imm16.
-         * The MOV form was handled in x86_decode_payload_size(), but the
-         * arithmetic EAX-immediate forms must be narrowed here too. */
-        if (x86_id_is(d->entry->id, "ADD_EAX_IMM32") ||
-            x86_id_is(d->entry->id, "SUB_EAX_IMM32") ||
-            x86_id_is(d->entry->id, "CMP_EAX_IMM32") ||
-            x86_id_is(d->entry->id, "ADC_EAX_IMM32") ||
-            x86_id_is(d->entry->id, "SBB_EAX_IMM32") ||
-            x86_id_is(d->entry->id, "PUSH_IMM32") ||
-            x86_id_is(d->entry->id, "IMUL_R32_RM32_IMM32")) {
-            d->imm_size = 2;
-        }
         int string16 = x86_id_is(d->entry->id, "MOVSW") ||
                        x86_id_is(d->entry->id, "CMPSW") ||
                        x86_id_is(d->entry->id, "SCASW") ||
