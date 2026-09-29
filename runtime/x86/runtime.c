@@ -146,8 +146,25 @@ static int x86_mem_ensure_wasm(uint32_t end){
  return __builtin_wasm_memory_grow(0u,grow)>=0;
 }
 static uint32_t x86_mem_alloc_region(uint32_t size,uint32_t flags,uint32_t kind){
- uint32_t a=al4(guest_vm),n=al4(size),end=a+n;
- if(!size||end<a||end>guest_vm_limit||!x86_mem_ensure_wasm(end))return 0;
+ uint32_t a=al4(guest_vm),n=al4(size),end;
+ if(!size)return 0;
+ if(!n)return 0;
+ for(uint32_t pass=0;pass<X86_MEM_REGION_MAX;pass++){
+  end=a+n;
+  if(end<a||end>guest_vm_limit)return 0;
+  int overlap=0;
+  for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(x86_mem_regions[i].active){
+   uint32_t r_end=x86_mem_regions[i].base+x86_mem_regions[i].size;
+   if(a<r_end&&end>x86_mem_regions[i].base){
+    a=al4(r_end);
+    overlap=1;
+    break;
+   }
+  }
+  if(!overlap)break;
+ }
+ end=a+n;
+ if(end<a||end>guest_vm_limit||!x86_mem_ensure_wasm(end))return 0;
  if(!x86_mem_region_add(a,n,flags,kind))return 0;
  guest_vm=end; last_virtual_alloc=a; last_virtual_alloc_size=n; return a;
 }
@@ -871,8 +888,8 @@ __attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(v
 __attribute__((export_name("x86_virtual_alloc"))) uint32_t x86_virtual_alloc(uint32_t size){return x86_mem_alloc_region(size,X86_MEM_READ|X86_MEM_WRITE,2u);}
 __attribute__((export_name("x86_virtual_free"))) uint32_t x86_virtual_free(uint32_t address){return x86_mem_free_region(address);}
 __attribute__((export_name("x86_mem_validate"))) uint32_t x86_mem_validate(uint32_t address,uint32_t size,uint32_t flags){uint32_t need=flags&(X86_MEM_READ|X86_MEM_WRITE|X86_MEM_EXEC);if(!x86_mem_region_find(address,size,need)){x86_mem_faults++;return 0;}return 1;}
-__attribute__((export_name("x86_mem_copy"))) uint32_t x86_mem_copy(uint32_t dst,uint32_t src,uint32_t size){if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE))return 0;copy_bytes(dst,src,size);return 1;}
-__attribute__((export_name("x86_mem_set"))) uint32_t x86_mem_set(uint32_t dst,uint32_t value,uint32_t size){if(!x86_mem_region_find(dst,size,X86_MEM_WRITE))return 0;for(uint32_t i=0;i<size;i++)wr8(dst+i,(uint8_t)value);return 1;}
+__attribute__((export_name("x86_mem_copy"))) uint32_t x86_mem_copy(uint32_t dst,uint32_t src,uint32_t size){if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}copy_bytes(dst,src,size);return 1;}
+__attribute__((export_name("x86_mem_set"))) uint32_t x86_mem_set(uint32_t dst,uint32_t value,uint32_t size){if(!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}for(uint32_t i=0;i<size;i++)wr8(dst+i,(uint8_t)value);return 1;}
 __attribute__((export_name("x86_get_memory_region_count"))) uint32_t x86_get_memory_region_count(void){return x86_mem_region_count;}
 __attribute__((export_name("x86_get_memory_faults"))) uint32_t x86_get_memory_faults(void){return x86_mem_faults;}
 __attribute__((export_name("x86_get_virtual_heap"))) uint32_t x86_get_virtual_heap(void){return guest_vm;}
