@@ -495,6 +495,24 @@ static void modrm_write32(uint8_t m,uint32_t *ip,uint32_t v){
  uint32_t ea=0; if(!modrm_ea(m,ip,&ea)){regs[m&7]=v;return;} wr32(ea,v);
 }
 
+/* C0 stack/ABI foundation. IA-32 CALL/RET/PUSH/POP must operate on the
+ * guest stack region, not merely on raw WASM addresses. */
+static int x86_stack_push32(uint32_t v){
+ uint32_t next=regs[R_ESP]-4u;
+ if(next>regs[R_ESP]||!x86_mem_region_find(next,4u,X86_MEM_WRITE)){x86_mem_faults++;cpu_error=0xE001u;return 0;}
+ regs[R_ESP]=next;wr32(next,v);return 1;
+}
+static int x86_stack_pop32(uint32_t *v){
+ uint32_t sp=regs[R_ESP];
+ if(!x86_mem_region_find(sp,4u,X86_MEM_READ)){x86_mem_faults++;cpu_error=0xE002u;return 0;}
+ *v=rd32(sp);regs[R_ESP]=sp+4u;return 1;
+}
+static int x86_stack_discard(uint32_t n){
+ uint32_t sp=regs[R_ESP],next=sp+n;
+ if(next<sp||!x86_mem_region_find(sp,n,X86_MEM_READ)){x86_mem_faults++;cpu_error=0xE003u;return 0;}
+ regs[R_ESP]=next;return 1;
+}
+
 static int cpu_step_legacy(void){
  uint32_t ip=eip; uint8_t op=MEM8(ip++); steps++;
  switch(op){
@@ -658,8 +676,8 @@ static int cpu_step_legacy(void){
   case 0x70:case 0x71:case 0x72:case 0x73:case 0x74:case 0x75:case 0x76:case 0x77:case 0x78:case 0x79:case 0x7A:case 0x7B:case 0x7C:case 0x7D:case 0x7E:case 0x7F:{
    int8_t d=(int8_t)MEM8(ip++);eip=cond(op)?ip+(int32_t)d:ip;return 0;
   }
-  case 0x68:{uint32_t v=rd32(ip);ip+=4;regs[R_ESP]-=4;wr32(regs[R_ESP],v);eip=ip;return 0;} /* PUSH imm32 */
-  case 0x6A:{int8_t v=(int8_t)MEM8(ip++);regs[R_ESP]-=4;wr32(regs[R_ESP],(uint32_t)(int32_t)v);eip=ip;return 0;} /* PUSH imm8 */
+  case 0x68:{uint32_t v=rd32(ip);ip+=4;if(!x86_stack_push32(v))return -42;eip=ip;return 0;} /* PUSH imm32 */
+  case 0x6A:{int8_t v=(int8_t)MEM8(ip++);if(!x86_stack_push32((uint32_t)(int32_t)v))return -43;eip=ip;return 0;} /* PUSH imm8 */
   case 0x58:case 0x59:case 0x5A:case 0x5B:case 0x5C:case 0x5D:case 0x5E:case 0x5F:
    regs[op-0x58]=rd32(regs[R_ESP]);regs[R_ESP]+=4;eip=ip;return 0;
   case 0x50:case 0x51:case 0x52:case 0x53:case 0x54:case 0x55:case 0x56:case 0x57:
@@ -675,7 +693,7 @@ static int cpu_step_legacy(void){
   }
   case 0xE3:{int8_t d=(int8_t)MEM8(ip++);eip=(regs[R_ECX]==0)?ip+(int32_t)d:ip;return 0;} /* JECXZ */
   case 0xE0:case 0xE1:case 0xE2:{int8_t d=(int8_t)MEM8(ip++);regs[R_ECX]--;uint32_t take=(regs[R_ECX]!=0);if(op==0xE1)take=take&&((eflags&ZF)!=0);if(op==0xE0)take=take&&((eflags&ZF)==0);eip=take?ip+(int32_t)d:ip;return 0;}
-  case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
+  case 0xC9:{uint32_t v;regs[R_ESP]=regs[R_EBP];if(!x86_stack_pop32(&v))return -44;regs[R_EBP]=v;eip=ip;return 0;} /* LEAVE */\n  case 0xC2:{uint16_t n=rd16(ip);ip+=2;uint32_t v;if(!x86_stack_pop32(&v))return -45;if(!x86_stack_discard(n))return -46;eip=v;return 0;} /* RET imm16 */\n  case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
    uint8_t m=MEM8(ip++);
    uint8_t sub=(m>>3)&7;
    if(sub!=2&&sub!=4){cpu_error=0xFF00u|sub;return -12;}
@@ -688,8 +706,8 @@ static int cpu_step_legacy(void){
    }
    eip=target;return 0;
   }
-  case 0xC3:eip=rd32(regs[R_ESP]);regs[R_ESP]+=4;return 0; /* RET */
-  case 0xE8:{int32_t d=(int32_t)rd32(ip);uint32_t next=ip+4;regs[R_ESP]-=4;wr32(regs[R_ESP],next);eip=next+(uint32_t)d;return 0;} /* CALL rel32 */
+  case 0xC3:{uint32_t v;if(!x86_stack_pop32(&v))return -49;eip=v;return 0;} /* RET */
+  case 0xE8:{int32_t d=(int32_t)rd32(ip);uint32_t next=ip+4;if(!x86_stack_push32(next))return -50;eip=next+(uint32_t)d;return 0;} /* CALL rel32 */
   default: cpu_error=op; return -10;
  }
 }
@@ -805,7 +823,7 @@ __attribute__((export_name("x86_get_eax"))) uint32_t x86_get_eax(void){return re
 __attribute__((export_name("x86_get_ecx"))) uint32_t x86_get_ecx(void){return regs[R_ECX];}
 __attribute__((export_name("x86_get_edx"))) uint32_t x86_get_edx(void){return regs[R_EDX];}
 __attribute__((export_name("x86_get_ebx"))) uint32_t x86_get_ebx(void){return regs[R_EBX];}
-__attribute__((export_name("x86_get_esp"))) uint32_t x86_get_esp(void){return regs[R_ESP];}
+__attribute__((export_name("x86_get_esp"))) uint32_t x86_get_esp(void){return regs[R_ESP];}\n__attribute__((export_name("x86_get_stack_faults"))) uint32_t x86_get_stack_faults(void){return x86_mem_faults;}
 __attribute__((export_name("x86_get_ebp"))) uint32_t x86_get_ebp(void){return regs[R_EBP];}
 __attribute__((export_name("x86_get_esi"))) uint32_t x86_get_esi(void){return regs[R_ESI];}
 __attribute__((export_name("x86_get_edi"))) uint32_t x86_get_edi(void){return regs[R_EDI];}
