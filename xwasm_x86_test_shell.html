@@ -199,6 +199,7 @@ function state(){
     "decoded opcode    "+hex(dop),
     "decoded length    "+len,
     "semantic dispatch "+(names[did]||("ID "+did)),
+    "16-bit immediate width: "+((map===0 && (dop===0x3D || dop===0x05 || dop===0x2D)) ? "operand-size dependent" : "n/a"),
     "refined count     "+dc,
     "",
     "INC verification: "+(did===1?"PASS — 0x40 reached INC_R32 semantic handler":"not currently dispatching INC")
