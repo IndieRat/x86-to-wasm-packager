@@ -2622,7 +2622,7 @@
     },
     {
       "id": "RET_IMM16",
-      "instruction": "RET",
+      "instruction": "RET_IMM16",
       "opcode": ["C2"],
       "opcode_map": "primary",
       "encoding": "ZO",
