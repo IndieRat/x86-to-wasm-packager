@@ -193,7 +193,7 @@ function state(){
     "cpu_error   "+hex(api("x86_get_cpu_error")())
   ].join("\n");
   const map=api("x86_get_last_decoded_map")(), dop=api("x86_get_last_decoded_opcode")(), len=api("x86_get_last_decoded_length")(), did=api("x86_get_last_dispatch_id")(), dc=api("x86_get_last_dispatch_count")();
-  const names={0:"NONE",1:"INC_R32",2:"DEC_R32",3:"RCR",4:"MOV_R8_IMM8",5:"MOV_R16_IMM16",6:"CMP_R16_IMM16",7:"MOV_R32_IMM32",8:"ADD_EAX_IMM",9:"SUB_EAX_IMM",10:"CMP_EAX_IMM",11:"MOV_R32_RM32",12:"MOV_RM32_R32"};
+  const names={0:"NONE",1:"INC_R32",2:"DEC_R32",3:"RCR",4:"MOV_R8_IMM8",5:"MOV_R16_IMM16",6:"CMP_R16_IMM16",7:"MOV_R32_IMM32",8:"ADD_EAX_IMM",9:"SUB_EAX_IMM",10:"CMP_EAX_IMM",11:"MOV_R32_RM32",12:"MOV_RM32_R32",13:"CMP_R32_RM32",14:"CMP_RM32_R32"};
   $("decode").textContent=[
     "decoded map       "+map+" ("+((["primary","0F","0F38","0F3A"][map])||"?")+")",
     "decoded opcode    "+hex(dop),
