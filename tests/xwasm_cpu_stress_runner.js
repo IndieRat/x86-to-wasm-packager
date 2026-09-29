@@ -87,7 +87,7 @@
 
       check("memset A", e.x86_mem_set(a, 0x5a, 0x1000), 1);
       check("A byte 0", getView()[a], 0x5a);
-      check("A byte end", view[a + 0xfff], 0x5a);
+      check("A byte end", getView()[a + 0xfff], 0x5a);
 
       const stackBase = 0x03e00000, stackEnd = 0x03f00000;
       const nearStack = e.x86_virtual_alloc(0x01c00000);
