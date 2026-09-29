@@ -99,6 +99,8 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {0,0xE8,0,-1,"CALL_REL32"},
   {0,0xFF,1,2,"CALL_RM32"},
   {0,0xC3,0,-1,"RET"},
+  {0,0xC2,0,-1,"RET_IMM16"},
+  {0,0xC9,0,-1,"LEAVE"},
   {0,0xE9,0,-1,"JMP_REL32"},
   {0,0xEB,0,-1,"JMP_REL8"},
   {0,0xFF,1,4,"JMP_RM32"},
