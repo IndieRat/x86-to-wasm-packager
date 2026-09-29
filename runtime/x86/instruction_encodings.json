@@ -43,6 +43,31 @@
       }
     },
     {
+      "id": "MOV_RM8_IMM8",
+      "instruction": "MOV",
+      "opcode": [
+        "C6"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "w",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "imm"
+        }
+      ],
+      "modrm": {
+        "required": true,
+        "reg_extension": 0
+      }
+    },
+    {
       "id": "MOV_R32_RM32",
       "instruction": "MOV",
       "opcode": [
