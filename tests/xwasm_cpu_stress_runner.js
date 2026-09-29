@@ -157,6 +157,49 @@
       check("CRT freed pointer rejected", e.x86_mem_validate(resized, 1, 1), 0);
       check("CRT invalid operation faulted", e.x86_get_memory_faults(), c1Before + 1);
 
+
+      log("=== C2 RUNTIME STATE ===");
+      check("CRT started", e.x86_crt_get_started(), 1);
+      check("CRT initial errno", e.x86_crt_get_errno(), 0);
+      check("CRT initial last error", e.x86_crt_get_last_error(), 0);
+      check("CRT initial exited", e.x86_crt_get_exited(), 0);
+      check("CRT initial exit code", e.x86_crt_get_exit_code(), 0);
+      check("CRT set errno", e.x86_crt_set_errno(-7), -7);
+      check("CRT get errno", e.x86_crt_get_errno(), -7);
+      check("CRT set last error", e.x86_crt_set_last_error(0xc2), 0xc2);
+      check("CRT get last error", e.x86_crt_get_last_error(), 0xc2);
+      check("CRT startup reset", e.x86_crt_startup(), 1);
+      check("CRT errno reset", e.x86_crt_get_errno(), 0);
+      check("CRT last error reset", e.x86_crt_get_last_error(), 0);
+
+      let c2Callback = 0;
+      const view = getView();
+      for (let p = 0x00401000; p + 8 < 0x00402000; p++) {
+        if (view[p] !== 0xb8) continue;
+        const target = (view[p + 1] | (view[p + 2] << 8) | (view[p + 3] << 16) | (view[p + 4] << 24)) >>> 0;
+        if (target >= 0x00401000 && target + 8 < view.length &&
+            view[target] === 0x55 && view[target + 1] === 0x89 && view[target + 2] === 0xe5 &&
+            view[target + 3] === 0x8b && view[target + 4] === 0x45 && view[target + 5] === 0x08 &&
+            view[target + 6] === 0xc9 && view[target + 7] === 0xc3) {
+          c2Callback = target;
+          break;
+        }
+      }
+      check("C2 callback fixture found", c2Callback !== 0, true);
+      check("C2 direct callback", e.x86_crt_invoke_callback(c2Callback), 0xc2c0ffee);
+      check("C2 atexit register A", e.x86_crt_atexit(c2Callback), 1);
+      check("C2 atexit register B", e.x86_crt_atexit(c2Callback), 1);
+      check("C2 atexit count", e.x86_crt_get_atexit_count(), 2);
+      check("C2 atexit callback 0", e.x86_crt_get_atexit_callback(0), c2Callback);
+      check("C2 atexit callback 1", e.x86_crt_get_atexit_callback(1), c2Callback);
+      check("C2 exit callbacks", e.x86_crt_exit(7), 2);
+      check("C2 atexit drained", e.x86_crt_get_atexit_count(), 0);
+      check("C2 last callback result", e.x86_crt_get_last_atexit_result(), 0xc2c0ffee);
+      check("C2 exited", e.x86_crt_get_exited(), 1);
+      check("C2 exit code", e.x86_crt_get_exit_code(), 7);
+      check("C2 atexit after exit rejected", e.x86_crt_atexit(c2Callback), 0);
+      check("C2 errno after rejected atexit", e.x86_crt_get_errno(), 22);
+
       const stress = [];
       for (let i = 0; i < 40; i++) {
         const p = e.x86_virtual_alloc(0x1000);
@@ -180,3 +223,4 @@
 
   $("run").addEventListener("click", run);
 })();
+
