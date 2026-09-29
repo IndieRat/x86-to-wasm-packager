@@ -117,7 +117,8 @@ def make_test_pe() -> bytes:
     code.extend((0x55,                             # PUSH EBP
                  0x89, 0xE5,                       # MOV EBP,ESP
                  0x8B, 0x45, 0x08,                 # MOV EAX,[EBP+8] (argument)
-                 0xC9))                            # LEAVE
+                 0xC9,                             # LEAVE
+                 0xC3))                            # RET
 
     hello_string_file_offset = len(code)
     code.extend(b"VirtualAlloc PASS!")
@@ -149,9 +150,17 @@ def make_test_pe() -> bytes:
         f"CALL generated wrong target: expected 0x{call_target_file_offset:X}, "
         f"got 0x{decoded_target:X}"
     )
-    assert code[decoded_target] == 0x8B, (
-        f"CALL target does not begin with MOV EAX,[EBP+8]: "
-        f"target=0x{decoded_target:X}, opcode=0x{code[decoded_target]:02X}"
+    assert code[decoded_target:decoded_target + 3] == b"\x55\x89\xE5", (
+        f"CALL target does not begin with PUSH EBP; MOV EBP,ESP: "
+        f"target=0x{decoded_target:X}, bytes={code[decoded_target:decoded_target + 3].hex()}"
+    )
+    assert code[decoded_target + 3:decoded_target + 6] == b"\x8B\x45\x08", (
+        f"CALL target does not load [EBP+8]: "
+        f"target=0x{decoded_target:X}, bytes={code[decoded_target + 3:decoded_target + 6].hex()}"
+    )
+    assert code[decoded_target + 6:decoded_target + 8] == b"\xC9\xC3", (
+        f"CALL target does not end with LEAVE; RET: "
+        f"target=0x{decoded_target:X}, bytes={code[decoded_target + 6:decoded_target + 8].hex()}"
     )
     # Minimal PE import directory for KERNEL32.dll!GetTickCount.
     # The runtime resolves this through its builtin Win32 seed table and
