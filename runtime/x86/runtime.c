@@ -101,6 +101,17 @@ enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_
 #define API_KERNEL32_REGDELETEVALUEA (API_BASE+0x0000802Cu)
 #define API_KERNEL32_GETLASTERROR (API_BASE+0x00008030u)
 #define API_KERNEL32_SETLASTERROR (API_BASE+0x00008034u)
+#define API_C5_MALLOC (API_BASE+0x00010000u)
+#define API_C5_FREE (API_BASE+0x00010004u)
+#define API_C5_STRLEN (API_BASE+0x00010008u)
+#define API_C5_FS_MOUNT (API_BASE+0x0001000Cu)
+#define API_C5_FS_OPEN (API_BASE+0x00010010u)
+#define API_C5_FS_READ (API_BASE+0x00010014u)
+#define API_C5_FS_CLOSE (API_BASE+0x00010018u)
+#define API_C5_REG_CREATE (API_BASE+0x0001001Cu)
+#define API_C5_REG_SET (API_BASE+0x00010020u)
+#define API_C5_REG_CLOSE (API_BASE+0x00010024u)
+#define API_C5_REG_HKEY_CURRENT_USER 0x80000001u
 extern int32_t xwasm_input_poll(int32_t msg_ptr,int32_t remove);
 extern void xwasm_input_quit(void);
 extern void xwasm_audio_beep(int32_t frequency,int32_t duration_ms);
@@ -408,6 +419,16 @@ static uint32_t x86_fs_size_impl(uint32_t handle){
  if(hi<0||!x86_fs_handles[hi].used){x86_fs_last_error=6;return 0xFFFFFFFFu;}
  return x86_fs_files[x86_fs_handles[hi].file].size;
 }
+static uint32_t x86_fs_mount_impl_from_guest(uint32_t path_ptr,uint32_t data_ptr,uint32_t size){
+ char raw[X86_FS_MAX_PATH];if(!x86_fs_guest_string(path_ptr,raw,sizeof(raw)))return 0;return x86_fs_mount_impl(raw,data_ptr,size);
+}
+static uint32_t x86_fs_open_impl_from_guest(uint32_t path_ptr,uint32_t access,uint32_t flags){
+ char raw[X86_FS_MAX_PATH];if(!x86_fs_guest_string(path_ptr,raw,sizeof(raw)))return 0;return x86_fs_open_impl(raw,access,flags);
+}
+static uint32_t x86_fs_c5_read_count=0;
+static uint32_t x86_fs_read_c5(uint32_t handle,uint32_t dst,uint32_t size){
+ uint32_t n=0,ok=x86_fs_read_impl(handle,dst,size,&n);x86_fs_c5_read_count=n;return ok;
+}
 static uint32_t x86_fs_exists_impl(const char *raw_path){
  char path[X86_FS_MAX_PATH];if(!x86_fs_normalize(raw_path,path,sizeof(path)))return 0;
  return x86_fs_find_file(path)>=0?1u:0u;
@@ -595,6 +616,20 @@ static uint32_t x86_reg_query_value_impl(uint32_t handle,const char *name,uint32
  if(v->size&&data)for(uint32_t i=0;i<v->size;i++)data[i]=v->data[i];
  x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
 }
+static uint32_t x86_reg_create_guest_impl(uint32_t parent,uint32_t sub_ptr,uint32_t out_ptr,uint32_t *handle,uint32_t *disp){
+ char raw[X86_REG_MAX_PATH];if(sub_ptr&&!x86_fs_guest_string(sub_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;
+ uint32_t result=x86_reg_create_impl(parent,sub_ptr?raw:"",handle,disp);
+ if(result==X86_REG_ERROR_SUCCESS&&(!out_ptr||!x86_mem_region_find(out_ptr,4u,X86_MEM_WRITE)))return X86_REG_ERROR_INVALID_PARAMETER;
+ if(result==X86_REG_ERROR_SUCCESS)wr32(out_ptr,*handle);
+ return result;
+}
+static uint32_t x86_reg_set_guest_impl(uint32_t handle,uint32_t name_ptr,uint32_t type,uint32_t data_ptr,uint32_t size){
+ char raw[X86_REG_MAX_VALUE_NAME];if(name_ptr&&!x86_fs_guest_string(name_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;
+ if(size&&!x86_mem_region_find(data_ptr,size,X86_MEM_READ))return X86_REG_ERROR_INVALID_PARAMETER;
+ uint8_t tmp[X86_REG_MAX_VALUE_DATA];if(size>sizeof(tmp))return X86_REG_ERROR_INVALID_PARAMETER;
+ for(uint32_t i=0;i<size;i++)tmp[i]=MEM8(data_ptr+i);
+ return x86_reg_set_value_impl(handle,name_ptr?raw:"",type,tmp,size);
+}
 static uint32_t x86_reg_delete_value_impl(uint32_t handle,const char *name){
  int ki=x86_reg_key_index(handle);if(ki<0){x86_reg_set_error(X86_REG_ERROR_INVALID_HANDLE);return X86_REG_ERROR_INVALID_HANDLE;}
  int vi=x86_reg_find_value((uint32_t)ki,name?name:"");if(vi<0){x86_reg_set_error(X86_REG_ERROR_FILE_NOT_FOUND);return X86_REG_ERROR_FILE_NOT_FOUND;}
@@ -681,6 +716,7 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"GetLastError"))return API_KERNEL32_GETLASTERROR;
   if(streq_ascii(name,"SetLastError"))return API_KERNEL32_SETLASTERROR;
  }
+ if(streq_ascii(dll,"XWASMCRT.dll")||streq_ascii(dll,"xwasmcrt.dll"))return 0; /* C5 uses direct cdecl API addresses. */
  if(streq_ascii(dll,"ADVAPI32.dll")||streq_ascii(dll,"advapi32.dll")){
   if(streq_ascii(name,"RegOpenKeyExA"))return API_KERNEL32_REGOPENKEYEXA;
   if(streq_ascii(name,"RegCreateKeyExA"))return API_KERNEL32_REGCREATEKEYEXA;
@@ -692,6 +728,16 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
  return 0;
 }
 static uint32_t call_builtin(uint32_t target){
+ if(target==API_C5_MALLOC){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_malloc_impl(rd32(sp+4u));return 1;}
+ if(target==API_C5_FREE){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_free_impl(rd32(sp+4u));return 1;}
+ if(target==API_C5_STRLEN){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_strlen(rd32(sp+4u));return 1;}
+ if(target==API_C5_FS_MOUNT){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_fs_mount_impl_from_guest(rd32(sp+4u),rd32(sp+8u),rd32(sp+12u));return 1;}
+ if(target==API_C5_FS_OPEN){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_fs_open_impl_from_guest(rd32(sp+4u),rd32(sp+8u),rd32(sp+12u));return 1;}
+ if(target==API_C5_FS_READ){uint32_t sp=regs[R_ESP];uint32_t n=0,ok=x86_fs_read_impl(rd32(sp+4u),rd32(sp+8u),rd32(sp+12u),&n);regs[R_EAX]=ok?n:0xFFFFFFFFu;return 1;}
+ if(target==API_C5_FS_CLOSE){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_fs_close_impl(rd32(sp+4u));return 1;}
+ if(target==API_C5_REG_CREATE){uint32_t sp=regs[R_ESP],handle=0,disp=0;regs[R_EAX]=x86_reg_create_guest_impl(rd32(sp+4u),rd32(sp+8u),rd32(sp+12u),&handle,&disp);return 1;}
+ if(target==API_C5_REG_SET){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_reg_set_guest_impl(rd32(sp+4u),rd32(sp+8u),rd32(sp+12u),rd32(sp+16u),rd32(sp+20u));return 1;}
+ if(target==API_C5_REG_CLOSE){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_reg_close_impl(rd32(sp+4u));return 1;}
  if(target==API_GETTICKCOUNT){regs[R_EAX]=1234u;return 1;}
  if(target==API_XWASM_LOG){
   xwasm_log(1,(int32_t)regs[R_ECX],(int32_t)regs[R_EDX]);
