@@ -371,6 +371,25 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
+        if (x86_id_is(d.entry->id,"MOV_R32_RM32") ||
+            x86_id_is(d.entry->id,"MOV_RM32_R32")) {
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+            uint32_t reg=(uint32_t)((d.modrm>>3)&7u);
+            if (x86_id_is(d.entry->id,"MOV_R32_RM32")) {
+                if (decoded_operand16) reg16_write(reg,modrm_read16(d.modrm,&op_ip));
+                else regs[reg]=modrm_read32(d.modrm,&op_ip);
+                last_dispatch_id=X86_DISPATCH_MOV_R32_RM32;
+            } else {
+                if (decoded_operand16) modrm_write16(d.modrm,&op_ip,reg16_read(reg));
+                else modrm_write32(d.modrm,&op_ip,regs[reg]);
+                last_dispatch_id=X86_DISPATCH_MOV_RM32_R32;
+            }
+            eip=d.cursor;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"MOV_R8_IMM8")) {
             uint32_t reg=(uint32_t)(d.opcode-0xB0u);
             uint8_t value=MEM8(d.cursor-1u);
