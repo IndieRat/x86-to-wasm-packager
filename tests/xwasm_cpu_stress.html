@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XWASM CPU + Guest Memory Stress Test</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#111;color:#eee;max-width:1000px;margin:32px auto;padding:0 20px}
+.card{background:#1b1b1b;border:1px solid #333;border-radius:12px;padding:20px;margin-bottom:16px}
+input,button{font:inherit;margin:6px 0} button{padding:8px 14px;cursor:pointer}
+#log{background:#050505;border:1px solid #333;border-radius:8px;padding:14px;height:520px;overflow:auto;font:13px ui-monospace,monospace;white-space:pre-wrap}
+.pass{color:#8ee28e}.fail{color:#ff7777}
+small{color:#aaa}
+</style>
+</head>
+<body>
+<h1>XWASM CPU + Guest Memory Stress Test</h1>
+<div class="card">
+  <p>This replaces the old CPU-only stress test with a combined PE32/CPU/guest-memory gate.</p>
+  <label>runtime.wasm <input id="runtime" type="file" accept=".wasm"></label><br>
+  <label>payload.exe <input id="payload" type="file" accept=".exe,.bin"></label><br>
+  <button id="run">Run stress test</button>
+  <p><small>Works from file:// because the WASM and PE are loaded through file inputs.</small></p>
+</div>
+<div class="card"><div id="log">Ready.</div></div>
+<script src="xwasm_cpu_stress_runner.js"></script>
+</body>
+</html>
