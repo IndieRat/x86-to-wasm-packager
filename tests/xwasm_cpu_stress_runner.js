@@ -209,8 +209,8 @@
       getView().set(new Uint8Array([72,69,76,76,79,0]), fsData);
       check("C3 mount resource", e.x86_fs_mount_file(fsPath, fsData, 5), 1);
       check("C3 normalized exists", e.x86_fs_exists(fsPath), 1);
-      check("C3 open read", e.x86_fs_open(fsPath, 1, 0) >= 0x1000, true);
       const fsReadHandle = e.x86_fs_open(fsPath, 1, 0);
+      check("C3 open read", fsReadHandle >= 0x1000, true);
       check("C3 file size", e.x86_fs_size(fsReadHandle), 5);
       check("C3 read bytes", e.x86_fs_read(fsReadHandle, fsRead, 5), 5);
       check("C3 read content", getView()[fsRead] === 72 && getView()[fsRead + 4] === 79, true);
