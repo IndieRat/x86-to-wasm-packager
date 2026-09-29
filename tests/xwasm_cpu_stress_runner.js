@@ -115,6 +115,48 @@
       check("invalid memset rejected", e.x86_mem_set(a, 0, 1), 0);
       check("fault count", e.x86_get_memory_faults(), 5);
 
+      log("=== C1 MEMORY / CRT ===");
+      const c1a = e.x86_crt_malloc(0x40);
+      const c1b = e.x86_crt_malloc(0x40);
+      check("CRT malloc A", c1a !== 0, true);
+      check("CRT malloc B", c1b !== 0, true);
+      check("CRT A writable", e.x86_mem_validate(c1a, 0x40, 2), 1);
+      check("CRT A readable", e.x86_mem_validate(c1a, 0x40, 1), 1);
+      check("CRT invalid pointer rejected", e.x86_mem_validate(c1a + 0x40, 1, 1), 0);
+      const c1Before = e.x86_get_memory_faults();
+      getView().set(new Uint8Array([1,2,3,4,5,6,7,8]), c1a);
+      check("CRT memcpy", e.x86_crt_memcpy(c1b, c1a, 8), c1b);
+      check("CRT memcpy byte", getView()[c1b + 7], 8);
+      check("CRT memset", e.x86_crt_memset(c1b + 8, 0xaa, 8), c1b + 8);
+      check("CRT memset byte", getView()[c1b + 15], 0xaa);
+      check("CRT memcmp equal", e.x86_crt_memcmp(c1a, c1a, 8), 0);
+      getView()[c1b + 7] = 9;
+      check("CRT memcmp ordering", e.x86_crt_memcmp(c1a, c1b, 8), -1);
+      getView().set(new Uint8Array([1,2,3,4,5,6,7,8]), c1a);
+      check("CRT memmove overlap", e.x86_crt_memmove(c1a + 2, c1a, 6), c1a + 2);
+      check("CRT memmove overlap byte", getView()[c1a + 7], 6);
+      const str = e.x86_crt_malloc(0x40);
+      const str2 = e.x86_crt_malloc(0x40);
+      getView().set(new TextEncoder().encode("hello C1\0"), str);
+      check("CRT strlen", e.x86_crt_strlen(str), 8);
+      check("CRT strcpy", e.x86_crt_strcpy(str2, str), str2);
+      check("CRT strcmp equal", e.x86_crt_strcmp(str, str2), 0);
+      getView()[str2 + 7] = 0x7a;
+      check("CRT strcmp ordering", e.x86_crt_strcmp(str, str2), -1);
+      const zeroed = e.x86_crt_calloc(8, 4);
+      check("CRT calloc", zeroed !== 0, true);
+      check("CRT calloc zero", getView()[zeroed + 31], 0);
+      const resized = e.x86_crt_realloc(c1a, 0x80);
+      check("CRT realloc", resized !== 0, true);
+      check("CRT realloc preserves data", getView()[resized + 7], 6);
+      check("CRT free A", e.x86_crt_free(resized), 1);
+      check("CRT free B", e.x86_crt_free(c1b), 1);
+      check("CRT free string", e.x86_crt_free(str), 1);
+      check("CRT free string2", e.x86_crt_free(str2), 1);
+      check("CRT free calloc", e.x86_crt_free(zeroed), 1);
+      check("CRT freed pointer rejected", e.x86_mem_validate(resized, 1, 1), 0);
+      check("CRT invalid operation faulted", e.x86_get_memory_faults(), c1Before + 1);
+
       const stress = [];
       for (let i = 0; i < 40; i++) {
         const p = e.x86_virtual_alloc(0x1000);
