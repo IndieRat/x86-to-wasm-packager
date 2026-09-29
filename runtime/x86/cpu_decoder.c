@@ -270,6 +270,8 @@ static int x86_decode_instruction(x86_decoded_t *d) {
                         x86_id_is(d->entry->id, "SAR_RM32_1");
         if (!string16 && !group2_16 &&
             !x86_id_is(d->entry->id, "MOV_R32_IMM32") &&
+            !x86_id_is(d->entry->id, "ADD_EAX_IMM32") &&
+            !x86_id_is(d->entry->id, "SUB_EAX_IMM32") &&
             !x86_id_is(d->entry->id, "CMP_EAX_IMM32")) {
             cpu_error = 0xD100u | d->opcode;
             return -3;
