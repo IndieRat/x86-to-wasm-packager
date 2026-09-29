@@ -997,8 +997,7 @@
           "source": "opcode.low3"
         }
       ]
-    },
-    {
+    },    {
       "id": "PUSH_IMM32",
       "instruction": "PUSH",
       "opcode": [
@@ -1997,8 +1996,7 @@
       "operands": [
         {
           "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
+          "access": "rw",          "source": "modrm.rm"
         },
         {
           "kind": "imm8",
