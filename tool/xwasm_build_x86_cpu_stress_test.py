@@ -143,6 +143,7 @@ def make_code():
     a.rel32((0x0F, 0x85), "fail")
     mark(1)  # Byte/word register access
     a.imm32(0xB8, 0, 0xFFFFFF80)
+    a.imm32(0xBA, 0, 0xFFFFFF80)
     a.emit(0x3B, 0xD0)                           # CMP EDX,EAX
     a.rel32((0x0F, 0x85), "fail")
 
