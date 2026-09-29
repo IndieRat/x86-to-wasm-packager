@@ -50,9 +50,34 @@
       check("load error", e.x86_get_load_error(), 0);
 
       const result = e.x86_run(10000);
+      const badEip = e.x86_get_eip();
+
       log("[INFO] CPU run=" + result + " steps=" + e.x86_get_steps() +
-          " EIP=" + hex(e.x86_get_eip()) + " EAX=" + hex(e.x86_get_eax()) +
+          " EIP=" + hex(badEip) + " EAX=" + hex(e.x86_get_eax()) +
           " ESP=" + hex(e.x86_get_esp()));
+
+      // Keep diagnostics before assertions so a failing C5 run still reports
+      // the instruction and guest bytes that stopped execution.
+      log("[DEBUG] CPU halted: " + e.x86_get_halted());
+      log("[DEBUG] CPU error: " + e.x86_get_cpu_error());
+      log("[DEBUG] current opcode: " + hex(e.x86_get_current_opcode()));
+      log("[DEBUG] last decoded opcode: " + hex(e.x86_get_last_decoded_opcode()));
+      log("[DEBUG] last decoded length: " + e.x86_get_last_decoded_length());
+
+      const debugWord = off => e.x86_debug_probe((badEip + off) >>> 0) & 0xffff;
+      const debugByte = off => debugWord(off) & 0xff;
+      const bytes = Array.from({length: 12}, (_, i) =>
+        debugByte(i).toString(16).padStart(2, "0")
+      ).join(" ");
+      log("[DEBUG] bytes at EIP: " + bytes);
+
+      let semantic = "";
+      const semanticLength = e.x86_get_last_semantic_id_len();
+      for (let i = 0; i < semanticLength; i++) {
+        semantic += String.fromCharCode(e.x86_get_last_semantic_id_char(i));
+      }
+      log("[DEBUG] semantic ID: " + (semantic || "<none>"));
+
       check("CPU halted", e.x86_get_halted(), 1);
       check("CPU error", e.x86_get_cpu_error(), 0);
       check("compiled C return value", e.x86_get_eax(), 3);
