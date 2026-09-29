@@ -730,7 +730,6 @@
       "id": "IMUL_R32_RM32",
       "instruction": "IMUL",
       "opcode": [
-        "0F",
         "AF"
       ],
       "opcode_map": "escape_0f",
@@ -755,7 +754,6 @@
       "id": "MOVZX_R32_RM8",
       "instruction": "MOVZX",
       "opcode": [
-        "0F",
         "B6"
       ],
       "opcode_map": "escape_0f",
@@ -781,7 +779,6 @@
       "id": "MOVSX_R32_RM8",
       "instruction": "MOVSX",
       "opcode": [
-        "0F",
         "BE"
       ],
       "opcode_map": "escape_0f",
@@ -1296,7 +1293,6 @@
       "id": "JE_REL32",
       "instruction": "JE",
       "opcode": [
-        "0F",
         "84"
       ],
       "opcode_map": "escape_0f",
@@ -1313,7 +1309,6 @@
       "id": "JNE_REL32",
       "instruction": "JNE",
       "opcode": [
-        "0F",
         "85"
       ],
       "opcode_map": "escape_0f",
@@ -2125,7 +2120,6 @@
       "id": "BT_RM32_IMM8",
       "instruction": "BT",
       "opcode": [
-        "0F",
         "BA"
       ],
       "opcode_map": "escape_0f",
@@ -2151,7 +2145,6 @@
       "id": "BTS_RM32_IMM8",
       "instruction": "BTS",
       "opcode": [
-        "0F",
         "BA"
       ],
       "opcode_map": "escape_0f",
@@ -2177,7 +2170,6 @@
       "id": "BTR_RM32_IMM8",
       "instruction": "BTR",
       "opcode": [
-        "0F",
         "BA"
       ],
       "opcode_map": "escape_0f",
@@ -2203,7 +2195,6 @@
       "id": "BTC_RM32_IMM8",
       "instruction": "BTC",
       "opcode": [
-        "0F",
         "BA"
       ],
       "opcode_map": "escape_0f",
@@ -2389,7 +2380,6 @@
       "id": "JO_REL32",
       "instruction": "JO",
       "opcode": [
-        "0F",
         "80"
       ],
       "opcode_map": "escape_0f",
@@ -2406,7 +2396,6 @@
       "id": "JNO_REL32",
       "instruction": "JNO",
       "opcode": [
-        "0F",
         "81"
       ],
       "opcode_map": "escape_0f",
@@ -2423,7 +2412,6 @@
       "id": "JB_REL32",
       "instruction": "JB",
       "opcode": [
-        "0F",
         "82"
       ],
       "opcode_map": "escape_0f",
@@ -2440,7 +2428,6 @@
       "id": "JAE_REL32",
       "instruction": "JAE",
       "opcode": [
-        "0F",
         "83"
       ],
       "opcode_map": "escape_0f",
@@ -2457,7 +2444,6 @@
       "id": "JBE_REL32",
       "instruction": "JBE",
       "opcode": [
-        "0F",
         "86"
       ],
       "opcode_map": "escape_0f",
@@ -2474,7 +2460,6 @@
       "id": "JA_REL32",
       "instruction": "JA",
       "opcode": [
-        "0F",
         "87"
       ],
       "opcode_map": "escape_0f",
@@ -2491,7 +2476,6 @@
       "id": "JS_REL32",
       "instruction": "JS",
       "opcode": [
-        "0F",
         "88"
       ],
       "opcode_map": "escape_0f",
@@ -2508,7 +2492,6 @@
       "id": "JNS_REL32",
       "instruction": "JNS",
       "opcode": [
-        "0F",
         "89"
       ],
       "opcode_map": "escape_0f",
@@ -2525,7 +2508,6 @@
       "id": "JP_REL32",
       "instruction": "JP",
       "opcode": [
-        "0F",
         "8A"
       ],
       "opcode_map": "escape_0f",
@@ -2542,7 +2524,6 @@
       "id": "JNP_REL32",
       "instruction": "JNP",
       "opcode": [
-        "0F",
         "8B"
       ],
       "opcode_map": "escape_0f",
@@ -2559,7 +2540,6 @@
       "id": "JL_REL32",
       "instruction": "JL",
       "opcode": [
-        "0F",
         "8C"
       ],
       "opcode_map": "escape_0f",
@@ -2576,7 +2556,6 @@
       "id": "JGE_REL32",
       "instruction": "JGE",
       "opcode": [
-        "0F",
         "8D"
       ],
       "opcode_map": "escape_0f",
@@ -2593,7 +2572,6 @@
       "id": "JLE_REL32",
       "instruction": "JLE",
       "opcode": [
-        "0F",
         "8E"
       ],
       "opcode_map": "escape_0f",
@@ -2610,7 +2588,6 @@
       "id": "JG_REL32",
       "instruction": "JG",
       "opcode": [
-        "0F",
         "8F"
       ],
       "opcode_map": "escape_0f",
