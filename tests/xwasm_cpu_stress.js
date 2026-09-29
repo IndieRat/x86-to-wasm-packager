@@ -37,12 +37,12 @@ check("runtime version", e.x86_get_runtime_version(), 0x00090000);
 check("init", e.xwasm_init(), 0);
 if (!importedMemory) throw new Error("[FAIL] runtime did not import memory");
 
-const view = new Uint8Array(importedMemory.buffer);
+const getView = () => new Uint8Array(importedMemory.buffer);
 const payloadAddress = 0x00100000;
-if (payloadAddress + payload.length > view.length) {
+if (payloadAddress + payload.length > getView().length) {
   throw new Error("[FAIL] payload does not fit in imported memory");
 }
-view.set(payload, payloadAddress);
+getView().set(payload, payloadAddress);
 
 check("PE load", e.x86_load_pe(payloadAddress, payload.length), 0);
 check("loaded", e.x86_get_loaded(), 1);
@@ -83,8 +83,8 @@ check("A end rejected", e.x86_mem_validate(a + 0x1000, 1, 1), 0);
 check("fault count after boundary rejection", e.x86_get_memory_faults(), 2);
 
 check("memset A", e.x86_mem_set(a, 0x5a, 0x1000), 1);
-check("A byte 0", view[a], 0x5a);
-check("A byte end", view[a + 0xfff], 0x5a);
+check("A byte 0", getView()[a], 0x5a);
+check("A byte end", getView()[a + 0xfff], 0x5a);
 
 const stackBase = 0x03e00000;
 const stackEnd = 0x03f00000;
