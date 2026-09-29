@@ -147,6 +147,8 @@ static uint32_t x86_mem_alloc_region(uint32_t size,uint32_t flags,uint32_t kind)
 }
 static void x86_mem_register_image(void){
  x86_mem_region_add(image_base,image_size,X86_MEM_READ|X86_MEM_EXEC|X86_MEM_WRITE,1u);
+ x86_mem_region_add(GUEST_HEAP_BASE,GUEST_HEAP_LIMIT-GUEST_HEAP_BASE,X86_MEM_READ|X86_MEM_WRITE,3u);
+ x86_mem_region_add(0x03E00000u,0x00100000u,X86_MEM_READ|X86_MEM_WRITE,4u);
 }
 
 static uint32_t guest_heap=GUEST_HEAP_BASE;
