@@ -205,7 +205,7 @@
       const fsData = e.x86_crt_malloc(0x40);
       const fsRead = e.x86_crt_malloc(0x40);
       const fsWritten = e.x86_crt_malloc(0x40);
-      getView().set(new TextEncoder().encode("data\\textures\\hero.bin\\0"), fsPath);
+      getView().set(new TextEncoder().encode("data\\textures\\hero.bin\0"), fsPath);
       getView().set(new Uint8Array([72,69,76,76,79,0]), fsData);
       check("C3 mount resource", e.x86_fs_mount_file(fsPath, fsData, 5), 1);
       check("C3 normalized exists", e.x86_fs_exists(fsPath), 1);
@@ -218,7 +218,7 @@
       check("C3 seek end", e.x86_fs_seek(fsReadHandle, -1, 2), 4);
       check("C3 close read", e.x86_fs_close(fsReadHandle), 1);
 
-      getView().set(new TextEncoder().encode("saves\\score.dat\\0"), fsPath);
+      getView().set(new TextEncoder().encode("saves\\score.dat\0"), fsPath);
       getView().set(new Uint8Array([1,2,3,4]), fsWritten);
       const fsWriteHandle = e.x86_fs_open(fsPath, 2, 4 | 8);
       check("C3 create write", fsWriteHandle >= 0x1000, true);
@@ -226,14 +226,14 @@
       check("C3 write size", e.x86_fs_size(fsWriteHandle), 4);
       check("C3 close write", e.x86_fs_close(fsWriteHandle), 1);
 
-      getView().set(new TextEncoder().encode("saves/./score.dat\\0"), fsPath);
+      getView().set(new TextEncoder().encode("saves/./score.dat\0"), fsPath);
       const fsAppendHandle = e.x86_fs_open(fsPath, 1, 0);
       check("C3 normalized reopen", fsAppendHandle >= 0x1000, true);
       check("C3 reopened byte", e.x86_fs_read(fsAppendHandle, fsRead, 4), 4);
       check("C3 persisted byte", getView()[fsRead + 3], 4);
       check("C3 close reopen", e.x86_fs_close(fsAppendHandle), 1);
 
-      getView().set(new TextEncoder().encode("../escape.bin\\0"), fsPath);
+      getView().set(new TextEncoder().encode("../escape.bin\0"), fsPath);
       check("C3 path escape rejected", e.x86_fs_open(fsPath, 1 | 2, 4), 0);
       check("C3 path error", e.x86_fs_get_last_error(), 3);
 
