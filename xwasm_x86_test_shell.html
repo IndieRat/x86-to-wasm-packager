@@ -225,6 +225,7 @@ function state(){
   }
   for(let n=0;n<tc;n++){
     const i=api("x86_get_trace_index")(n);
+    const sl=api("x86_get_trace_semantic_id_len")(i);
     let sid="";
     for(let k=0;k<sl;k++) sid+=String.fromCharCode(api("x86_get_trace_semantic_id_char")(i,k));
     if(!sid) sid="NONE";
