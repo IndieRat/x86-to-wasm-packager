@@ -378,13 +378,14 @@ static int cpu_step(void) {
             x86_id_is(d.entry->id,"IMUL_RM32") ||
             x86_id_is(d.entry->id,"DIV_RM32") ||
             x86_id_is(d.entry->id,"IDIV_RM32")) {
-            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u), ea=0;
             uint8_t sub=(uint8_t)((d.modrm>>3)&7u);
-            uint32_t v=(d.modrm>>6)==3 ? regs[d.modrm&7u] : modrm_read32(d.modrm,&op_ip);
+            if ((d.modrm>>6)!=3) modrm_ea(d.modrm,&op_ip,&ea);
+            uint32_t v=(d.modrm>>6)==3 ? regs[d.modrm&7u] : rd32(ea);
             uint32_t r=0;
             if (sub==2) {
                 r=~v;
-                if ((d.modrm>>6)==3) regs[d.modrm&7u]=r; else modrm_write32(d.modrm,&op_ip,r);
+                if ((d.modrm>>6)==3) regs[d.modrm&7u]=r; else wr32(ea,r);
             } else if (sub==3) {
                 r=0u-v;
                 set_sub_flags(0u,v,r);
@@ -435,9 +436,10 @@ static int cpu_step(void) {
             x86_id_is(d.entry->id,"ROR_RM32_1") ||
             x86_id_is(d.entry->id,"RCL_RM32_1") ||
             x86_id_is(d.entry->id,"RCR_RM32_1")) {
-            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u), ea=0;
             uint8_t sub=(uint8_t)((d.modrm>>3)&7u);
-            uint32_t v=(d.modrm>>6)==3 ? regs[d.modrm&7u] : modrm_read32(d.modrm,&op_ip);
+            if ((d.modrm>>6)!=3) modrm_ea(d.modrm,&op_ip,&ea);
+            uint32_t v=(d.modrm>>6)==3 ? regs[d.modrm&7u] : rd32(ea);
             uint32_t count=(d.opcode==0xC1u)?MEM8(d.cursor-1u):1u;
             uint32_t r=v,cf=(eflags&CF)?1u:0u,of=0,of_valid=0;
             count&=31u;
@@ -453,7 +455,7 @@ static int cpu_step(void) {
                 else {cpu_error=0xC000u|sub;return -35;}
                 if(sub>=4) set_shift_flags(r,cf,of_valid,of);
                 else set_rotate_flags(r,cf,of_valid,of);
-                if((d.modrm>>6)==3) regs[d.modrm&7u]=r; else wr32(op_ip,r);
+                if((d.modrm>>6)==3) regs[d.modrm&7u]=r; else wr32(ea,r);
             }
             eip=d.cursor;
             last_dispatch_id=X86_DISPATCH_GROUP2;
