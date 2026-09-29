@@ -65,13 +65,15 @@ def make_test_pe() -> bytes:
     # silently break when instructions are added or removed.
     code = bytearray((
         # C0: cdecl-style stack argument + frame + direct/indirect callbacks.
+        0x6A, 0x2A,                                # PUSH 42 (cdecl argument)
         0x55,                                      # PUSH EBP
         0x89, 0xE5,                                # MOV EBP,ESP
-        0x6A, 0x2A,                                # PUSH 42 (cdecl argument)
         0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL helper (patched below)
         0x83, 0xC4, 0x04,                          # ADD ESP,4 (caller cleanup)
+        0x6A, 0x2A,                                # PUSH 42 (second cdecl callback argument)
         0xB8, 0x00, 0x00, 0x40, 0x00,             # MOV EAX,helper address (patched below)
         0xFF, 0xD0,                                # CALL EAX (indirect callback)
+        0x83, 0xC4, 0x04,                          # ADD ESP,4 (caller cleanup)
         0x89, 0xC6,                                # MOV ESI,EAX (preserve C0 result)
         0xC9,                                      # LEAVE
         0xB8, 0x05, 0x00, 0x00, 0x00,             # MOV EAX,5
