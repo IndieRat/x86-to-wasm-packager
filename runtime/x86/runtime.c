@@ -21,6 +21,16 @@ enum { R_EAX=0,R_ECX,R_EDX,R_EBX,R_ESP,R_EBP,R_ESI,R_EDI };
 #define X86_PREFIX_REP 0x04u
 
 static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,eip=0,steps=0,loaded=0;
+#define X86_CRT_ATEXIT_MAX 32u
+#define X86_CRT_EINVAL 22
+#define X86_CRT_ENOMEM 12
+#define X86_CRT_EFAULT 14
+#define X86_CRT_CALLBACK_SENTINEL 0xF00DC0DEu
+#define X86_CRT_CALLBACK_MARKER 0xC2C0FFEEu
+static int32_t crt_errno=0;
+static uint32_t crt_last_error=0,crt_started=0,crt_exited=0,crt_exit_code=0;
+static uint32_t crt_atexit_count=0,crt_last_atexit_result=0,crt_atexit_running=0;
+static uint32_t crt_atexit_callbacks[X86_CRT_ATEXIT_MAX];
 static uint32_t requested_image_base=0,reloc_rva=0,reloc_size=0,import_rva=0,import_size=0;
 static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last_load_ptr=0,last_load_size=0;
 static uint32_t regs[8],eflags=0x00000002u;
@@ -849,6 +859,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 }
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
+ crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
  for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.9");
@@ -1019,4 +1030,62 @@ __attribute__((export_name("x86_get_surface_height"))) uint32_t x86_get_surface_
 __attribute__((export_name("x86_get_rich_ops_pass"))) uint32_t x86_get_rich_ops_pass(void){return regs[R_EBP]==0x584F5053u?1u:0u;}
 __attribute__((export_name("x86_get_legacy_execution_count"))) uint32_t x86_get_legacy_execution_count(void){return legacy_execution_count;}
 __attribute__((export_name("x86_get_stress_report_word"))) uint32_t x86_get_stress_report_word(uint32_t index){if(index>=16u)return 0;return rd32(X86_STRESS_REPORT_BASE+(index*4u));}
+static uint32_t x86_crt_invoke_callback_impl(uint32_t target){
+ if(!loaded||!x86_mem_region_find(target,1u,X86_MEM_EXEC))return 0;
+ uint32_t saved_regs[8],saved_eflags=eflags,saved_eip=eip,saved_halted=halted,saved_error=cpu_error,saved_steps=steps;
+ for(uint32_t i=0;i<8;i++)saved_regs[i]=regs[i];
+ halted=0;cpu_error=0;
+ if(!x86_stack_push32(X86_CRT_CALLBACK_MARKER)||!x86_stack_push32(X86_CRT_CALLBACK_SENTINEL)){
+  for(uint32_t i=0;i<8;i++)regs[i]=saved_regs[i];eflags=saved_eflags;eip=saved_eip;halted=saved_halted;cpu_error=saved_error;steps=saved_steps;return 0;
+ }
+ eip=target;
+ uint32_t result=0,ok=0;
+ for(uint32_t i=0;i<10000u;i++){
+  if(eip==X86_CRT_CALLBACK_SENTINEL){result=regs[R_EAX];ok=1;break;}
+  if(halted||cpu_error)break;
+  if(cpu_step()<0)break;
+ }
+ for(uint32_t i=0;i<8;i++)regs[i]=saved_regs[i];
+ eflags=saved_eflags;eip=saved_eip;halted=saved_halted;cpu_error=saved_error;steps=saved_steps;
+ return ok?result:0;
+}
+__attribute__((export_name("x86_crt_startup"))) uint32_t x86_crt_startup(void){
+ crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;return 1;
+}
+__attribute__((export_name("x86_crt_get_errno"))) int32_t x86_crt_get_errno(void){return crt_errno;}
+__attribute__((export_name("x86_crt_set_errno"))) int32_t x86_crt_set_errno(int32_t value){crt_errno=value;return value;}
+__attribute__((export_name("x86_crt_get_last_error"))) uint32_t x86_crt_get_last_error(void){return crt_last_error;}
+__attribute__((export_name("x86_crt_set_last_error"))) uint32_t x86_crt_set_last_error(uint32_t value){crt_last_error=value;return value;}
+__attribute__((export_name("x86_crt_get_started"))) uint32_t x86_crt_get_started(void){return crt_started;}
+__attribute__((export_name("x86_crt_get_exited"))) uint32_t x86_crt_get_exited(void){return crt_exited;}
+__attribute__((export_name("x86_crt_get_exit_code"))) uint32_t x86_crt_get_exit_code(void){return crt_exit_code;}
+__attribute__((export_name("x86_crt_atexit"))) uint32_t x86_crt_atexit(uint32_t callback){
+ if(!callback||crt_exited||crt_atexit_running){crt_errno=X86_CRT_EINVAL;return 0;}
+ if(crt_atexit_count>=X86_CRT_ATEXIT_MAX){crt_errno=X86_CRT_ENOMEM;return 0;}
+ crt_atexit_callbacks[crt_atexit_count++]=callback;return 1;
+}
+__attribute__((export_name("x86_crt_get_atexit_count"))) uint32_t x86_crt_get_atexit_count(void){return crt_atexit_count;}
+__attribute__((export_name("x86_crt_get_atexit_callback"))) uint32_t x86_crt_get_atexit_callback(uint32_t index){return index<crt_atexit_count?crt_atexit_callbacks[index]:0;}
+__attribute__((export_name("x86_crt_run_atexit"))) uint32_t x86_crt_run_atexit(void){
+ if(crt_atexit_running)return 0;
+ crt_atexit_running=1;uint32_t ran=0,failed=0;
+ while(crt_atexit_count){
+  uint32_t callback=crt_atexit_callbacks[--crt_atexit_count];
+  uint32_t result=x86_crt_invoke_callback_impl(callback);
+  crt_last_atexit_result=result;
+  if(result==0)failed=1;else ran++;
+ }
+ crt_atexit_running=0;
+ if(failed)crt_errno=X86_CRT_EFAULT;
+ return failed?0:ran;
+}
+__attribute__((export_name("x86_crt_exit"))) uint32_t x86_crt_exit(uint32_t code){
+ if(!crt_started)x86_crt_startup();
+ if(crt_exited)return crt_exit_code==code?1u:0u;
+ uint32_t ok=x86_crt_run_atexit();
+ crt_exit_code=code;crt_exited=1;
+ return ok;
+}
+__attribute__((export_name("x86_crt_get_last_atexit_result"))) uint32_t x86_crt_get_last_atexit_result(void){return crt_last_atexit_result;}
+__attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback);}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
