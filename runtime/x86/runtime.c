@@ -145,6 +145,12 @@ static uint32_t x86_mem_alloc_region(uint32_t size,uint32_t flags,uint32_t kind)
  if(!x86_mem_region_add(a,n,flags,kind))return 0;
  guest_vm=end; last_virtual_alloc=a; last_virtual_alloc_size=n; return a;
 }
+static uint32_t x86_mem_free_region(uint32_t address){
+ for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(x86_mem_regions[i].active&&x86_mem_regions[i].base==address&&x86_mem_regions[i].kind==2u){
+  x86_mem_regions[i].active=0; x86_mem_region_count--; virtual_free_count++; return 1;
+ }
+ return 0;
+}
 static void x86_mem_register_image(void){
  x86_mem_region_add(image_base,image_size,X86_MEM_READ|X86_MEM_EXEC|X86_MEM_WRITE,1u);
  x86_mem_region_add(GUEST_HEAP_BASE,GUEST_HEAP_LIMIT-GUEST_HEAP_BASE,X86_MEM_READ|X86_MEM_WRITE,3u);
@@ -320,7 +326,7 @@ static uint32_t call_builtin(uint32_t target){
   (void)size;
   (void)free_type;
   regs[R_EAX]=(address!=0)?1u:0u;
-  if(address!=0)virtual_free_count++;
+  if(address!=0)x86_mem_free_region(address);
   regs[R_ESP]+=12u;
   return 1;
  }
@@ -860,7 +866,7 @@ __attribute__((export_name("x86_get_last_failed_import_func_rva"))) uint32_t x86
 __attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
 __attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(void){return guest_heap;}
 __attribute__((export_name("x86_virtual_alloc"))) uint32_t x86_virtual_alloc(uint32_t size){return x86_mem_alloc_region(size,X86_MEM_READ|X86_MEM_WRITE,2u);}
-__attribute__((export_name("x86_virtual_free"))) uint32_t x86_virtual_free(uint32_t address){for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(x86_mem_regions[i].active&&x86_mem_regions[i].base==address&&x86_mem_regions[i].kind==2u){x86_mem_regions[i].active=0;x86_mem_region_count--;virtual_free_count++;return 1;}return 0;}
+__attribute__((export_name("x86_virtual_free"))) uint32_t x86_virtual_free(uint32_t address){return x86_mem_free_region(address);}
 __attribute__((export_name("x86_mem_validate"))) uint32_t x86_mem_validate(uint32_t address,uint32_t size,uint32_t flags){uint32_t need=flags&(X86_MEM_READ|X86_MEM_WRITE|X86_MEM_EXEC);if(!x86_mem_region_find(address,size,need)){x86_mem_faults++;return 0;}return 1;}
 __attribute__((export_name("x86_mem_copy"))) uint32_t x86_mem_copy(uint32_t dst,uint32_t src,uint32_t size){if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE))return 0;copy_bytes(dst,src,size);return 1;}
 __attribute__((export_name("x86_mem_set"))) uint32_t x86_mem_set(uint32_t dst,uint32_t value,uint32_t size){if(!x86_mem_region_find(dst,size,X86_MEM_WRITE))return 0;for(uint32_t i=0;i<size;i++)wr8(dst+i,(uint8_t)value);return 1;}
