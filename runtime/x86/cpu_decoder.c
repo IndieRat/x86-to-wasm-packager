@@ -596,6 +596,83 @@ static int cpu_step(void) {
         }
     }
     if (d.entry && d.entry->id) {
+        if (x86_id_is(d.entry->id,"HLT")) {
+            eip=d.cursor;
+            halted=1;
+            last_dispatch_id=X86_DISPATCH_HLT;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"BT_RM32_R32") ||
+            x86_id_is(d.entry->id,"BTS_RM32_R32") ||
+            x86_id_is(d.entry->id,"BTR_RM32_R32") ||
+            x86_id_is(d.entry->id,"BTC_RM32_R32") ||
+            x86_id_is(d.entry->id,"BT_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"BTS_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"BTR_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"BTC_RM32_IMM8")) {
+            const char *id=d.entry->id;
+            uint32_t op_ip=d.cursor-d.imm_size-d.disp_size-(d.has_sib?1u:0u);
+            uint32_t ea=0;
+            uint32_t value=0;
+            int32_t bit_index;
+
+            if (x86_id_is(id,"BT_RM32_R32") ||
+                x86_id_is(id,"BTS_RM32_R32") ||
+                x86_id_is(id,"BTR_RM32_R32") ||
+                x86_id_is(id,"BTC_RM32_R32")) {
+                bit_index=(int32_t)regs[(d.modrm>>3)&7u];
+            } else {
+                bit_index=(int32_t)(int8_t)MEM8(d.cursor-1u);
+            }
+
+            if ((d.modrm>>6)==3) {
+                value=regs[d.modrm&7u];
+            } else {
+                if (modrm_ea(d.modrm,&op_ip,&ea)==0) {
+                    cpu_error=0x0FBAu;
+                    return -36;
+                }
+                ea += (uint32_t)(bit_index>>5)*4u;
+                value=rd32(ea);
+            }
+
+            uint32_t shift=((uint32_t)bit_index)&31u;
+            uint32_t old=(value>>shift)&1u;
+            eflags=(eflags&~CF)|(old?CF:0);
+
+            if (!x86_id_is(id,"BT_RM32_R32") &&
+                !x86_id_is(id,"BT_RM32_IMM8")) {
+                if (x86_id_is(id,"BTS_RM32_R32") ||
+                    x86_id_is(id,"BTS_RM32_IMM8")) {
+                    value|=(1u<<shift);
+                } else if (x86_id_is(id,"BTR_RM32_R32") ||
+                           x86_id_is(id,"BTR_RM32_IMM8")) {
+                    value&=~(1u<<shift);
+                } else {
+                    value^=(1u<<shift);
+                }
+
+                if ((d.modrm>>6)==3) regs[d.modrm&7u]=value;
+                else wr32(ea,value);
+            }
+
+            eip=d.cursor;
+            if (x86_id_is(id,"BT_RM32_R32") || x86_id_is(id,"BT_RM32_IMM8"))
+                last_dispatch_id=X86_DISPATCH_BT;
+            else if (x86_id_is(id,"BTS_RM32_R32") || x86_id_is(id,"BTS_RM32_IMM8"))
+                last_dispatch_id=X86_DISPATCH_BTS;
+            else if (x86_id_is(id,"BTR_RM32_R32") || x86_id_is(id,"BTR_RM32_IMM8"))
+                last_dispatch_id=X86_DISPATCH_BTR;
+            else
+                last_dispatch_id=X86_DISPATCH_BTC;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"RCR_RM32_1") ||
             x86_id_is(d.entry->id,"RCR_RM32_IMM8") ||
             x86_id_is(d.entry->id,"RCR_RM32_CL")) {
