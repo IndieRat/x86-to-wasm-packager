@@ -39,7 +39,7 @@
       const instance = await WebAssembly.instantiate(module, {env});
       const e = instance.exports;
       if (!importedMemory) throw new Error("runtime did not import memory");
-      const view = new Uint8Array(importedMemory.buffer);
+      const getView = () => new Uint8Array(importedMemory.buffer);
 
       const check = (name, actual, expected) => {
         if (actual !== expected) throw new Error("[FAIL] " + name + ": got " + actual + ", expected " + expected);
@@ -50,8 +50,8 @@
       check("init", e.xwasm_init(), 0);
 
       const payloadAddress = 0x00100000;
-      if (payloadAddress + payload.length > view.length) throw new Error("payload does not fit in WASM memory");
-      view.set(payload, payloadAddress);
+      if (payloadAddress + payload.length > getView().length) throw new Error("payload does not fit in WASM memory");
+      getView().set(payload, payloadAddress);
 
       log("=== CPU / PE32 ===");
       check("PE load", e.x86_load_pe(payloadAddress, payload.length), 0);
@@ -86,7 +86,7 @@
       check("boundary fault count", e.x86_get_memory_faults(), 2);
 
       check("memset A", e.x86_mem_set(a, 0x5a, 0x1000), 1);
-      check("A byte 0", view[a], 0x5a);
+      check("A byte 0", getView()[a], 0x5a);
       check("A byte end", view[a + 0xfff], 0x5a);
 
       const stackBase = 0x03e00000, stackEnd = 0x03f00000;
