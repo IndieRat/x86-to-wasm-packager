@@ -283,10 +283,20 @@ def main() -> int:
     decoded_target = call_instruction_file_offset + 5 + decoded_rel
     if not (0 <= decoded_target < len(code)):
         raise SystemExit("packaged synthetic CALL target is outside the section")
-    if code[decoded_target] != 0x8B:
+    if code[decoded_target:decoded_target + 3] != b"\x55\x89\xE5":
         raise SystemExit(
-            f"packaged synthetic CALL target opcode is 0x{code[decoded_target]:02X}, "
-            "expected 0x8B"
+            f"packaged synthetic CALL target does not begin with PUSH EBP; MOV EBP,ESP: "
+            f"target=0x{decoded_target:X} bytes={code[decoded_target:decoded_target + 3].hex()}"
+        )
+    if code[decoded_target + 3:decoded_target + 6] != b"\x8B\x45\x08":
+        raise SystemExit(
+            f"packaged synthetic CALL target does not load [EBP+8]: "
+            f"target=0x{decoded_target:X} bytes={code[decoded_target + 3:decoded_target + 6].hex()}"
+        )
+    if code[decoded_target + 6:decoded_target + 8] != b"\xC9\xC3":
+        raise SystemExit(
+            f"packaged synthetic CALL target does not end with LEAVE; RET: "
+            f"target=0x{decoded_target:X} bytes={code[decoded_target + 6:decoded_target + 8].hex()}"
         )
 
     print(
