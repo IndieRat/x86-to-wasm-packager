@@ -539,6 +539,7 @@ static uint32_t x86_reg_create_impl(uint32_t parent,const char *sub,uint32_t *ou
  if(!x86_reg_normalize_subkey(sub?sub:"",norm,sizeof(norm))){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
  if(!x86_reg_build_path(parent,norm,full,sizeof(full),&hive)){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
  if(!full[0]){if(out_handle)*out_handle=parent;if(disposition)*disposition=2u;x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
+ uint32_t final_existed=x86_reg_find_key_path(hive,full)>=0?1u:0u;
  /* RegCreateKeyExA creates missing intermediate keys as part of the requested path. */
  uint32_t start=0,last=0;
  while(1){
@@ -561,7 +562,7 @@ static uint32_t x86_reg_create_impl(uint32_t parent,const char *sub,uint32_t *ou
   start=i+1u;
  }
  if(out_handle)*out_handle=x86_reg_key_handle(last);
- if(disposition)*disposition=(x86_reg_path_equal(x86_reg_keys[last].path,full)?1u:2u);
+ if(disposition)*disposition=final_existed?2u:1u;
  x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
 }
 static uint32_t x86_reg_close_impl(uint32_t handle){
