@@ -693,7 +693,9 @@ static int cpu_step_legacy(void){
   }
   case 0xE3:{int8_t d=(int8_t)MEM8(ip++);eip=(regs[R_ECX]==0)?ip+(int32_t)d:ip;return 0;} /* JECXZ */
   case 0xE0:case 0xE1:case 0xE2:{int8_t d=(int8_t)MEM8(ip++);regs[R_ECX]--;uint32_t take=(regs[R_ECX]!=0);if(op==0xE1)take=take&&((eflags&ZF)!=0);if(op==0xE0)take=take&&((eflags&ZF)==0);eip=take?ip+(int32_t)d:ip;return 0;}
-  case 0xC9:{uint32_t v;regs[R_ESP]=regs[R_EBP];if(!x86_stack_pop32(&v))return -44;regs[R_EBP]=v;eip=ip;return 0;} /* LEAVE */\n  case 0xC2:{uint16_t n=rd16(ip);ip+=2;uint32_t v;if(!x86_stack_pop32(&v))return -45;if(!x86_stack_discard(n))return -46;eip=v;return 0;} /* RET imm16 */\n  case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
+  case 0xC9:{uint32_t v;regs[R_ESP]=regs[R_EBP];if(!x86_stack_pop32(&v))return -44;regs[R_EBP]=v;eip=ip;return 0;} /* LEAVE */
+  case 0xC2:{uint16_t n=rd16(ip);ip+=2;uint32_t v;if(!x86_stack_pop32(&v))return -45;if(!x86_stack_discard(n))return -46;eip=v;return 0;} /* RET imm16 */
+  case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
    uint8_t m=MEM8(ip++);
    uint8_t sub=(m>>3)&7;
    if(sub!=2&&sub!=4){cpu_error=0xFF00u|sub;return -12;}
