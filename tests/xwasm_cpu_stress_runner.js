@@ -122,7 +122,7 @@
       check("CRT malloc B", c1b !== 0, true);
       check("CRT A writable", e.x86_mem_validate(c1a, 0x40, 2), 1);
       check("CRT A readable", e.x86_mem_validate(c1a, 0x40, 1), 1);
-      check("CRT invalid pointer rejected", e.x86_mem_validate(c1a + 0x40, 1, 1), 0);
+      check("CRT cross-allocation pointer rejected", e.x86_mem_validate(c1a + 0x3f, 2, 1), 0);
       const c1Before = e.x86_get_memory_faults();
       getView().set(new Uint8Array([1,2,3,4,5,6,7,8]), c1a);
       check("CRT memcpy", e.x86_crt_memcpy(c1b, c1a, 8), c1b);
