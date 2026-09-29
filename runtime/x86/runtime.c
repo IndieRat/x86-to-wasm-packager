@@ -1250,6 +1250,22 @@ static int cpu_step_legacy(void){
   }
   case 0xE3:{int8_t d=(int8_t)MEM8(ip++);eip=(regs[R_ECX]==0)?ip+(int32_t)d:ip;return 0;} /* JECXZ */
   case 0xE0:case 0xE1:case 0xE2:{int8_t d=(int8_t)MEM8(ip++);regs[R_ECX]--;uint32_t take=(regs[R_ECX]!=0);if(op==0xE1)take=take&&((eflags&ZF)!=0);if(op==0xE0)take=take&&((eflags&ZF)==0);eip=take?ip+(int32_t)d:ip;return 0;}
+  case 0xC6:{ /* MOV r/m8,imm8 */
+   uint8_t m=MEM8(ip++),sub=(m>>3)&7u;
+   if(sub!=0u){cpu_error=0xC600u|sub;return -47;}
+   uint32_t ea=0;uint8_t v=MEM8(ip++);
+   if((m>>6)==3)reg8_write(m&7u,v);
+   else{if(!modrm_ea(m,&ip,&ea)){cpu_error=0xC601u;return -48;}wr8(ea,v);}
+   eip=ip;return 0;
+  }
+  case 0xC7:{ /* MOV r/m32,imm32 */
+   uint8_t m=MEM8(ip++),sub=(m>>3)&7u;
+   if(sub!=0u){cpu_error=0xC700u|sub;return -49;}
+   uint32_t ea=0,v;
+   if((m>>6)==3){v=rd32(ip);ip+=4;regs[m&7u]=v;}
+   else{if(!modrm_ea(m,&ip,&ea)){cpu_error=0xC701u;return -50;}v=rd32(ip);ip+=4;wr32(ea,v);}
+   eip=ip;return 0;
+  }
   case 0xC9:{uint32_t v;regs[R_ESP]=regs[R_EBP];if(!x86_stack_pop32(&v))return -44;regs[R_EBP]=v;eip=ip;return 0;} /* LEAVE */
   case 0xC2:{uint16_t n=rd16(ip);ip+=2;uint32_t v;if(!x86_stack_pop32(&v))return -45;if(!x86_stack_discard(n))return -46;eip=v;return 0;} /* RET imm16 */
   case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
