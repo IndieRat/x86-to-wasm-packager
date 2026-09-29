@@ -237,6 +237,68 @@
       check("C3 path escape rejected", e.x86_fs_open(fsPath, 1 | 2, 4), 0);
       check("C3 path error", e.x86_fs_get_last_error(), 3);
 
+      log("=== C4 VIRTUAL REGISTRY ===");
+      const regPath = e.x86_crt_malloc(0x100);
+      const regPath2 = e.x86_crt_malloc(0x100);
+      const regName = e.x86_crt_malloc(0x100);
+      const regData = e.x86_crt_malloc(0x100);
+      const regOut = e.x86_crt_malloc(0x20);
+      const regType = e.x86_crt_malloc(0x20);
+      const regSize = e.x86_crt_malloc(0x20);
+      const regBinary = e.x86_crt_malloc(0x100);
+      const HKCU = 0x80000001;
+      getView().set(new TextEncoder().encode("Software\\MyGame\\Settings\\Display\\0"), regPath);
+      check("C4 create key", e.x86_reg_create_key(HKCU, regPath, regOut), 0);
+      const c4Key = new DataView(getView().buffer).getUint32(regOut, true);
+      check("C4 key handle", c4Key >= 0x2000, true);
+      check("C4 key exists", e.x86_reg_key_exists(HKCU, regPath), 1);
+      getView().set(new TextEncoder().encode("Software/MyGame/Settings/./Display\\0"), regPath2);
+      check("C4 normalized key lookup", e.x86_reg_key_exists(HKCU, regPath2), 1);
+      getView().set(new TextEncoder().encode("InstallPath\\0"), regName);
+      getView().set(new TextEncoder().encode("C:\\Games\\MyGame\\0"), regData);
+      check("C4 set REG_SZ", e.x86_reg_set_value(c4Key, regName, 1, regData, 16), 0);
+      getView().fill(0, regType, regType + 4);
+      new DataView(getView().buffer).setUint32(regSize, 0x100, true);
+      check("C4 query REG_SZ", e.x86_reg_query_value(c4Key, regName, regType, regData, regSize), 0);
+      check("C4 REG_SZ type", new DataView(getView().buffer).getUint32(regType, true), 1);
+      check("C4 REG_SZ size", new DataView(getView().buffer).getUint32(regSize, true), 16);
+      check("C4 REG_SZ content", new TextDecoder().decode(getView().slice(regData, regData + 16)) === "C:\\Games\\MyGame\0", true);
+
+      const dwordView = new DataView(getView().buffer);
+      dwordView.setUint32(regData, 1, true);
+      getView().set(new TextEncoder().encode("Fullscreen\\0"), regName);
+      check("C4 set REG_DWORD", e.x86_reg_set_value(c4Key, regName, 4, regData, 4), 0);
+      dwordView.setUint32(regSize, 4, true);
+      check("C4 query REG_DWORD", e.x86_reg_query_value(c4Key, regName, regType, regData, regSize), 0);
+      check("C4 REG_DWORD value", dwordView.getUint32(regData, true), 1);
+
+      getView().set(new Uint8Array([1,2,3,4,5,6,7,8]), regBinary);
+      getView().set(new TextEncoder().encode("Settings\\0"), regName);
+      check("C4 set REG_BINARY", e.x86_reg_set_value(c4Key, regName, 3, regBinary, 8), 0);
+      dwordView.setUint32(regSize, 8, true);
+      getView().fill(0, regData, regData + 8);
+      check("C4 query REG_BINARY", e.x86_reg_query_value(c4Key, regName, regType, regData, regSize), 0);
+      check("C4 REG_BINARY content", getView().slice(regData, regData + 8).every((v, i) => v === i + 1), true);
+      check("C4 value exists", e.x86_reg_value_exists(c4Key, regName), 1);
+      getView().set(new TextEncoder().encode("Missing\\0"), regName);
+      check("C4 missing value rejected", e.x86_reg_query_value(c4Key, regName, regType, regData, regSize), 2);
+      check("C4 missing value error", e.x86_reg_get_last_error(), 2);
+      getView().set(new TextEncoder().encode("Settings\\0"), regName);
+      check("C4 delete value", e.x86_reg_delete_value(c4Key, regName), 0);
+      check("C4 value no longer exists", e.x86_reg_value_exists(c4Key, regName), 0);
+      check("C4 close key", e.x86_reg_close_key(c4Key), 0);
+      check("C4 invalid key rejected", e.x86_reg_close_key(0xdead), 6);
+      check("C4 invalid key error", e.x86_reg_get_last_error(), 6);
+
+      check("C4 free path", e.x86_crt_free(regPath), 1);
+      check("C4 free path2", e.x86_crt_free(regPath2), 1);
+      check("C4 free name", e.x86_crt_free(regName), 1);
+      check("C4 free data", e.x86_crt_free(regData), 1);
+      check("C4 free out", e.x86_crt_free(regOut), 1);
+      check("C4 free type", e.x86_crt_free(regType), 1);
+      check("C4 free size", e.x86_crt_free(regSize), 1);
+      check("C4 free binary", e.x86_crt_free(regBinary), 1);
+
       check("C3 free path", e.x86_crt_free(fsPath), 1);
       check("C3 free data", e.x86_crt_free(fsData), 1);
       check("C3 free read buffer", e.x86_crt_free(fsRead), 1);
