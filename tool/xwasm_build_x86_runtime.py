@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, shutil, subprocess
+import argparse, shutil, subprocess, hashlib
 from pathlib import Path
 def main() -> int:
  ap=argparse.ArgumentParser(description="Build the XWASM x86 compatibility runtime.")
@@ -17,5 +17,8 @@ def main() -> int:
       "-Wl,--no-entry","-Wl,--export-all","-Wl,--import-memory",
       "-Wl,--initial-memory=67108864","-Wl,--max-memory=268435456","-Wl,--allow-undefined"]
  print("Building:"," ".join(map(str,cmd))); subprocess.run(cmd,check=True)
- print(f"Built {a.output.resolve()}"); return 0
+ data=a.output.read_bytes()
+ print(f"Built {a.output.resolve()}")
+ print(f"Runtime SHA-256: {hashlib.sha256(data).hexdigest()}")
+ return 0
 if __name__=="__main__": raise SystemExit(main())
