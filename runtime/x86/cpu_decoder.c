@@ -373,6 +373,29 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
+        if (x86_id_is(d.entry->id,"CMP_R32_RM32") ||
+            x86_id_is(d.entry->id,"CMP_RM32_R32")) {
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+            uint32_t reg=(uint32_t)((d.modrm>>3)&7u);
+            uint32_t a,b;
+            if (x86_id_is(d.entry->id,"CMP_R32_RM32")) {
+                a=decoded_operand16?reg16_read(reg):regs[reg];
+                b=decoded_operand16?modrm_read16(d.modrm,&op_ip):modrm_read32(d.modrm,&op_ip);
+            } else {
+                a=decoded_operand16?modrm_read16(d.modrm,&op_ip):modrm_read32(d.modrm,&op_ip);
+                b=decoded_operand16?reg16_read(reg):regs[reg];
+            }
+            uint32_t mask=decoded_operand16?0xFFFFu:0xFFFFFFFFu;
+            uint32_t bits=decoded_operand16?16u:32u;
+            set_sub_flags_width(a&mask,b&mask,(a-b)&mask,bits);
+            eip=d.cursor;
+            last_dispatch_id=x86_id_is(d.entry->id,"CMP_R32_RM32")?
+                X86_DISPATCH_CMP_R32_RM32:X86_DISPATCH_CMP_RM32_R32;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"MOV_R32_RM32") ||
             x86_id_is(d.entry->id,"MOV_RM32_R32")) {
             uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
