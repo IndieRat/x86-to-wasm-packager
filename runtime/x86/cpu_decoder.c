@@ -325,6 +325,8 @@ static int cpu_step(void) {
     last_decoded_map = d.map;
     last_decoded_opcode = d.opcode;
     last_decoded_length = d.cursor - d.start;
+    x86_copy_semantic_id(last_decoded_semantic_id,
+                         (d.entry && d.entry->id) ? d.entry->id : "NONE");
 
     /*
      * Refined semantic dispatch:
