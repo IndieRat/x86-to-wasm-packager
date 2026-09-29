@@ -168,6 +168,49 @@ static uint32_t x86_mem_alloc_region(uint32_t size,uint32_t flags,uint32_t kind)
  if(!x86_mem_region_add(a,n,flags,kind))return 0;
  guest_vm=end; last_virtual_alloc=a; last_virtual_alloc_size=n; return a;
 }
+static int x86_crt_find_alloc(uint32_t address,uint32_t *size){
+ for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(x86_mem_regions[i].active&&x86_mem_regions[i].base==address&&x86_mem_regions[i].kind==5u){
+  if(size)*size=x86_mem_regions[i].size; return 1;
+ }
+ return 0;
+}
+static uint32_t x86_crt_malloc_impl(uint32_t size){
+ return x86_mem_alloc_region(size,X86_MEM_READ|X86_MEM_WRITE,5u);
+}
+static uint32_t x86_crt_calloc_impl(uint32_t count,uint32_t size){
+ if(count&&size>0xFFFFFFFFu/count)return 0;
+ uint32_t total=count*size;
+ if(!total)return 0;
+ uint32_t p=x86_crt_malloc_impl(total);
+ if(!p)return 0;
+ for(uint32_t i=0;i<total;i++)wr8(p+i,0);
+ return p;
+}
+static uint32_t x86_crt_free_impl(uint32_t address){
+ if(!address)return 1;
+ for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(x86_mem_regions[i].active&&x86_mem_regions[i].base==address&&x86_mem_regions[i].kind==5u){
+  x86_mem_regions[i].active=0; x86_mem_region_count--; return 1;
+ }
+ x86_mem_faults++; return 0;
+}
+static uint32_t x86_crt_realloc_impl(uint32_t address,uint32_t size){
+ if(!address)return x86_crt_malloc_impl(size);
+ if(!size){x86_crt_free_impl(address);return 0;}
+ uint32_t old_size=0;
+ if(!x86_crt_find_alloc(address,&old_size)){x86_mem_faults++;return 0;}
+ if(size<=old_size){
+  for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(x86_mem_regions[i].active&&x86_mem_regions[i].base==address&&x86_mem_regions[i].kind==5u){
+   x86_mem_regions[i].size=al4(size); return address;
+  }
+ }
+ uint32_t p=x86_crt_malloc_impl(size);
+ if(!p)return 0;
+ uint32_t n=old_size<size?old_size:size;
+ for(uint32_t i=0;i<n;i++)wr8(p+i,MEM8(address+i));
+ x86_crt_free_impl(address);
+ return p;
+}
+
 static uint32_t x86_mem_free_region(uint32_t address){
  for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)if(x86_mem_regions[i].active&&x86_mem_regions[i].base==address&&x86_mem_regions[i].kind==2u){
   x86_mem_regions[i].active=0; x86_mem_region_count--; virtual_free_count++; return 1;
@@ -905,6 +948,49 @@ __attribute__((export_name("x86_get_last_import_target"))) uint32_t x86_get_last
 __attribute__((export_name("x86_get_last_failed_import_dll_rva"))) uint32_t x86_get_last_failed_import_dll_rva(void){return last_failed_import_dll;}
 __attribute__((export_name("x86_get_last_failed_import_func_rva"))) uint32_t x86_get_last_failed_import_func_rva(void){return last_failed_import_func;}
 __attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
+__attribute__((export_name("x86_crt_malloc"))) uint32_t x86_crt_malloc(uint32_t size){return x86_crt_malloc_impl(size);}
+__attribute__((export_name("x86_crt_calloc"))) uint32_t x86_crt_calloc(uint32_t count,uint32_t size){return x86_crt_calloc_impl(count,size);}
+__attribute__((export_name("x86_crt_free"))) uint32_t x86_crt_free(uint32_t address){return x86_crt_free_impl(address);}
+__attribute__((export_name("x86_crt_realloc"))) uint32_t x86_crt_realloc(uint32_t address,uint32_t size){return x86_crt_realloc_impl(address,size);}
+__attribute__((export_name("x86_crt_memcpy"))) uint32_t x86_crt_memcpy(uint32_t dst,uint32_t src,uint32_t size){
+ if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}
+ for(uint32_t i=0;i<size;i++)wr8(dst+i,MEM8(src+i)); return dst;
+}
+__attribute__((export_name("x86_crt_memmove"))) uint32_t x86_crt_memmove(uint32_t dst,uint32_t src,uint32_t size){
+ if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}
+ if(dst==src||size==0)return dst;
+ if(dst<src){for(uint32_t i=0;i<size;i++)wr8(dst+i,MEM8(src+i));}
+ else{for(uint32_t i=size;i>0;i--)wr8(dst+i-1u,MEM8(src+i-1u));}
+ return dst;
+}
+__attribute__((export_name("x86_crt_memset"))) uint32_t x86_crt_memset(uint32_t dst,uint32_t value,uint32_t size){
+ if(!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}
+ for(uint32_t i=0;i<size;i++)wr8(dst+i,(uint8_t)value); return dst;
+}
+__attribute__((export_name("x86_crt_memcmp"))) int32_t x86_crt_memcmp(uint32_t a,uint32_t b,uint32_t size){
+ if(!x86_mem_region_find(a,size,X86_MEM_READ)||!x86_mem_region_find(b,size,X86_MEM_READ)){x86_mem_faults++;return 0;}
+ for(uint32_t i=0;i<size;i++){uint8_t x=MEM8(a+i),y=MEM8(b+i);if(x!=y)return x<y?-1:1;} return 0;
+}
+__attribute__((export_name("x86_crt_strlen"))) uint32_t x86_crt_strlen(uint32_t s){
+ uint32_t n=0;
+ while(n<0xFFFFFFFFu){
+  if(!x86_mem_region_find(s+n,1u,X86_MEM_READ)){x86_mem_faults++;return 0;}
+  if(MEM8(s+n)==0)return n; n++;
+ }
+ x86_mem_faults++; return 0;
+}
+__attribute__((export_name("x86_crt_strcpy"))) uint32_t x86_crt_strcpy(uint32_t dst,uint32_t src){
+ uint32_t n=x86_crt_strlen(src); if(!n&&(!x86_mem_region_find(src,1u,X86_MEM_READ)||MEM8(src)!=0))return 0;
+ if(!x86_mem_region_find(dst,n+1u,X86_MEM_WRITE)){x86_mem_faults++;return 0;}
+ for(uint32_t i=0;i<=n;i++)wr8(dst+i,MEM8(src+i)); return dst;
+}
+__attribute__((export_name("x86_crt_strcmp"))) int32_t x86_crt_strcmp(uint32_t a,uint32_t b){
+ uint32_t i=0;
+ for(;;i++){
+  if(!x86_mem_region_find(a+i,1u,X86_MEM_READ)||!x86_mem_region_find(b+i,1u,X86_MEM_READ)){x86_mem_faults++;return 0;}
+  uint8_t x=MEM8(a+i),y=MEM8(b+i); if(x!=y)return x<y?-1:1; if(x==0)return 0;
+ }
+}
 __attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(void){return guest_heap;}
 __attribute__((export_name("x86_virtual_alloc"))) uint32_t x86_virtual_alloc(uint32_t size){return x86_mem_alloc_region(size,X86_MEM_READ|X86_MEM_WRITE,2u);}
 __attribute__((export_name("x86_virtual_free"))) uint32_t x86_virtual_free(uint32_t address){return x86_mem_free_region(address);}
