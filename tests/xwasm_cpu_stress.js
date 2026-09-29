@@ -187,7 +187,7 @@ check("CRT invalid operation faulted", e.x86_get_memory_faults(), c1Before + 1);
         }
       }
       check("C2 callback fixture found", c2Callback !== 0, true);
-      check("C2 direct callback", e.x86_crt_invoke_callback(c2Callback), 0xc2c0ffee);
+      check("C2 direct callback", e.x86_crt_invoke_callback(c2Callback), 0xc2c0ffee | 0);
       check("C2 atexit register A", e.x86_crt_atexit(c2Callback), 1);
       check("C2 atexit register B", e.x86_crt_atexit(c2Callback), 1);
       check("C2 atexit count", e.x86_crt_get_atexit_count(), 2);
@@ -195,7 +195,7 @@ check("CRT invalid operation faulted", e.x86_get_memory_faults(), c1Before + 1);
       check("C2 atexit callback 1", e.x86_crt_get_atexit_callback(1), c2Callback);
       check("C2 exit callbacks", e.x86_crt_exit(7), 2);
       check("C2 atexit drained", e.x86_crt_get_atexit_count(), 0);
-      check("C2 last callback result", e.x86_crt_get_last_atexit_result(), 0xc2c0ffee);
+      check("C2 last callback result", e.x86_crt_get_last_atexit_result(), 0xc2c0ffee | 0);
       check("C2 exited", e.x86_crt_get_exited(), 1);
       check("C2 exit code", e.x86_crt_get_exit_code(), 7);
       check("C2 atexit after exit rejected", e.x86_crt_atexit(c2Callback), 0);
