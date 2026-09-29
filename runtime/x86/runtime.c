@@ -730,6 +730,8 @@ __attribute__((export_name("x86_get_last_dispatch_id"))) uint32_t x86_get_last_d
 __attribute__((export_name("x86_get_last_dispatch_count"))) uint32_t x86_get_last_dispatch_count(void){return last_dispatch_count;}
 __attribute__((export_name("x86_get_last_semantic_id_ptr"))) uint32_t x86_get_last_semantic_id_ptr(void){return (uint32_t)(uintptr_t)last_decoded_semantic_id;}
 __attribute__((export_name("x86_get_last_semantic_id_len"))) uint32_t x86_get_last_semantic_id_len(void){uint32_t n=0;while(n<X86_SEMANTIC_ID_MAX&&last_decoded_semantic_id[n])++n;return n;}
+__attribute__((export_name("x86_get_last_semantic_id_char"))) uint32_t x86_get_last_semantic_id_char(uint32_t n){return n<X86_SEMANTIC_ID_MAX?(uint8_t)last_decoded_semantic_id[n]:0;}
+__attribute__((export_name("x86_get_trace_semantic_id_char"))) uint32_t x86_get_trace_semantic_id_char(uint32_t i,uint32_t n){return i<X86_TRACE_DEPTH&&n<X86_SEMANTIC_ID_MAX?(uint8_t)trace_semantic_id[i][n]:0;}
 __attribute__((export_name("x86_get_trace_semantic_id_ptr"))) uint32_t x86_get_trace_semantic_id_ptr(uint32_t i){return i<X86_TRACE_DEPTH?(uint32_t)(uintptr_t)trace_semantic_id[i]:0;}
 __attribute__((export_name("x86_get_trace_semantic_id_len"))) uint32_t x86_get_trace_semantic_id_len(uint32_t i){uint32_t n=0;if(i>=X86_TRACE_DEPTH)return 0;while(n<X86_SEMANTIC_ID_MAX&&trace_semantic_id[i][n])++n;return n;}
 
