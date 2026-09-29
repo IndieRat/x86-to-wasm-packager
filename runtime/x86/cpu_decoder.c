@@ -372,6 +372,95 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
+        if (x86_id_is(d.entry->id,"NEG_RM32") ||
+            x86_id_is(d.entry->id,"NOT_RM32") ||
+            x86_id_is(d.entry->id,"MUL_RM32") ||
+            x86_id_is(d.entry->id,"IMUL_RM32") ||
+            x86_id_is(d.entry->id,"DIV_RM32") ||
+            x86_id_is(d.entry->id,"IDIV_RM32")) {
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+            uint8_t sub=(uint8_t)((d.modrm>>3)&7u);
+            uint32_t v=(d.modrm>>6)==3 ? regs[d.modrm&7u] : modrm_read32(d.modrm,&op_ip);
+            uint32_t r=0;
+            if (sub==2) {
+                r=~v;
+                if ((d.modrm>>6)==3) regs[d.modrm&7u]=r; else modrm_write32(d.modrm,&op_ip,r);
+            } else if (sub==3) {
+                r=0u-v;
+                set_sub_flags(0u,v,r);
+                if (v) eflags|=CF; else eflags&=~CF;
+                if (v==0x80000000u) eflags|=OF; else eflags&=~OF;
+                if ((d.modrm>>6)==3) regs[d.modrm&7u]=r; else modrm_write32(d.modrm,&op_ip,r);
+            } else if (sub==4) {
+                uint64_t p=(uint64_t)regs[R_EAX]*(uint64_t)v;
+                regs[R_EAX]=(uint32_t)p; regs[R_EDX]=(uint32_t)(p>>32);
+                eflags=(eflags&~(CF|OF))|(((p>>32)!=0)?(CF|OF):0);
+            } else if (sub==5) {
+                int64_t p=(int64_t)(int32_t)regs[R_EAX]*(int64_t)(int32_t)v;
+                uint32_t lo=(uint32_t)p, hi=(uint32_t)((uint64_t)p>>32);
+                regs[R_EAX]=lo; regs[R_EDX]=hi;
+                eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)lo)?(CF|OF):0);
+            } else if (sub==6) {
+                if (v==0) { cpu_error=0xF706u; return -30; }
+                uint64_t dividend=((uint64_t)regs[R_EDX]<<32)|regs[R_EAX];
+                uint64_t q=dividend/v, rem=dividend%v;
+                if(q>0xFFFFFFFFull){cpu_error=0xF707u;return -31;}
+                regs[R_EAX]=(uint32_t)q; regs[R_EDX]=(uint32_t)rem;
+            } else {
+                if (v==0) { cpu_error=0xF708u; return -32; }
+                int32_t divisor=(int32_t)v;
+                int64_t dividend=((int64_t)(int32_t)regs[R_EDX]<<32)|(uint32_t)regs[R_EAX];
+                if(dividend==(-9223372036854775807ll-1ll)&&divisor==-1){cpu_error=0xF709u;return -33;}
+                int64_t q=dividend/divisor, rem=dividend%divisor;
+                if(q>2147483647ll||q<(-2147483647ll-1ll)){cpu_error=0xF709u;return -33;}
+                regs[R_EAX]=(uint32_t)q; regs[R_EDX]=(uint32_t)rem;
+            }
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_F7;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"SHL_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"SHR_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"SAR_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"ROL_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"ROR_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"RCL_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"RCR_RM32_IMM8") ||
+            x86_id_is(d.entry->id,"SHL_RM32_1") ||
+            x86_id_is(d.entry->id,"SHR_RM32_1") ||
+            x86_id_is(d.entry->id,"SAR_RM32_1") ||
+            x86_id_is(d.entry->id,"ROL_RM32_1") ||
+            x86_id_is(d.entry->id,"ROR_RM32_1") ||
+            x86_id_is(d.entry->id,"RCL_RM32_1") ||
+            x86_id_is(d.entry->id,"RCR_RM32_1")) {
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+            uint8_t sub=(uint8_t)((d.modrm>>3)&7u);
+            uint32_t v=(d.modrm>>6)==3 ? regs[d.modrm&7u] : modrm_read32(d.modrm,&op_ip);
+            uint32_t count=(d.opcode==0xC1u)?MEM8(d.cursor-1u):1u;
+            uint32_t r=v,cf=(eflags&CF)?1u:0u,of=0,of_valid=0;
+            count&=31u;
+            if(count){
+                uint32_t sign=0x80000000u;
+                if(sub==4){r=v<<count;cf=(v>>(32u-count))&1u;of_valid=count==1;of=((r&sign)?1u:0u)^cf;}
+                else if(sub==5){r=v>>count;cf=(v>>(count-1u))&1u;of_valid=count==1;of=(v&sign)?1u:0u;}
+                else if(sub==7){r=(uint32_t)((int32_t)v>>count);cf=(v>>(count-1u))&1u;}
+                else if(sub==0){count%=32u;if(count){r=(v<<count)|(v>>(32u-count));cf=r&1u;of_valid=count==1;of=((r&sign)?1u:0u)^cf;}}
+                else if(sub==1){count%=32u;if(count){r=(v>>count)|(v<<(32u-count));cf=(r&sign)?1u:0u;of_valid=count==1;of=((r&sign)?1u:0u)^((r>>30)&1u);}}
+                else if(sub==2){count%=33u;if(count){uint64_t x=((uint64_t)cf<<32)|v;x=((x<<count)|(x>>(33u-count)))&0x1FFFFFFFFull;r=(uint32_t)x;cf=(uint32_t)((x>>32)&1u);of_valid=count==1;of=((r&sign)?1u:0u)^cf;}}
+                else if(sub==3){count%=33u;if(count){uint64_t x=((uint64_t)cf<<32)|v;x=((x>>count)|(x<<(33u-count)))&0x1FFFFFFFFull;r=(uint32_t)x;cf=(uint32_t)((x>>32)&1u);of_valid=count==1;of=((r&sign)?1u:0u)^((r>>30)&1u);}}
+                else {cpu_error=0xC000u|sub;return -35;}
+                if(sub>=4) set_shift_flags(r,cf,of_valid,of);
+                else set_rotate_flags(r,cf,of_valid,of);
+                if((d.modrm>>6)==3) regs[d.modrm&7u]=r; else wr32(op_ip,r);
+            }
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_GROUP2;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"MOV_R32_IMM32") && !decoded_operand16) {
             uint32_t reg=(uint32_t)(d.opcode-0xB8u);
             uint32_t value=rd32(d.cursor-4u);
