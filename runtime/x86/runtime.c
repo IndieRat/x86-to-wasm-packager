@@ -825,7 +825,8 @@ __attribute__((export_name("x86_get_eax"))) uint32_t x86_get_eax(void){return re
 __attribute__((export_name("x86_get_ecx"))) uint32_t x86_get_ecx(void){return regs[R_ECX];}
 __attribute__((export_name("x86_get_edx"))) uint32_t x86_get_edx(void){return regs[R_EDX];}
 __attribute__((export_name("x86_get_ebx"))) uint32_t x86_get_ebx(void){return regs[R_EBX];}
-__attribute__((export_name("x86_get_esp"))) uint32_t x86_get_esp(void){return regs[R_ESP];}\n__attribute__((export_name("x86_get_stack_faults"))) uint32_t x86_get_stack_faults(void){return x86_mem_faults;}
+__attribute__((export_name("x86_get_esp"))) uint32_t x86_get_esp(void){return regs[R_ESP];}
+__attribute__((export_name("x86_get_stack_faults"))) uint32_t x86_get_stack_faults(void){return x86_mem_faults;}
 __attribute__((export_name("x86_get_ebp"))) uint32_t x86_get_ebp(void){return regs[R_EBP];}
 __attribute__((export_name("x86_get_esi"))) uint32_t x86_get_esi(void){return regs[R_ESI];}
 __attribute__((export_name("x86_get_edi"))) uint32_t x86_get_edi(void){return regs[R_EDI];}
