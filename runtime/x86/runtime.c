@@ -534,18 +534,35 @@ static uint32_t x86_reg_open_impl(uint32_t parent,const char *sub,uint32_t *out_
 }
 static uint32_t x86_reg_create_impl(uint32_t parent,const char *sub,uint32_t *out_handle,uint32_t *disposition){
  if(out_handle)*out_handle=0;if(disposition)*disposition=1u;
- char norm[X86_REG_MAX_PATH];uint32_t hive=0;int pi=x86_reg_key_index(parent);
+ char norm[X86_REG_MAX_PATH],full[X86_REG_MAX_PATH];uint32_t hive=0;int pi=x86_reg_key_index(parent);
  if(parent!=X86_REG_HKEY_CURRENT_USER&&parent!=X86_REG_HKEY_LOCAL_MACHINE&&pi<0){x86_reg_set_error(X86_REG_ERROR_INVALID_HANDLE);return X86_REG_ERROR_INVALID_HANDLE;}
  if(!x86_reg_normalize_subkey(sub?sub:"",norm,sizeof(norm))){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
- if(!x86_reg_build_path(parent,norm,norm,sizeof(norm),&hive)){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
- if(!norm[0]){if(out_handle)*out_handle=parent;if(disposition)*disposition=2u;x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
- int existing=x86_reg_find_key_path(hive,norm);
- if(existing>=0){if(out_handle)*out_handle=x86_reg_key_handle((uint32_t)existing);if(disposition)*disposition=2u;x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
- int created=x86_reg_find_free_key();
- if(created<0){x86_reg_set_error(X86_REG_ERROR_OUTOFMEMORY);return X86_REG_ERROR_OUTOFMEMORY;}
- x86_reg_keys[created].used=1;x86_reg_keys[created].hive=hive;
- for(uint32_t i=0;i<X86_REG_MAX_PATH;i++){x86_reg_keys[created].path[i]=norm[i];if(!norm[i])break;}
- if(out_handle)*out_handle=x86_reg_key_handle((uint32_t)created);if(disposition)*disposition=1u;x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
+ if(!x86_reg_build_path(parent,norm,full,sizeof(full),&hive)){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
+ if(!full[0]){if(out_handle)*out_handle=parent;if(disposition)*disposition=2u;x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
+ /* RegCreateKeyExA creates missing intermediate keys as part of the requested path. */
+ uint32_t start=0,last=0;
+ while(1){
+  while(full[start]=='\\')start++;
+  uint32_t i=start;while(full[i]&&full[i]!='\\')i++;
+  if(i>start){
+   char prefix[X86_REG_MAX_PATH];uint32_t n=i;
+   if(n>=sizeof(prefix)){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
+   for(uint32_t j=0;j<n;j++)prefix[j]=full[j];prefix[n]=0;
+   int existing=x86_reg_find_key_path(hive,prefix);
+   if(existing<0){
+    int created=x86_reg_find_free_key();
+    if(created<0){x86_reg_set_error(X86_REG_ERROR_OUTOFMEMORY);return X86_REG_ERROR_OUTOFMEMORY;}
+    x86_reg_keys[created].used=1;x86_reg_keys[created].hive=hive;
+    for(uint32_t j=0;j<=n;j++)x86_reg_keys[created].path[j]=prefix[j];
+    last=(uint32_t)created;
+   }else last=(uint32_t)existing;
+  }
+  if(!full[i])break;
+  start=i+1u;
+ }
+ if(out_handle)*out_handle=x86_reg_key_handle(last);
+ if(disposition)*disposition=(x86_reg_path_equal(x86_reg_keys[last].path,full)?1u:2u);
+ x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
 }
 static uint32_t x86_reg_close_impl(uint32_t handle){
  if(handle==X86_REG_HKEY_CURRENT_USER||handle==X86_REG_HKEY_LOCAL_MACHINE){x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
@@ -573,6 +590,7 @@ static uint32_t x86_reg_query_value_impl(uint32_t handle,const char *name,uint32
  uint32_t capacity=*size;*size=v->size;
  if(v->size&&!data){x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;}
  if(capacity<v->size){x86_reg_set_error(X86_REG_ERROR_MORE_DATA);return X86_REG_ERROR_MORE_DATA;}
+ if(v->size&&data&&!x86_mem_region_find((uint32_t)(uintptr_t)data,v->size,X86_MEM_WRITE)){x86_reg_set_error(X86_REG_ERROR_INVALID_PARAMETER);return X86_REG_ERROR_INVALID_PARAMETER;}
  if(v->size&&data)for(uint32_t i=0;i<v->size;i++)data[i]=v->data[i];
  x86_reg_set_error(X86_REG_ERROR_SUCCESS);return X86_REG_ERROR_SUCCESS;
 }
@@ -778,9 +796,10 @@ static uint32_t call_builtin(uint32_t target){
  if(target==API_KERNEL32_SETFILEPOINTER){uint32_t sp=regs[R_ESP],h=rd32(sp+4u),distance=rd32(sp+8u),origin=rd32(sp+16u);regs[R_EAX]=x86_fs_seek_impl(h,(int32_t)distance,origin);regs[R_ESP]+=16u;return 1;}
  if(target==API_KERNEL32_GETFILESIZE){uint32_t sp=regs[R_ESP],h=rd32(sp+4u),high=rd32(sp+8u),size=x86_fs_size_impl(h);if(high&&x86_mem_region_find(high,4u,X86_MEM_WRITE))wr32(high,0);regs[R_EAX]=size;regs[R_ESP]+=8u;return 1;}
  if(target==API_KERNEL32_REGOPENKEYEXA){
-  uint32_t sp=regs[R_ESP],parent=rd32(sp+4u),sub=rd32(sp+8u),out=rd32(sp+20u);char raw[X86_REG_MAX_PATH];uint32_t result=0;
-  if(sub&&!x86_fs_guest_string(sub,raw,sizeof(raw))){result=X86_REG_ERROR_INVALID_PARAMETER;}else result=x86_reg_open_impl(parent,sub?raw:"",&result);
-  if(result==X86_REG_ERROR_SUCCESS&&out&&x86_mem_region_find(out,4u,X86_MEM_WRITE))wr32(out,result);
+  uint32_t sp=regs[R_ESP],parent=rd32(sp+4u),sub=rd32(sp+8u),out=rd32(sp+20u);char raw[X86_REG_MAX_PATH];uint32_t handle=0,result=0;
+  if(sub&&!x86_fs_guest_string(sub,raw,sizeof(raw)))result=X86_REG_ERROR_INVALID_PARAMETER;else result=x86_reg_open_impl(parent,sub?raw:"",&handle);
+  if(result==X86_REG_ERROR_SUCCESS&&(!out||!x86_mem_region_find(out,4u,X86_MEM_WRITE)))result=X86_REG_ERROR_INVALID_PARAMETER;
+  if(result==X86_REG_ERROR_SUCCESS)wr32(out,handle);
   regs[R_EAX]=result;regs[R_ESP]+=20u;return 1;
  }
  if(target==API_KERNEL32_REGCREATEKEYEXA){
