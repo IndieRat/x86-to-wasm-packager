@@ -145,8 +145,8 @@ def make_test_pe() -> bytes:
         f"CALL generated wrong target: expected 0x{call_target_file_offset:X}, "
         f"got 0x{decoded_target:X}"
     )
-    assert code[decoded_target] == 0xB8, (
-        f"CALL target does not begin with MOV EAX,imm32: "
+    assert code[decoded_target] == 0x8B, (
+        f"CALL target does not begin with MOV EAX,[EBP+8]: "
         f"target=0x{decoded_target:X}, opcode=0x{code[decoded_target]:02X}"
     )
     # Minimal PE import directory for KERNEL32.dll!GetTickCount.
