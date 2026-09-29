@@ -29,7 +29,7 @@ static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,eip=0,
 #define X86_CRT_CALLBACK_MARKER 0xC2C0FFEEu
 static int32_t crt_errno=0;
 static uint32_t crt_last_error=0,crt_started=0,crt_exited=0,crt_exit_code=0;
-static uint32_t crt_atexit_count=0,crt_last_atexit_result=0,crt_atexit_running=0;
+static uint32_t crt_atexit_count=0,crt_last_atexit_result=0,crt_last_atexit_ok=0,crt_atexit_running=0;
 static uint32_t crt_atexit_callbacks[X86_CRT_ATEXIT_MAX];
 static uint32_t requested_image_base=0,reloc_rva=0,reloc_size=0,import_rva=0,import_size=0;
 static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last_load_ptr=0,last_load_size=0;
@@ -1030,7 +1030,8 @@ __attribute__((export_name("x86_get_surface_height"))) uint32_t x86_get_surface_
 __attribute__((export_name("x86_get_rich_ops_pass"))) uint32_t x86_get_rich_ops_pass(void){return regs[R_EBP]==0x584F5053u?1u:0u;}
 __attribute__((export_name("x86_get_legacy_execution_count"))) uint32_t x86_get_legacy_execution_count(void){return legacy_execution_count;}
 __attribute__((export_name("x86_get_stress_report_word"))) uint32_t x86_get_stress_report_word(uint32_t index){if(index>=16u)return 0;return rd32(X86_STRESS_REPORT_BASE+(index*4u));}
-static uint32_t x86_crt_invoke_callback_impl(uint32_t target){
+static uint32_t x86_crt_invoke_callback_impl(uint32_t target,uint32_t *ok_out){
+ if(ok_out)*ok_out=0;
  if(!loaded||!x86_mem_region_find(target,1u,X86_MEM_EXEC))return 0;
  uint32_t saved_regs[8],saved_eflags=eflags,saved_eip=eip,saved_halted=halted,saved_error=cpu_error,saved_steps=steps;
  for(uint32_t i=0;i<8;i++)saved_regs[i]=regs[i];
@@ -1047,10 +1048,11 @@ static uint32_t x86_crt_invoke_callback_impl(uint32_t target){
  }
  for(uint32_t i=0;i<8;i++)regs[i]=saved_regs[i];
  eflags=saved_eflags;eip=saved_eip;halted=saved_halted;cpu_error=saved_error;steps=saved_steps;
+ if(ok&&ok_out)*ok_out=1;
  return ok?result:0;
 }
 __attribute__((export_name("x86_crt_startup"))) uint32_t x86_crt_startup(void){
- crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;return 1;
+ crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;crt_atexit_count=0;crt_last_atexit_result=0;crt_last_atexit_ok=0;crt_atexit_running=0;return 1;
 }
 __attribute__((export_name("x86_crt_get_errno"))) int32_t x86_crt_get_errno(void){return crt_errno;}
 __attribute__((export_name("x86_crt_set_errno"))) int32_t x86_crt_set_errno(int32_t value){crt_errno=value;return value;}
@@ -1071,9 +1073,9 @@ __attribute__((export_name("x86_crt_run_atexit"))) uint32_t x86_crt_run_atexit(v
  crt_atexit_running=1;uint32_t ran=0,failed=0;
  while(crt_atexit_count){
   uint32_t callback=crt_atexit_callbacks[--crt_atexit_count];
-  uint32_t result=x86_crt_invoke_callback_impl(callback);
-  crt_last_atexit_result=result;
-  if(result==0)failed=1;else ran++;
+  uint32_t callback_ok=0,result=x86_crt_invoke_callback_impl(callback,&callback_ok);
+  crt_last_atexit_result=result;crt_last_atexit_ok=callback_ok;
+  if(!callback_ok)failed=1;else ran++;
  }
  crt_atexit_running=0;
  if(failed)crt_errno=X86_CRT_EFAULT;
@@ -1087,5 +1089,5 @@ __attribute__((export_name("x86_crt_exit"))) uint32_t x86_crt_exit(uint32_t code
  return ok;
 }
 __attribute__((export_name("x86_crt_get_last_atexit_result"))) uint32_t x86_crt_get_last_atexit_result(void){return crt_last_atexit_result;}
-__attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback);}
+__attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback,0);}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
