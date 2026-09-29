@@ -270,10 +270,10 @@ def main() -> int:
     decoded_target = call_instruction_file_offset + 5 + decoded_rel
     if not (0 <= decoded_target < len(code)):
         raise SystemExit("packaged synthetic CALL target is outside the section")
-    if code[decoded_target] != 0xB8:
+    if code[decoded_target] != 0x8B:
         raise SystemExit(
             f"packaged synthetic CALL target opcode is 0x{code[decoded_target]:02X}, "
-            "expected 0xB8"
+            "expected 0x8B"
         )
 
     print(
