@@ -28,20 +28,25 @@ static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
 static uint32_t last_dispatch_id=0,last_dispatch_count=0,legacy_execution_count=0;
+#define X86_SEMANTIC_ID_MAX 64u
+static char last_decoded_semantic_id[X86_SEMANTIC_ID_MAX];
 #define X86_TRACE_DEPTH 32u
 static uint32_t trace_eip[X86_TRACE_DEPTH],trace_next_eip[X86_TRACE_DEPTH];
 static uint32_t trace_opcode[X86_TRACE_DEPTH],trace_flags[X86_TRACE_DEPTH];
 static uint32_t trace_eax[X86_TRACE_DEPTH],trace_ecx[X86_TRACE_DEPTH];
 static uint32_t trace_ebx[X86_TRACE_DEPTH],trace_edx[X86_TRACE_DEPTH];
 static uint32_t trace_dispatch[X86_TRACE_DEPTH];
+static char trace_semantic_id[X86_TRACE_DEPTH][X86_SEMANTIC_ID_MAX];
 static uint32_t trace_count=0,trace_head=0,trace_failure_index=0;
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea);
-static void x86_trace_reset(void){trace_count=0;trace_head=0;trace_failure_index=0;}
+static void x86_copy_semantic_id(char *dst,const char *src){uint32_t i=0;if(!src)src="NONE";for(;i+1u<X86_SEMANTIC_ID_MAX&&src[i];++i)dst[i]=src[i];dst[i]=0;}
+static void x86_trace_reset(void){trace_count=0;trace_head=0;trace_failure_index=0;last_decoded_semantic_id[0]=0;}
 static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t before_eax,uint32_t before_ecx,uint32_t before_edx,uint32_t before_ebx,uint32_t before_opcode,uint32_t dispatch){
  uint32_t i=trace_head%X86_TRACE_DEPTH;
  trace_eip[i]=before_eip; trace_next_eip[i]=eip; trace_opcode[i]=before_opcode;
  trace_flags[i]=before_flags; trace_eax[i]=before_eax; trace_ecx[i]=before_ecx;
  trace_edx[i]=before_edx; trace_ebx[i]=before_ebx; trace_dispatch[i]=dispatch;
+ x86_copy_semantic_id(trace_semantic_id[i],last_decoded_semantic_id);
  trace_head=(trace_head+1u)%X86_TRACE_DEPTH; if(trace_count<X86_TRACE_DEPTH)trace_count++;
  if(regs[R_EAX]==0xDEADC0DEu && before_eax!=0xDEADC0DEu) trace_failure_index=i+1u;
 }
@@ -723,6 +728,10 @@ __attribute__((export_name("x86_get_last_decoded_opcode"))) uint32_t x86_get_las
 __attribute__((export_name("x86_get_last_decoded_length"))) uint32_t x86_get_last_decoded_length(void){return last_decoded_length;}
 __attribute__((export_name("x86_get_last_dispatch_id"))) uint32_t x86_get_last_dispatch_id(void){return last_dispatch_id;}
 __attribute__((export_name("x86_get_last_dispatch_count"))) uint32_t x86_get_last_dispatch_count(void){return last_dispatch_count;}
+__attribute__((export_name("x86_get_last_semantic_id_ptr"))) uint32_t x86_get_last_semantic_id_ptr(void){return (uint32_t)(uintptr_t)last_decoded_semantic_id;}
+__attribute__((export_name("x86_get_last_semantic_id_len"))) uint32_t x86_get_last_semantic_id_len(void){uint32_t n=0;while(n<X86_SEMANTIC_ID_MAX&&last_decoded_semantic_id[n])++n;return n;}
+__attribute__((export_name("x86_get_trace_semantic_id_ptr"))) uint32_t x86_get_trace_semantic_id_ptr(uint32_t i){return i<X86_TRACE_DEPTH?(uint32_t)(uintptr_t)trace_semantic_id[i]:0;}
+__attribute__((export_name("x86_get_trace_semantic_id_len"))) uint32_t x86_get_trace_semantic_id_len(uint32_t i){uint32_t n=0;if(i>=X86_TRACE_DEPTH)return 0;while(n<X86_SEMANTIC_ID_MAX&&trace_semantic_id[i][n])++n;return n;}
 
 /* Independent architectural RCR oracle used by the test shell.  This is
  * deliberately separate from guest state so a failed game fixture cannot
