@@ -101,6 +101,7 @@ static int x86_id_is(const char *a,const char *b){while(*a&&*b){if(*a++!=*b++)re
 static void x86_decode_payload_size(x86_decoded_t *d) {
     const char *id = d->entry ? d->entry->id : 0;
     if (!id) return;
+    if (x86_id_is(id, "RET_IMM16")) d->imm_size = 2;
     if (x86_id_is(id, "MOV_R8_IMM8")) d->imm_size = 1;
     else if (x86_id_is(id, "MOV_R32_IMM32") && !d->operand16) d->imm_size = 4;
     else if (x86_id_is(id, "MOV_R32_IMM32") && d->operand16) d->imm_size = 2;
