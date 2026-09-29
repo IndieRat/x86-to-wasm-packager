@@ -321,6 +321,60 @@ static int cpu_step(void) {
      * the raw opcode in the legacy switch.
      */
     if (d.entry && d.entry->id) {
+        if (x86_id_is(d.entry->id,"MOV_R32_IMM32") && !decoded_operand16) {
+            uint32_t reg=(uint32_t)(d.opcode-0xB8u);
+            uint32_t value=rd32(d.cursor-4u);
+            regs[reg]=value;
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_MOV_R32_IMM32;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"ADD_EAX_IMM32")) {
+            uint32_t bits=decoded_operand16?16u:32u;
+            uint32_t mask=decoded_operand16?0xFFFFu:0xFFFFFFFFu;
+            uint32_t a=regs[R_EAX]&mask;
+            uint32_t b=decoded_operand16?(uint32_t)rd16(d.cursor-2u):rd32(d.cursor-4u);
+            uint32_t v=(a+b)&mask;
+            set_add_flags_width(a,b,v,bits);
+            if(decoded_operand16)reg16_write(R_EAX,(uint16_t)v); else regs[R_EAX]=v;
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_ADD_EAX_IMM;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"SUB_EAX_IMM32")) {
+            uint32_t bits=decoded_operand16?16u:32u;
+            uint32_t mask=decoded_operand16?0xFFFFu:0xFFFFFFFFu;
+            uint32_t a=regs[R_EAX]&mask;
+            uint32_t b=decoded_operand16?(uint32_t)rd16(d.cursor-2u):rd32(d.cursor-4u);
+            uint32_t v=(a-b)&mask;
+            set_sub_flags_width(a,b,v,bits);
+            if(decoded_operand16)reg16_write(R_EAX,(uint16_t)v); else regs[R_EAX]=v;
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_SUB_EAX_IMM;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"CMP_EAX_IMM32")) {
+            uint32_t bits=decoded_operand16?16u:32u;
+            uint32_t mask=decoded_operand16?0xFFFFu:0xFFFFFFFFu;
+            uint32_t a=regs[R_EAX]&mask;
+            uint32_t b=decoded_operand16?(uint32_t)rd16(d.cursor-2u):rd32(d.cursor-4u);
+            set_sub_flags_width(a,b,(a-b)&mask,bits);
+            eip=d.cursor;
+            last_dispatch_id=decoded_operand16?X86_DISPATCH_CMP_R16_IMM16:X86_DISPATCH_CMP_EAX_IMM;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"MOV_R8_IMM8")) {
             uint32_t reg=(uint32_t)(d.opcode-0xB0u);
             uint8_t value=MEM8(d.cursor-1u);
