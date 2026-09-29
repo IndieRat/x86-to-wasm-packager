@@ -193,11 +193,15 @@ function state(){
     "cpu_error   "+hex(api("x86_get_cpu_error")())
   ].join("\n");
   const map=api("x86_get_last_decoded_map")(), dop=api("x86_get_last_decoded_opcode")(), len=api("x86_get_last_decoded_length")(), did=api("x86_get_last_dispatch_id")(), dc=api("x86_get_last_dispatch_count")();
+  const semanticPtr=typeof api("x86_get_last_semantic_id_ptr")==="function"?api("x86_get_last_semantic_id_ptr")():0;
+  const semanticLen=typeof api("x86_get_last_semantic_id_len")==="function"?api("x86_get_last_semantic_id_len")():0;
+  const semanticId=semanticPtr&&semanticLen?textAt(semanticPtr,semanticLen):"unavailable";
   const names={0:"NONE",1:"INC_R32",2:"DEC_R32",3:"RCR",4:"MOV_R8_IMM8",5:"MOV_R16_IMM16",6:"CMP_R16_IMM16",7:"MOV_R32_IMM32",8:"ADD_EAX_IMM",9:"SUB_EAX_IMM",10:"CMP_EAX_IMM",11:"MOV_R32_RM32",12:"MOV_RM32_R32",13:"CMP_R32_RM32",14:"CMP_RM32_R32",15:"JCC"};
   $("decode").textContent=[
     "decoded map       "+map+" ("+((["primary","0F","0F38","0F3A"][map])||"?")+")",
     "decoded opcode    "+hex(dop),
     "decoded length    "+len,
+    "decoder semantic ID "+semanticId,
     "semantic dispatch "+(names[did]||("ID "+did)),
     "16-bit immediate width: "+((map===0 && (dop===0x3D || dop===0x05 || dop===0x2D)) ? "operand-size dependent" : "n/a"),
     "refined count     "+dc,
@@ -206,7 +210,7 @@ function state(){
   ].join("\n");
   const tc=api("x86_get_trace_count")(), fi=api("x86_get_trace_failure_index")();
   let trace=[];
-  const dnames={0:"legacy",1:"INC_R32",2:"DEC_R32",3:"RCR",4:"MOV_R8_IMM8",5:"MOV_R16_IMM16",6:"CMP_R16_IMM16",7:"MOV_R32_IMM32",8:"ADD_EAX_IMM",9:"SUB_EAX_IMM",10:"CMP_EAX_IMM",11:"MOV_R32_RM32",12:"MOV_RM32_R32",13:"CMP_R32_RM32",14:"CMP_RM32_R32"};
+  const dnames={0:"legacy",1:"INC_R32",2:"DEC_R32",3:"RCR",4:"MOV_R8_IMM8",5:"MOV_R16_IMM16",6:"CMP_R16_IMM16",7:"MOV_R32_IMM32",8:"ADD_EAX_IMM",9:"SUB_EAX_IMM",10:"CMP_EAX_IMM",11:"MOV_R32_RM32",12:"MOV_RM32_R32",13:"CMP_R32_RM32",14:"CMP_RM32_R32",15:"JCC",16:"GROUP2",17:"F7"};
   for(let n=0;n<tc;n++){
     const i=api("x86_get_trace_index")(n);
     trace.push(
@@ -217,6 +221,13 @@ function state(){
       "  EFLAGS="+hex(api("x86_get_trace_flags")(i))+
       "  "+(dnames[api("x86_get_trace_dispatch")(i)]||"legacy")
     );
+  }
+  for(let n=0;n<tc;n++){
+    const i=api("x86_get_trace_index")(n);
+    const sp=typeof api("x86_get_trace_semantic_id_ptr")==="function"?api("x86_get_trace_semantic_id_ptr")(i):0;
+    const sl=typeof api("x86_get_trace_semantic_id_len")==="function"?api("x86_get_trace_semantic_id_len")(i):0;
+    const sid=sp&&sl?textAt(sp,sl):"unavailable";
+    trace[n]+="  decoder="+sid;
   }
   const traceText=tc?trace.join("\n"):"No execution trace yet.";
   $("decode").textContent += "\n\nExecution trace (oldest → newest, last "+tc+")\n"+traceText+
