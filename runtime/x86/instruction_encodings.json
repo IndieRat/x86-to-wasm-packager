@@ -2612,5 +2612,22 @@
         }
       ]
     }
+    {
+      "id": "LEAVE",
+      "instruction": "LEAVE",
+      "opcode": ["C9"],
+      "opcode_map": "primary",
+      "encoding": "ZO"
+    },
+    {
+      "id": "RET_IMM16",
+      "instruction": "RET",
+      "opcode": ["C2"],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": [
+        {"kind": "imm16", "access": "r", "source": "next2"}
+      ]
+    },
   ]
 }
