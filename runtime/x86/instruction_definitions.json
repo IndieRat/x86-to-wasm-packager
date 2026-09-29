@@ -1049,6 +1049,43 @@
         "read": [],
         "write": []
       }
+    },
+    {
+      "id": "LEAVE",
+      "mnemonic": "LEAVE",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "LEAVE"
+      ],
+      "flags": {
+        "read": [
+          "EBP",
+          "ESP"
+        ],
+        "write": [
+          "EBP",
+          "ESP"
+        ]
+      }
+    },
+    {
+      "id": "RET_IMM16",
+      "mnemonic": "RET",
+      "family": "control_flow",
+      "status": "EXECUTE",
+      "forms": [
+        "RET_IMM16"
+      ],
+      "flags": {
+        "read": [
+          "ESP"
+        ],
+        "write": [
+          "ESP",
+          "EIP"
+        ]
+      }
     }
   ]
 }
