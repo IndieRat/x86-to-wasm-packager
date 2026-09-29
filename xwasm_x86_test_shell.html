@@ -113,7 +113,7 @@ pre{margin:8px 0;padding:10px;background:#080a0d;border-radius:6px;white-space:p
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
-let files=[], manifest=null, wasm=null, instance=null, memory=null, payload=null;
+let files=[], manifest=null, wasm=null, instance=null, memory=null, payload=null, runtimeBytes=null;
 
 function log(s){$("log").textContent += s+"\n"; $("log").scrollTop=$("log").scrollHeight; console.log("[XWASM]",s)}
 function showPage(name){
@@ -206,7 +206,7 @@ function state(){
   ].join("\n");
   const tc=api("x86_get_trace_count")(), fi=api("x86_get_trace_failure_index")();
   let trace=[];
-  const dnames={0:"legacy",1:"INC_R32",2:"DEC_R32",3:"RCR",4:"MOV_R8_IMM8",5:"MOV_R16_IMM16",6:"CMP_R16_IMM16",7:"MOV_R32_IMM32",8:"ADD_EAX_IMM",9:"SUB_EAX_IMM",10:"CMP_EAX_IMM",11:"MOV_R32_RM32",12:"MOV_RM32_R32"};
+  const dnames={0:"legacy",1:"INC_R32",2:"DEC_R32",3:"RCR",4:"MOV_R8_IMM8",5:"MOV_R16_IMM16",6:"CMP_R16_IMM16",7:"MOV_R32_IMM32",8:"ADD_EAX_IMM",9:"SUB_EAX_IMM",10:"CMP_EAX_IMM",11:"MOV_R32_RM32",12:"MOV_RM32_R32",13:"CMP_R32_RM32",14:"CMP_RM32_R32"};
   for(let n=0;n<tc;n++){
     const i=api("x86_get_trace_index")(n);
     trace.push(
@@ -264,7 +264,7 @@ async function loadPackage(){
     if(!mf||!rw||!pe) throw new Error("Package must contain manifest.xwasm.json, runtime.wasm, and resources/__x86__/payload.exe");
     manifest=JSON.parse(await mf.text());
     if(manifest.architecture!=="x86") throw new Error("Selected package is not architecture=x86");
-    const wb=await rw.arrayBuffer(); if(!WebAssembly.validate(wb)) throw new Error("runtime.wasm failed WebAssembly validation");
+    const wb=await rw.arrayBuffer(); runtimeBytes=new Uint8Array(wb); if(!WebAssembly.validate(wb)) throw new Error("runtime.wasm failed WebAssembly validation");
     wasm=await WebAssembly.compile(wb);
     const imports=importsFor(wasm);
     const res=await WebAssembly.instantiate(wasm,imports);
@@ -277,6 +277,7 @@ async function loadPackage(){
       "payload:    "+manifest.payload,
       "payload bytes: "+payload.byteLength,
       "runtime:    OK",
+      "runtime sha256: "+(manifest.runtime_sha256||"not recorded"),
       "WASM imports: "+WebAssembly.Module.imports(wasm).length,
       "WASM exports: "+WebAssembly.Module.exports(wasm).length
     ].join("\n");
