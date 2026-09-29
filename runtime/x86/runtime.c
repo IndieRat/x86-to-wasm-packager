@@ -727,6 +727,7 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
  }
  return 0;
 }
+static uint32_t x86_crt_strlen(uint32_t s);
 static uint32_t call_builtin(uint32_t target){
  if(target==API_C5_MALLOC){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_malloc_impl(rd32(sp+4u));return 1;}
  if(target==API_C5_FREE){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_free_impl(rd32(sp+4u));return 1;}
