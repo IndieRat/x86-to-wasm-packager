@@ -200,6 +200,48 @@
       check("C2 atexit after exit rejected", e.x86_crt_atexit(c2Callback), 0);
       check("C2 errno after rejected atexit", e.x86_crt_get_errno(), 22);
 
+      log("=== C3 GAME VIRTUAL FILESYSTEM ===");
+      const fsPath = e.x86_crt_malloc(0x100);
+      const fsData = e.x86_crt_malloc(0x40);
+      const fsRead = e.x86_crt_malloc(0x40);
+      const fsWritten = e.x86_crt_malloc(0x40);
+      getView().set(new TextEncoder().encode("data\\textures\\hero.bin\\0"), fsPath);
+      getView().set(new Uint8Array([72,69,76,76,79,0]), fsData);
+      check("C3 mount resource", e.x86_fs_mount_file(fsPath, fsData, 5), 1);
+      check("C3 normalized exists", e.x86_fs_exists(fsPath), 1);
+      check("C3 open read", e.x86_fs_open(fsPath, 1, 0) >= 0x1000, true);
+      const fsReadHandle = e.x86_fs_open(fsPath, 1, 0);
+      check("C3 file size", e.x86_fs_size(fsReadHandle), 5);
+      check("C3 read bytes", e.x86_fs_read(fsReadHandle, fsRead, 5), 5);
+      check("C3 read content", getView()[fsRead] === 72 && getView()[fsRead + 4] === 79, true);
+      check("C3 seek start", e.x86_fs_seek(fsReadHandle, 0, 0), 0);
+      check("C3 seek end", e.x86_fs_seek(fsReadHandle, -1, 2), 4);
+      check("C3 close read", e.x86_fs_close(fsReadHandle), 1);
+
+      getView().set(new TextEncoder().encode("saves\\score.dat\\0"), fsPath);
+      getView().set(new Uint8Array([1,2,3,4]), fsWritten);
+      const fsWriteHandle = e.x86_fs_open(fsPath, 2, 4 | 8);
+      check("C3 create write", fsWriteHandle >= 0x1000, true);
+      check("C3 write bytes", e.x86_fs_write(fsWriteHandle, fsWritten, 4), 4);
+      check("C3 write size", e.x86_fs_size(fsWriteHandle), 4);
+      check("C3 close write", e.x86_fs_close(fsWriteHandle), 1);
+
+      getView().set(new TextEncoder().encode("saves/./score.dat\\0"), fsPath);
+      const fsAppendHandle = e.x86_fs_open(fsPath, 1, 0);
+      check("C3 normalized reopen", fsAppendHandle >= 0x1000, true);
+      check("C3 reopened byte", e.x86_fs_read(fsAppendHandle, fsRead, 4), 4);
+      check("C3 persisted byte", getView()[fsRead + 3], 4);
+      check("C3 close reopen", e.x86_fs_close(fsAppendHandle), 1);
+
+      getView().set(new TextEncoder().encode("../escape.bin\\0"), fsPath);
+      check("C3 path escape rejected", e.x86_fs_open(fsPath, 1 | 2, 4), 0);
+      check("C3 path error", e.x86_fs_get_last_error(), 3);
+
+      check("C3 free path", e.x86_crt_free(fsPath), 1);
+      check("C3 free data", e.x86_crt_free(fsData), 1);
+      check("C3 free read buffer", e.x86_crt_free(fsRead), 1);
+      check("C3 free write buffer", e.x86_crt_free(fsWritten), 1);
+
       const stress = [];
       for (let i = 0; i < 40; i++) {
         const p = e.x86_virtual_alloc(0x1000);
