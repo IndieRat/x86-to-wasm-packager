@@ -681,6 +681,14 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"GetLastError"))return API_KERNEL32_GETLASTERROR;
   if(streq_ascii(name,"SetLastError"))return API_KERNEL32_SETLASTERROR;
  }
+ if(streq_ascii(dll,"ADVAPI32.dll")||streq_ascii(dll,"advapi32.dll")){
+  if(streq_ascii(name,"RegOpenKeyExA"))return API_KERNEL32_REGOPENKEYEXA;
+  if(streq_ascii(name,"RegCreateKeyExA"))return API_KERNEL32_REGCREATEKEYEXA;
+  if(streq_ascii(name,"RegQueryValueExA"))return API_KERNEL32_REGQUERYVALUEEXA;
+  if(streq_ascii(name,"RegSetValueExA"))return API_KERNEL32_REGSETVALUEEXA;
+  if(streq_ascii(name,"RegCloseKey"))return API_KERNEL32_REGCLOSEKEY;
+  if(streq_ascii(name,"RegDeleteValueA"))return API_KERNEL32_REGDELETEVALUEA;
+ }
  return 0;
 }
 static uint32_t call_builtin(uint32_t target){
