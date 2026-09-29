@@ -64,6 +64,16 @@ def make_test_pe() -> bytes:
     # the actual instruction and target positions so this fixture cannot
     # silently break when instructions are added or removed.
     code = bytearray((
+        # C0: cdecl-style stack argument + frame + direct/indirect callbacks.
+        0x55,                                      # PUSH EBP
+        0x89, 0xE5,                                # MOV EBP,ESP
+        0x6A, 0x2A,                                # PUSH 42 (cdecl argument)
+        0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL helper (patched below)
+        0x83, 0xC4, 0x04,                          # ADD ESP,4 (caller cleanup)
+        0xB8, 0x00, 0x00, 0x40, 0x00,             # MOV EAX,helper address (patched below)
+        0xFF, 0xD0,                                # CALL EAX (indirect callback)
+        0x89, 0xC6,                                # MOV ESI,EAX (preserve C0 result)
+        0xC9,                                      # LEAVE
         0xB8, 0x05, 0x00, 0x00, 0x00,             # MOV EAX,5
         0xBB, 0x00, 0x08, 0x40, 0x00,             # MOV EBX,0x00400800
         0x89, 0x03,                                # MOV [EBX],EAX
@@ -89,12 +99,20 @@ def make_test_pe() -> bytes:
         0xFF, 0x15, 0x6C, 0x11, 0x40, 0x00,       # CALL [0x0040116C] -> KERNEL32!GetTickCount
         0xF4,                                      # HLT
     ))
-    call_instruction_file_offset = code.find(b"\xE8\x00\x00\x00\x00")
-    if call_instruction_file_offset < 0:
+    call_placeholders = []
+    search_from = 0
+    marker = b"\xE8\x00\x00\x00\x00"
+    while True:
+        found = code.find(marker, search_from)
+        if found < 0:
+            break
+        call_placeholders.append(found)
+        search_from = found + len(marker)
+    if not call_placeholders:
         raise AssertionError("synthetic PE CALL placeholder is missing")
     code.extend(b"\x00" * 16)
     call_target_file_offset = len(code)
-    code.extend((0xB8, 0x2A, 0x00, 0x00, 0x00,     # MOV EAX,42
+    code.extend((0x8B, 0x45, 0x08,                  # MOV EAX,[EBP+8] (argument)
                  0xC3))                             # RET
 
     hello_string_file_offset = len(code)
@@ -105,10 +123,18 @@ def make_test_pe() -> bytes:
         raise AssertionError("hello-string MOV ECX placeholder is missing")
     struct.pack_into("<I", code, hello_mov + 1, 0x00400000 + hello_string_rva)
 
-    call_rel = call_target_file_offset - (call_instruction_file_offset + 5)
-    code[call_instruction_file_offset] = 0xE8
-    code[call_instruction_file_offset + 1:call_instruction_file_offset + 5] = int(call_rel).to_bytes(4, "little", signed=True)
+    for call_instruction_file_offset in call_placeholders:
+        call_rel = call_target_file_offset - (call_instruction_file_offset + 5)
+        code[call_instruction_file_offset] = 0xE8
+        code[call_instruction_file_offset + 1:call_instruction_file_offset + 5] = int(call_rel).to_bytes(4, "little", signed=True)
 
+    helper_mov = code.find(b"\xB8\x00\x00\x40\x00")
+    if helper_mov < 0:
+        raise AssertionError("C0 indirect-call target placeholder is missing")
+    helper_address = 0x00400000 + 0x1000 + call_target_file_offset
+    struct.pack_into("<I", code, helper_mov + 1, helper_address)
+
+    call_instruction_file_offset = call_placeholders[0]
     decoded_rel = int.from_bytes(
         code[call_instruction_file_offset + 1:call_instruction_file_offset + 5],
         "little",
