@@ -102,8 +102,8 @@ check("stack remains readable/writable", e.x86_mem_validate(stackBase, 0x1000, 3
 
 check("memset near-stack region", e.x86_mem_set(nearStack, 0xa5, 0x01c00000), 1);
 check("copy near-stack -> A", e.x86_mem_copy(a, nearStack, 0x1000), 1);
-check("copied first byte", view[a], 0xa5);
-check("copied last byte", view[a + 0xfff], 0xa5);
+check("copied first byte", getView()[a], 0xa5);
+check("copied last byte", getView()[a + 0xfff], 0xa5);
 
 check("free A", e.x86_virtual_free(a), 1);
 check("freed A rejected", e.x86_mem_validate(a, 1, 1), 0);
