@@ -232,6 +232,7 @@ static uint32_t last_failed_import_dll=0,last_failed_import_func=0;
 
 static uint32_t rd32(uint32_t p);
 static void wr32(uint32_t p,uint32_t v);
+static void wr8(uint32_t p,uint8_t v);
 
 static uint32_t al4(uint32_t x){return(x+3u)&~3u;}
 static int streq_ascii(uint32_t p,const char*s){
