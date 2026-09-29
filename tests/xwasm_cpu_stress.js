@@ -52,7 +52,7 @@ check("entry nonzero", e.x86_get_eip() !== 0, true);
 
 const runResult = e.x86_run(2000);
 console.log(`[INFO] CPU run result=${runResult} steps=${e.x86_get_steps()} EIP=${hex(e.x86_get_eip())} EAX=${hex(e.x86_get_eax())} EFLAGS=${hex(e.x86_get_eflags())}`);
-check("CPU halted", e.x86_get_halted(), 1);
+check("CPU halted", e.x86_get_halted(), 1);\n      check("C0 callback return preserved", e.x86_get_esi(), 0x2a);\n      check("C0 callback return preserved", e.x86_get_esi(), 0x2a);
 check("CPU error", e.x86_get_cpu_error(), 0);
 check("CPU executed instructions", e.x86_get_steps() > 0, true);
 check("RCR architectural self-test", e.x86_rcr32_self_test(), 0);
