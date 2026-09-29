@@ -103,7 +103,7 @@
 
       check("large memset", e.x86_mem_set(nearStack, 0xa5, 0x01c00000), 1);
       check("large copy", e.x86_mem_copy(a, nearStack, 0x1000), 1);
-      check("copied byte", view[a], 0xa5);
+      check("copied byte", getView()[a], 0xa5);
 
       check("free A", e.x86_virtual_free(a), 1);
       check("freed A rejected", e.x86_mem_validate(a, 1, 1), 0);
