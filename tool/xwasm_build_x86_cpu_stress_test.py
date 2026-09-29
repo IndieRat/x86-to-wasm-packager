@@ -252,8 +252,14 @@ def make_code():
     a.emit(0xC1, 0xC8, 1)                        # ROR EAX,1 -> 80000001
     a.emit(0x3D, *struct.pack("<I", 0x80000001))
     a.rel32((0x0F, 0x85), "fail")
+    # Re-establish CF=1 immediately before RCL. The earlier ROR result
+    # was checked with CMP, which correctly overwrote CF; MOV does not
+    # modify flags, so this sequence makes the intended RCL carry explicit.
+    a.imm32(0xB8, 0, 0)
+    a.imm32(0xBA, 0, 1)
+    a.emit(0x3B, 0xC2)                           # CMP EAX,EDX -> CF=1
     a.imm32(0xB8, 0, 0x80000000)
-    a.emit(0xD1, 0xD0)                           # RCL EAX,1 with CF from ROR
+    a.emit(0xD1, 0xD0)                           # RCL EAX,1 with CF=1 -> 1
     a.imm32(0xB9, 0, 1)
     a.emit(0x3B, 0xC1)
     a.rel32((0x0F, 0x85), "fail")
