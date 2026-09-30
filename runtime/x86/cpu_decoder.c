@@ -336,6 +336,27 @@ static int cpu_step(void) {
      * the raw opcode in the legacy switch.
      */
     if (d.entry && d.entry->id) {
+        /* x87 is decoder-authoritative now; route migrated x87 IDs through
+         * the shared x87 stack executor instead of the legacy opcode switch. */
+        if (x86_id_is(d.entry->id,"FLD") ||
+            x86_id_is(d.entry->id,"FST") ||
+            x86_id_is(d.entry->id,"FSTP") ||
+            x86_id_is(d.entry->id,"FADD") ||
+            x86_id_is(d.entry->id,"FMUL") ||
+            x86_id_is(d.entry->id,"FSUB") ||
+            x86_id_is(d.entry->id,"FSUBR") ||
+            x86_id_is(d.entry->id,"FDIV") ||
+            x86_id_is(d.entry->id,"FDIVR")) {
+            uint32_t ip=saved_eip;
+            int r=cpu_step_x87(d.opcode,&ip);
+            if(r<0)return r;
+            eip=ip;
+            last_dispatch_id=X86_DISPATCH_NONE;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"JE_REL8") || x86_id_is(d.entry->id,"JE_REL32") ||
             x86_id_is(d.entry->id,"JNE_REL8") || x86_id_is(d.entry->id,"JNE_REL32") ||
             x86_id_is(d.entry->id,"JB_REL8") || x86_id_is(d.entry->id,"JB_REL32") ||
