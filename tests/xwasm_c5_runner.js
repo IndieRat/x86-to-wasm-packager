@@ -60,7 +60,11 @@
       // the instruction and guest bytes that stopped execution.
       log("[DEBUG] CPU halted: " + e.x86_get_halted());
       log("[DEBUG] CPU error: " + e.x86_get_cpu_error());
-      log("[DEBUG] current opcode: " + hex(e.x86_get_current_opcode()));
+      if (badEip === 0xF00DCAFE) {
+        log("[DEBUG] current opcode: <entrypoint return sentinel>");
+      } else {
+        log("[DEBUG] current opcode: " + hex(e.x86_get_current_opcode()));
+      }
       log("[DEBUG] last decoded opcode: " + hex(e.x86_get_last_decoded_opcode()));
       log("[DEBUG] last decoded length: " + e.x86_get_last_decoded_length());
 
