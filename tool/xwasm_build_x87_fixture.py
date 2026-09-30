@@ -1,7 +1,6 @@
 import argparse
 import subprocess
 from pathlib import Path
-import tempfile
 
 
 def main():
@@ -21,16 +20,6 @@ def main():
     lld_link = llvm / "lld-link.EXE"
 
     obj = output.with_suffix(".obj")
-    support_c = output.with_name("x87_fltused_support.c")
-    support_obj = output.with_name("x87_fltused_support.obj")
-
-    # __fltused is a compiler/runtime marker emitted by MSVC-targeted
-    # floating-point code. We are deliberately linking without the CRT,
-    # so provide the symbol ourselves.
-    support_c.write_text(
-        "int __fltused = 0;\n",
-        encoding="ascii",
-    )
 
     compile_cmd = [
         str(clang),
@@ -52,23 +41,6 @@ def main():
     print("Compiling x87 fixture:", " ".join(compile_cmd))
     subprocess.run(compile_cmd, check=True)
 
-    support_compile_cmd = [
-        str(clang),
-        "--target=i686-pc-windows-msvc",
-        "-ffreestanding",
-        "-fno-builtin",
-        "-fno-stack-protector",
-        "-mno-stack-arg-probe",
-        "-O0",
-        "-c",
-        str(support_c),
-        "-o",
-        str(support_obj),
-    ]
-
-    print("Compiling x87 linker support:", " ".join(support_compile_cmd))
-    subprocess.run(support_compile_cmd, check=True)
-
     link_cmd = [
         str(lld_link),
         "/machine:x86",
@@ -79,15 +51,12 @@ def main():
         "/nodefaultlib",
         f"/out:{output}",
         str(obj),
-        str(support_obj),
     ]
 
     print("Linking x87 PE32:", " ".join(link_cmd))
     subprocess.run(link_cmd, check=True)
 
     obj.unlink(missing_ok=True)
-    support_obj.unlink(missing_ok=True)
-    support_c.unlink(missing_ok=True)
 
     print(f"Created: {output}")
 
