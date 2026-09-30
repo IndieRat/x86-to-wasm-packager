@@ -1,6 +1,3 @@
-#ifdef __cplusplus
-extern "C"
-#endif
 int __fltused = 0;
 
 typedef unsigned int u32;

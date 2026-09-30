@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - xwasm-selftest-env
+      - x87-build-runtime-test
   pull_request:
 
 jobs:
@@ -23,6 +24,20 @@ jobs:
           python3 tool/xwasm_build_x86_runtime.py \
             --clang "$(command -v clang)" \
             --output dist/x86-runtime-selftest/runtime.wasm
+
+      - name: Build x87 PE32 fixture
+        run: |
+          mkdir -p dist/xwasm-x87
+          python3 tool/xwasm_build_x87_fixture.py \
+            --clang "$(command -v clang)" \
+            --lld-link "$(command -v lld-link)" \
+            --output dist/xwasm-x87/x87-fixture.exe
+
+      - name: Run x87 compiled-C integration gate
+        run: |
+          node tests/xwasm_x87_runner_node.js \
+            dist/x86-runtime-selftest/runtime.wasm \
+            dist/xwasm-x87/x87-fixture.exe
 
       - name: Run WASM memory self-test
         run: |
