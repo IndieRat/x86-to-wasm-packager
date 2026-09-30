@@ -36,7 +36,11 @@
       log("[INFO] CPU run="+result+" steps="+e.x86_get_steps()+" EIP="+hex(eip)+" EAX="+hex(e.x86_get_eax()));
       log("[DEBUG] semantic ID length="+e.x86_get_last_semantic_id_len());
       let semantic="";for(let i=0;i<e.x86_get_last_semantic_id_len();i++)semantic+=String.fromCharCode(e.x86_get_last_semantic_id_char(i));
-      log("[DEBUG] semantic ID: "+(semantic||"<none>"));\n      traceDump(e);\n      x87Diag(e);\n      log("[DIAG] last dispatch="+e.x86_get_last_dispatch_id()+" count="+e.x86_get_last_dispatch_count());\n      log("[DIAG] last opcode=0x"+(e.x86_get_last_decoded_opcode()>>>0).toString(16).padStart(2,"0")+" length="+e.x86_get_last_decoded_length());
+      log("[DEBUG] semantic ID: "+(semantic||"<none>"));
+      traceDump(e);
+      x87Diag(e);
+      log("[DIAG] last dispatch="+e.x86_get_last_dispatch_id()+" count="+e.x86_get_last_dispatch_count());
+      log("[DIAG] last opcode=0x"+(e.x86_get_last_decoded_opcode()>>>0).toString(16).padStart(2,"0")+" length="+e.x86_get_last_decoded_length());
       check("CPU halted",e.x86_get_halted(),1);check("CPU error",e.x86_get_cpu_error(),0);check("x87 compiled C result",e.x86_get_eax(),1);
       log("=== RESULT ===");log("[PASS] XWASM x87 compiled-C milestone complete");
     }catch(err){log(String(err));}
