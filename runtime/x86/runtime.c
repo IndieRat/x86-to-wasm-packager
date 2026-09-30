@@ -53,6 +53,7 @@ static uint32_t trace_dispatch[X86_TRACE_DEPTH];
 static char trace_semantic_id[X86_TRACE_DEPTH][X86_SEMANTIC_ID_MAX];
 static uint32_t trace_count=0,trace_head=0,trace_failure_index=0;
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea);
+static int cpu_step_x87(uint8_t op,uint32_t *ip);
 static void x86_copy_semantic_id(char *dst,const char *src){uint32_t i=0;if(!src)src="NONE";for(;i+1u<X86_SEMANTIC_ID_MAX&&src[i];++i)dst[i]=src[i];dst[i]=0;}
 static void x86_trace_reset(void){trace_count=0;trace_head=0;trace_failure_index=0;last_decoded_semantic_id[0]=0;}
 static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t before_eax,uint32_t before_ecx,uint32_t before_edx,uint32_t before_ebx,uint32_t before_opcode,uint32_t dispatch){
@@ -1028,7 +1029,7 @@ static void set_shift_flags(uint32_t v,uint32_t cf,int of_valid,uint32_t of){
 }
 static int cond(uint8_t op){
  switch(op){
-  case 0xD8:case 0xD9:case 0xDC:case 0xDD:{uint32_t start=ip;int r=cpu_step_x87(op,&ip);if(r<0)return r;eip=ip;return 0;}
+  case 0xD8:case 0xD9:case 0xDC:case 0xDD:{uint32_t ip=eip;int r=cpu_step_x87(op,&ip);if(r<0)return r;eip=ip;return 0;}
   case 0x70:return (eflags&OF)!=0; /* JO */
   case 0x71:return (eflags&OF)==0; /* JNO */
   case 0x72:return (eflags&CF)!=0; /* JB/JC */
