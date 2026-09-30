@@ -58,15 +58,27 @@
 
       // Keep diagnostics before assertions so a failing C5 run still reports
       // the instruction and guest bytes that stopped execution.
-      log("[DEBUG] CPU halted: " + e.x86_get_halted());
-      log("[DEBUG] CPU error: " + e.x86_get_cpu_error());
+      log("[RUNNER BUILD] 20260930c");
+      const call = (name, fn) => {
+        log("[CALL] " + name);
+        try {
+          const value = fn();
+          log("[RETURN] " + name + ": " + value);
+          return value;
+        } catch (err) {
+          log("[CRASH] " + name + ": " + String(err));
+          throw err;
+        }
+      };
+      const halted = call("x86_get_halted", () => e.x86_get_halted());
+      const cpuError = call("x86_get_cpu_error", () => e.x86_get_cpu_error());
       if (badEip === 0xF00DCAFE) {
         log("[DEBUG] current opcode: <entrypoint return sentinel>");
       } else {
-        log("[DEBUG] current opcode: " + hex(e.x86_get_current_opcode()));
+        log("[DEBUG] current opcode: " + hex(call("x86_get_current_opcode", () => e.x86_get_current_opcode())));
       }
-      log("[DEBUG] last decoded opcode: " + hex(e.x86_get_last_decoded_opcode()));
-      log("[DEBUG] last decoded length: " + e.x86_get_last_decoded_length());
+      log("[DEBUG] last decoded opcode: " + hex(call("x86_get_last_decoded_opcode", () => e.x86_get_last_decoded_opcode())));
+      log("[DEBUG] last decoded length: " + call("x86_get_last_decoded_length", () => e.x86_get_last_decoded_length()));
 
       if (badEip === 0xF00DCAFE) {
         log("[DEBUG] entrypoint return sentinel reached; guest-byte probe skipped");
@@ -86,8 +98,8 @@
       }
       log("[DEBUG] semantic ID: " + (semantic || "<none>"));
 
-      check("CPU halted", e.x86_get_halted(), 1);
-      check("CPU error", e.x86_get_cpu_error(), 0);
+      check("CPU halted", halted, 1);
+      check("CPU error", cpuError, 0);
       check("compiled C return value", e.x86_get_eax(), 2);
 
       const path = e.x86_crt_malloc(0x40);
