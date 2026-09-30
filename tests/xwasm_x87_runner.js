@@ -2,6 +2,25 @@
   const $=id=>document.getElementById(id), log=s=>{const p=document.createElement("div");p.textContent=s;$("log").appendChild(p);};
   const check=(n,a,e)=>{if(a!==e)throw new Error("[FAIL] "+n+": got "+a+", expected "+e);log("[PASS] "+n+": "+a);};
   const hex=n=>"0x"+(n>>>0).toString(16).padStart(8,"0");
+  const semantic=e=>{let s="";const n=e.x86_get_last_semantic_id_len();for(let i=0;i<n;i++)s+=String.fromCharCode(e.x86_get_last_semantic_id_char(i));return s||"<none>";};
+  const traceDump=e=>{
+    const n=e.x86_get_trace_count();
+    log("[DIAG] trace entries="+n);
+    for(let j=0;j<n;j++){
+      const i=e.x86_get_trace_index(j);
+      let sid="";const sn=e.x86_get_trace_semantic_id_len(i);
+      for(let k=0;k<sn;k++)sid+=String.fromCharCode(e.x86_get_trace_semantic_id_char(i,k));
+      const op=e.x86_get_trace_opcode(i)&255;
+      const x87=op>=0xD8&&op<=0xDF;
+      log("[TRACE "+String(j).padStart(2,"0")+"] EIP="+hex(e.x86_get_trace_eip(i))+" -> "+hex(e.x86_get_trace_next_eip(i))+" OP=0x"+op.toString(16).padStart(2,"0")+(x87?" <X87>":"")+" SEM="+sid+" DISPATCH="+e.x86_get_trace_dispatch(i)+" EAX="+hex(e.x86_get_trace_eax(i))+" FLAGS="+hex(e.x86_get_trace_flags(i)));
+    }
+  };
+  const x87Diag=e=>{
+    const n=e.x86_get_trace_count();let seen=0;
+    for(let j=0;j<n;j++){const i=e.x86_get_trace_index(j),op=e.x86_get_trace_opcode(i)&255;if(op>=0xD8&&op<=0xDF){seen++;}}
+    log("[X87 DIAG] executed x87 opcodes in trace="+seen);
+    if(!seen)log("[X87 DIAG] No D8-DF instruction reached the trace; inspect fixture generation/decoder reachability.");
+  };
   async function run(){
     $("log").textContent=""; const rf=$("runtime").files[0],pf=$("payload").files[0];
     if(!rf||!pf){log("Select runtime.wasm and the x87 PE32 fixture first.");return;}
@@ -17,7 +36,7 @@
       log("[INFO] CPU run="+result+" steps="+e.x86_get_steps()+" EIP="+hex(eip)+" EAX="+hex(e.x86_get_eax()));
       log("[DEBUG] semantic ID length="+e.x86_get_last_semantic_id_len());
       let semantic="";for(let i=0;i<e.x86_get_last_semantic_id_len();i++)semantic+=String.fromCharCode(e.x86_get_last_semantic_id_char(i));
-      log("[DEBUG] semantic ID: "+(semantic||"<none>"));
+      log("[DEBUG] semantic ID: "+(semantic||"<none>"));\n      traceDump(e);\n      x87Diag(e);\n      log("[DIAG] last dispatch="+e.x86_get_last_dispatch_id()+" count="+e.x86_get_last_dispatch_count());\n      log("[DIAG] last opcode=0x"+(e.x86_get_last_decoded_opcode()>>>0).toString(16).padStart(2,"0")+" length="+e.x86_get_last_decoded_length());
       check("CPU halted",e.x86_get_halted(),1);check("CPU error",e.x86_get_cpu_error(),0);check("x87 compiled C result",e.x86_get_eax(),1);
       log("=== RESULT ===");log("[PASS] XWASM x87 compiled-C milestone complete");
     }catch(err){log(String(err));}
