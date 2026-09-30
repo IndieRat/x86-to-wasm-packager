@@ -35,6 +35,26 @@ static uint32_t crt_atexit_callbacks[X86_CRT_ATEXIT_MAX];
 static uint32_t requested_image_base=0,reloc_rva=0,reloc_size=0,import_rva=0,import_size=0;
 static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last_load_ptr=0,last_load_size=0;
 static uint32_t regs[8],eflags=0x00000002u;
+/* Minimal x87 state. Values are kept as host doubles for the first compiler-coverage milestone; memory loads/stores still round through IEEE binary32/binary64 formats. */
+static double x87_stack[8];
+static uint32_t x87_count=0;
+static int x87_push(double v){
+ if(x87_count>=8u){cpu_error=0xD801u;return 0;}
+ for(uint32_t i=x87_count;i>0u;i--)x87_stack[i]=x87_stack[i-1u];
+ x87_stack[0]=v;x87_count++;return 1;
+}
+static int x87_pop(void){
+ if(!x87_count){cpu_error=0xD802u;return 0;}
+ for(uint32_t i=1;i<x87_count;i++)x87_stack[i-1u]=x87_stack[i];
+ x87_count--;return 1;
+}
+static int x87_need_top(void){if(!x87_count){cpu_error=0xD802u;return 0;}return 1;}
+static float x87_load_f32(uint32_t p){union{uint32_t u;float f;}x;x.u=rd32(p);return x.f;}
+static double x87_load_f64(uint32_t p){union{uint64_t u;double d;}x;x.u=(uint64_t)rd32(p)|((uint64_t)rd32(p+4u)<<32);return x.d;}
+static void x87_store_f32(uint32_t p,double v){union{uint32_t u;float f;}x;x.f=(float)v;wr32(p,x.u);}
+static void x87_store_f64(uint32_t p,double v){union{uint64_t u;double d;}x;x.d=v;wr32(p,(uint32_t)x.u);wr32(p+4u,(uint32_t)(x.u>>32));}
+static int x87_modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea){if((m>>6)==3)return 0;return modrm_ea(m,ip,ea);}
+
 static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
@@ -1007,6 +1027,7 @@ static void set_shift_flags(uint32_t v,uint32_t cf,int of_valid,uint32_t of){
 }
 static int cond(uint8_t op){
  switch(op){
+  case 0xD8:case 0xD9:case 0xDC:case 0xDD:{uint32_t start=ip;int r=cpu_step_x87(op,&ip);if(r<0)return r;eip=ip;return 0;}
   case 0x70:return (eflags&OF)!=0; /* JO */
   case 0x71:return (eflags&OF)==0; /* JNO */
   case 0x72:return (eflags&CF)!=0; /* JB/JC */
@@ -1069,6 +1090,35 @@ static int x86_stack_discard(uint32_t n){
  uint32_t sp=regs[R_ESP],next=sp+n;
  if(next<sp||!x86_mem_region_find(sp,n,X86_MEM_READ)){x86_mem_faults++;cpu_error=0xE003u;return 0;}
  regs[R_ESP]=next;return 1;
+}
+
+static int cpu_step_x87(uint8_t op,uint32_t *ip){
+ uint8_t m=MEM8((*ip)++),sub=(m>>3)&7u;uint32_t ea=0;
+ if((m>>6)!=3u){if(!x87_modrm_ea(m,ip,&ea))return -60;}
+ if(op==0xD9u){
+  if(sub==0u){double v=(m>>6)==3u?(x87_count && (m&7u)<x87_count?x87_stack[m&7u]:0.0):(double)x87_load_f32(ea);if((m>>6)==3u && (m&7u)>=x87_count){cpu_error=0xD802u;return -61;}if(!x87_push(v))return -62;return 0;}
+  if(sub==2u||sub==3u){if(!x87_need_top())return -61;if((m>>6)==3u){cpu_error=0xD803u;return -63;}x87_store_f32(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;}
+  if((m>>6)==3u){uint8_t r=m&7u;if(m==0xE8u){return x87_push(1.0)?0:-62;}if(m==0xEEu){return x87_push(0.0)?0:-62;}if(m==0xE0u){if(!x87_need_top())return -61;x87_stack[0]=-x87_stack[0];return 0;}if(m==0xE1u){if(!x87_need_top())return -61;if(x87_stack[0]<0)x87_stack[0]=-x87_stack[0];return 0;}if(r<x87_count){double v=x87_stack[r];if(!x87_push(v))return -62;return 0;}}
+ }
+ if(op==0xDDu){
+  if(sub==0u){double v=(m>>6)==3u?(x87_count&&(m&7u)<x87_count?x87_stack[m&7u]:0.0):x87_load_f64(ea);if((m>>6)==3u&&(m&7u)>=x87_count){cpu_error=0xD802u;return -61;}if(!x87_push(v))return -62;return 0;}
+  if(sub==2u||sub==3u){if(!x87_need_top())return -61;if((m>>6)==3u){if(sub==2u){uint8_t r=m&7u;if(r>=x87_count){cpu_error=0xD802u;return -61;}x87_stack[r]=x87_stack[0];return 0;}cpu_error=0xDD03u;return -63;}x87_store_f64(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;}
+ }
+ if(op==0xD8u||op==0xDCu){
+  if(!x87_need_top())return -61;
+  double v;
+  if((m>>6)==3u){uint8_t r=m&7u;if(r>=x87_count){cpu_error=0xD802u;return -61;}v=x87_stack[r];}
+  else v=(op==0xD8u)?(double)x87_load_f32(ea):x87_load_f64(ea);
+  if(sub==0u)x87_stack[0]+=v;
+  else if(sub==1u)x87_stack[0]*=v;
+  else if(sub==4u)x87_stack[0]-=v;
+  else if(sub==5u)x87_stack[0]=v-x87_stack[0];
+  else if(sub==6u)x87_stack[0]/=v;
+  else if(sub==7u)x87_stack[0]=v/x87_stack[0];
+  else {cpu_error=0xD800u|sub;return -60;}
+  return 0;
+ }
+ cpu_error=0xD800u|op;return -60;
 }
 
 static int cpu_step_legacy(void){
@@ -1371,11 +1421,13 @@ static int load_pe(uint32_t f,uint32_t sz){
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
  x86_mem_reset(); x86_mem_register_image();
+ x87_count=0;
  loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;
 /* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
  * synthetic return address so C fixtures whose entrypoint is main() can RET cleanly. */
 if(!x86_stack_push32(X86_ENTRY_RETURN_SENTINEL)){loaded=0;load_error=16;return-7;}
 guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset();
+ x87_count=0;
  legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
  loghex("X86 mapped image base=",image_base);
