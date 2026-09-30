@@ -150,6 +150,50 @@
       ]
     },
     {
+      "id": "MOV_AL_MOFFS8",
+      "instruction": "MOV",
+      "opcode": ["A0"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "reg8", "access": "w", "fixed": "AL"},
+        {"kind": "moffs8", "access": "r", "source": "next4"}
+      ]
+    },
+    {
+      "id": "MOV_EAX_MOFFS32",
+      "instruction": "MOV",
+      "opcode": ["A1"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "reg32", "access": "w", "fixed": "EAX"},
+        {"kind": "moffs32", "access": "r", "source": "next4"}
+      ]
+    },
+    {
+      "id": "MOV_MOFFS8_AL",
+      "instruction": "MOV",
+      "opcode": ["A2"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "moffs8", "access": "w", "source": "next4"},
+        {"kind": "reg8", "access": "r", "fixed": "AL"}
+      ]
+    },
+    {
+      "id": "MOV_MOFFS32_EAX",
+      "instruction": "MOV",
+      "opcode": ["A3"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "moffs32", "access": "w", "source": "next4"},
+        {"kind": "reg32", "access": "r", "fixed": "EAX"}
+      ]
+    },
+    {
       "id": "LEA_R32_M",
       "instruction": "LEA",
       "opcode": [
