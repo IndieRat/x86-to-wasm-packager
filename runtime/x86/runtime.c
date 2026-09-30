@@ -38,23 +38,6 @@ static uint32_t regs[8],eflags=0x00000002u;
 /* Minimal x87 state. Values are kept as host doubles for the first compiler-coverage milestone; memory loads/stores still round through IEEE binary32/binary64 formats. */
 static double x87_stack[8];
 static uint32_t x87_count=0;
-static int x87_push(double v){
- if(x87_count>=8u){cpu_error=0xD801u;return 0;}
- for(uint32_t i=x87_count;i>0u;i--)x87_stack[i]=x87_stack[i-1u];
- x87_stack[0]=v;x87_count++;return 1;
-}
-static int x87_pop(void){
- if(!x87_count){cpu_error=0xD802u;return 0;}
- for(uint32_t i=1;i<x87_count;i++)x87_stack[i-1u]=x87_stack[i];
- x87_count--;return 1;
-}
-static int x87_need_top(void){if(!x87_count){cpu_error=0xD802u;return 0;}return 1;}
-static float x87_load_f32(uint32_t p){union{uint32_t u;float f;}x;x.u=rd32(p);return x.f;}
-static double x87_load_f64(uint32_t p){union{uint64_t u;double d;}x;x.u=(uint64_t)rd32(p)|((uint64_t)rd32(p+4u)<<32);return x.d;}
-static void x87_store_f32(uint32_t p,double v){union{uint32_t u;float f;}x;x.f=(float)v;wr32(p,x.u);}
-static void x87_store_f64(uint32_t p,double v){union{uint64_t u;double d;}x;x.d=v;wr32(p,(uint32_t)x.u);wr32(p+4u,(uint32_t)(x.u>>32));}
-static int x87_modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea){if((m>>6)==3)return 0;return modrm_ea(m,ip,ea);}
-
 static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
@@ -150,6 +133,24 @@ static uint32_t al4(uint32_t x);
 static uint32_t rd32(uint32_t p);
 static void wr32(uint32_t p,uint32_t v);
 static void wr8(uint32_t p,uint8_t v);
+static int x87_push(double v){
+ if(x87_count>=8u){cpu_error=0xD801u;return 0;}
+ for(uint32_t i=x87_count;i>0u;i--)x87_stack[i]=x87_stack[i-1u];
+ x87_stack[0]=v;x87_count++;return 1;
+}
+static int x87_pop(void){
+ if(!x87_count){cpu_error=0xD802u;return 0;}
+ for(uint32_t i=1;i<x87_count;i++)x87_stack[i-1u]=x87_stack[i];
+ x87_count--;return 1;
+}
+static int x87_need_top(void){if(!x87_count){cpu_error=0xD802u;return 0;}return 1;}
+static float x87_load_f32(uint32_t p){union{uint32_t u;float f;}x;x.u=rd32(p);return x.f;}
+static double x87_load_f64(uint32_t p){union{uint64_t u;double d;}x;x.u=(uint64_t)rd32(p)|((uint64_t)rd32(p+4u)<<32);return x.d;}
+static void x87_store_f32(uint32_t p,double v){union{uint32_t u;float f;}x;x.f=(float)v;wr32(p,x.u);}
+static void x87_store_f64(uint32_t p,double v){union{uint64_t u;double d;}x;x.d=v;wr32(p,(uint32_t)x.u);wr32(p+4u,(uint32_t)(x.u>>32));}
+static int x87_modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea){if((m>>6)==3)return 0;return modrm_ea(m,ip,ea);}
+
+
 
 /* v0.9 memory subsystem: explicit guest regions plus checked bulk-memory helpers.
  * The current instruction core still uses its established little-endian accessors;
