@@ -114,6 +114,7 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
               x86_id_is(id, "PUSH_IMM32") ||
               x86_id_is(id, "IMUL_R32_RM32_IMM32"))) d->imm_size = 2;
     else if (x86_id_is(id, "MOV_R32_IMM32") ||
+        x86_id_is(id, "MOV_RM32_IMM32") ||
         x86_id_is(id, "ADD_RM32_IMM32") ||
         x86_id_is(id, "SUB_RM32_IMM32") ||
         x86_id_is(id, "CMP_RM32_IMM32") ||
@@ -328,6 +329,32 @@ static int cpu_step(void) {
     last_decoded_length = d.cursor - d.start;
     x86_copy_semantic_id(last_decoded_semantic_id,
                          (d.entry && d.entry->id) ? d.entry->id : "NONE");
+
+    /* x87 is already decoded into authoritative semantic IDs. Route the
+     * decoded D8/D9/DC/DD families directly to the existing x87 executor
+     * instead of letting them fall through to the legacy raw-opcode switch. */
+    if (d.entry && (x86_id_is(d.entry->id,"FLD_RM32") ||
+                    x86_id_is(d.entry->id,"FST_RM32") ||
+                    x86_id_is(d.entry->id,"FSTP_RM32") ||
+                    x86_id_is(d.entry->id,"FADD_RM32") ||
+                    x86_id_is(d.entry->id,"FMUL_RM32") ||
+                    x86_id_is(d.entry->id,"FSUB_RM32") ||
+                    x86_id_is(d.entry->id,"FSUBR_RM32") ||
+                    x86_id_is(d.entry->id,"FDIV_RM32") ||
+                    x86_id_is(d.entry->id,"FDIVR_RM32") ||
+                    x86_id_is(d.entry->id,"FLD_RM64") ||
+                    x86_id_is(d.entry->id,"FST_RM64") ||
+                    x86_id_is(d.entry->id,"FSTP_RM64"))) {
+        uint32_t op_ip = saved_eip + 1u;
+        int xr = cpu_step_x87(d.opcode, &op_ip);
+        if (xr < 0) return xr;
+        eip = op_ip;
+        last_dispatch_id = X86_DISPATCH_X87;
+        last_dispatch_count++;
+        x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                         before_opcode,last_dispatch_id);
+        return 0;
+    }
 
     /*
      * Refined semantic dispatch:
