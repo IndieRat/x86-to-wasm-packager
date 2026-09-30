@@ -103,6 +103,8 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
     if (!id) return;
     if (x86_id_is(id, "RET_IMM16")) d->imm_size = 2;
     if (x86_id_is(id, "MOV_R8_IMM8") || x86_id_is(id, "MOV_RM8_IMM8")) d->imm_size = 1;
+    if (x86_id_is(id, "MOV_AL_MOFFS8") || x86_id_is(id, "MOV_EAX_MOFFS32") || x86_id_is(id, "MOV_MOFFS8_AL") || x86_id_is(id, "MOV_MOFFS32_EAX")) d->imm_size = 4;
+
     else if (x86_id_is(id, "MOV_R32_IMM32") && !d->operand16) d->imm_size = 4;
     else if (x86_id_is(id, "MOV_R32_IMM32") && d->operand16) d->imm_size = 2;
     else if (d->operand16 &&
@@ -491,6 +493,27 @@ static int cpu_step(void) {
             last_dispatch_id=X86_DISPATCH_GROUP2;
             last_dispatch_count++;
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"MOV_AL_MOFFS8") ||
+            x86_id_is(d.entry->id,"MOV_EAX_MOFFS32") ||
+            x86_id_is(d.entry->id,"MOV_MOFFS8_AL") ||
+            x86_id_is(d.entry->id,"MOV_MOFFS32_EAX")) {
+            uint32_t address=rd32(d.cursor-4u);
+            if (x86_id_is(d.entry->id,"MOV_AL_MOFFS8")) {
+                reg8_write(0, MEM8(address));
+            } else if (x86_id_is(d.entry->id,"MOV_EAX_MOFFS32")) {
+                regs[R_EAX]=rd32(address);
+            } else if (x86_id_is(d.entry->id,"MOV_MOFFS8_AL")) {
+                wr8(address, reg8_read(0));
+            } else {
+                wr32(address, regs[R_EAX]);
+            }
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_NONE;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
             return 0;
         }
         if (x86_id_is(d.entry->id,"MOV_R32_IMM32") && !decoded_operand16) {
