@@ -64,12 +64,16 @@
       log("[DEBUG] last decoded opcode: " + hex(e.x86_get_last_decoded_opcode()));
       log("[DEBUG] last decoded length: " + e.x86_get_last_decoded_length());
 
-      const debugWord = off => e.x86_debug_probe((badEip + off) >>> 0) & 0xffff;
-      const debugByte = off => debugWord(off) & 0xff;
-      const bytes = Array.from({length: 12}, (_, i) =>
-        debugByte(i).toString(16).padStart(2, "0")
-      ).join(" ");
-      log("[DEBUG] bytes at EIP: " + bytes);
+      if (badEip === 0xF00DCAFE) {
+        log("[DEBUG] entrypoint return sentinel reached; guest-byte probe skipped");
+      } else {
+        const debugWord = off => e.x86_debug_probe((badEip + off) >>> 0) & 0xffff;
+        const debugByte = off => debugWord(off) & 0xff;
+        const bytes = Array.from({length: 12}, (_, i) =>
+          debugByte(i).toString(16).padStart(2, "0")
+        ).join(" ");
+        log("[DEBUG] bytes at EIP: " + bytes);
+      }
 
       let semantic = "";
       const semanticLength = e.x86_get_last_semantic_id_len();
