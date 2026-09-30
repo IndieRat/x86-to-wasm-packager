@@ -50,7 +50,7 @@
       check("load error", e.x86_get_load_error(), 0);
 
       const result = e.x86_run(10000);
-      const badEip = e.x86_get_eip();
+      const badEip = e.x86_get_eip() >>> 0;
 
       log("[INFO] CPU run=" + result + " steps=" + e.x86_get_steps() +
           " EIP=" + hex(badEip) + " EAX=" + hex(e.x86_get_eax()) +
