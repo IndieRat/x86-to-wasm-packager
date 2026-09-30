@@ -39,3 +39,10 @@ jobs:
           node tests/xwasm_cpu_stress.js \
             dist/xwasm-cpu-stress/runtime.wasm \
             dist/xwasm-cpu-stress/resources/__x86__/payload.exe
+
+      - name: Build x87 PE32 fixture
+        run: |
+          python3 tool/xwasm_build_x87_fixture.py \
+            --clang "$(command -v clang)" \
+            --lld-link "$(command -v lld-link)" \
+            --output dist/x87-fixture/x87_float_fixture.exe
