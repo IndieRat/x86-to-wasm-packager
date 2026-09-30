@@ -2687,6 +2687,174 @@
         "required": true,
         "reg_extension": 0
       }
+    },
+    {
+      "id": "FLD_RM32",
+      "instruction": "FLD",
+      "opcode": [
+        "D9"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 0
+      },
+      "operands": []
+    },
+    {
+      "id": "FST_RM32",
+      "instruction": "FST",
+      "opcode": [
+        "D9"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 2
+      },
+      "operands": []
+    },
+    {
+      "id": "FSTP_RM32",
+      "instruction": "FSTP",
+      "opcode": [
+        "D9"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 3
+      },
+      "operands": []
+    },
+    {
+      "id": "FADD_RM32",
+      "instruction": "FADD",
+      "opcode": [
+        "D8"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 0
+      },
+      "operands": []
+    },
+    {
+      "id": "FMUL_RM32",
+      "instruction": "FMUL",
+      "opcode": [
+        "D8"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 1
+      },
+      "operands": []
+    },
+    {
+      "id": "FSUB_RM32",
+      "instruction": "FSUB",
+      "opcode": [
+        "D8"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 4
+      },
+      "operands": []
+    },
+    {
+      "id": "FSUBR_RM32",
+      "instruction": "FSUBR",
+      "opcode": [
+        "D8"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 5
+      },
+      "operands": []
+    },
+    {
+      "id": "FDIV_RM32",
+      "instruction": "FDIV",
+      "opcode": [
+        "D8"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 6
+      },
+      "operands": []
+    },
+    {
+      "id": "FDIVR_RM32",
+      "instruction": "FDIVR",
+      "opcode": [
+        "D8"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 7
+      },
+      "operands": []
+    },
+    {
+      "id": "FLD_RM64",
+      "instruction": "FLD",
+      "opcode": [
+        "DD"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 0
+      },
+      "operands": []
+    },
+    {
+      "id": "FST_RM64",
+      "instruction": "FST",
+      "opcode": [
+        "DD"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 2
+      },
+      "operands": []
+    },
+    {
+      "id": "FSTP_RM64",
+      "instruction": "FSTP",
+      "opcode": [
+        "DD"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 3
+      },
+      "operands": []
     }
   ]
 }
