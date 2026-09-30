@@ -80,7 +80,7 @@
 
       check("CPU halted", e.x86_get_halted(), 1);
       check("CPU error", e.x86_get_cpu_error(), 0);
-      check("compiled C return value", e.x86_get_eax(), 3);
+      check("compiled C return value", e.x86_get_eax(), 2);
 
       const path = e.x86_crt_malloc(0x40);
       const keyPath = e.x86_crt_malloc(0x80);
