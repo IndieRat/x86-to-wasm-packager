@@ -1269,13 +1269,24 @@
       },
       {
         "byte": "D8",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "FADD_RM32",
+          "FMUL_RM32",
+          "FSUB_RM32",
+          "FSUBR_RM32",
+          "FDIV_RM32",
+          "FDIVR_RM32"
+        ]
       },
       {
         "byte": "D9",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "FLD_RM32",
+          "FST_RM32",
+          "FSTP_RM32"
+        ]
       },
       {
         "byte": "DA",
@@ -1294,8 +1305,12 @@
       },
       {
         "byte": "DD",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "FLD_RM64",
+          "FST_RM64",
+          "FSTP_RM64"
+        ]
       },
       {
         "byte": "DE",
