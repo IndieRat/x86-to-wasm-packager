@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - xwasm-selftest-env
+      - x87-build-runtime-test
   pull_request:
 
 jobs:
