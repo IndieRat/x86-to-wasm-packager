@@ -1,49 +1,33 @@
+#!/usr/bin/env python3
+"""Build the x87 freestanding C integration fixture as a PE32 executable."""
+from __future__ import annotations
+
 import argparse
+import shutil
 import subprocess
 from pathlib import Path
 
 
-def main():
+def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--output", required=True)
+    ap.add_argument("--output", type=Path, required=True)
+    ap.add_argument("--clang", default=shutil.which("clang"))
+    ap.add_argument("--lld-link", default=shutil.which("lld-link"))
     args = ap.parse_args()
 
+    if not args.clang:
+        raise SystemExit("clang is required; pass --clang PATH")
+    if not args.lld_link:
+        raise SystemExit("lld-link is required; pass --lld-link PATH")
+
     root = Path(__file__).resolve().parents[1]
-    fixture = root / "tests" / "fixtures" / "x87_float_fixture.c"
-    output = Path(args.output).resolve()
+    source = root / "tests" / "fixtures" / "x87_float_fixture.c"
+    out = args.output.resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
 
-    output.parent.mkdir(parents=True, exist_ok=True)
-
-    llvm = Path(r"C:\Program Files\LLVM\bin")
-
-    clang = llvm / "clang.EXE"
-    lld_link = llvm / "lld-link.EXE"
-
-    obj = output.with_suffix(".obj")
-    support_c = output.with_name("x87_fltused_support.c")
-    support_obj = output.with_name("x87_fltused_support.obj")
-
-    # Clang's MSVC-targeted x87 floating-point code references
-    # __fltused. Because this fixture is freestanding and uses
-    # /nodefaultlib, provide the runtime marker ourselves.
-    #
-    # IMPORTANT:
-    # On i686-pc-windows-msvc, the C identifier:
-    #
-    #     __fltused
-    #
-    # is emitted into the COFF object as:
-    #
-    #     ___fltused
-    #
-    # so we deliberately define it here once.
-    support_c.write_text(
-        "__declspec(selectany) int __fltused = 0;\n",
-        encoding="ascii",
-    )
-
+    obj = out.with_suffix(".obj")
     compile_cmd = [
-        str(clang),
+        args.clang,
         "--target=i686-pc-windows-msvc",
         "-ffreestanding",
         "-fno-builtin",
@@ -54,52 +38,42 @@ def main():
         "-mfpmath=387",
         "-O0",
         "-c",
-        str(fixture),
+        str(source),
         "-o",
         str(obj),
     ]
-
-    print("Compiling x87 fixture:", " ".join(compile_cmd))
-    subprocess.run(compile_cmd, check=True)
-
-    support_compile_cmd = [
-        str(clang),
-        "--target=i686-pc-windows-msvc",
-        "-ffreestanding",
-        "-fno-builtin",
-        "-fno-stack-protector",
-        "-mno-stack-arg-probe",
-        "-O0",
-        "-c",
-        str(support_c),
-        "-o",
-        str(support_obj),
-    ]
-
-    print("Compiling x87 linker support:", " ".join(support_compile_cmd))
-    subprocess.run(support_compile_cmd, check=True)
-
     link_cmd = [
-        str(lld_link),
+        args.lld_link,
         "/machine:x86",
         "/subsystem:console",
         "/entry:main",
         "/base:0x400000",
         "/fixed",
         "/nodefaultlib",
-        f"/out:{output}",
+        "/out:" + str(out),
         str(obj),
-        str(support_obj),
     ]
 
+    print("Compiling x87 fixture:", " ".join(compile_cmd))
+    subprocess.run(compile_cmd, check=True)
     print("Linking x87 PE32:", " ".join(link_cmd))
     subprocess.run(link_cmd, check=True)
-
     obj.unlink(missing_ok=True)
-    support_obj.unlink(missing_ok=True)
-    support_c.unlink(missing_ok=True)
 
-    print(f"Created: {output}")
+    data = out.read_bytes()
+    if data[:2] != b"MZ":
+        raise SystemExit("x87 output is not an MZ executable")
+    pe_off = int.from_bytes(data[0x3C:0x40], "little")
+    if data[pe_off:pe_off + 4] != b"PE\0\0":
+        raise SystemExit("x87 output is missing the PE signature")
+    if int.from_bytes(data[pe_off + 4:pe_off + 6], "little") != 0x14C:
+        raise SystemExit("x87 output is not i386")
+    if int.from_bytes(data[pe_off + 24:pe_off + 26], "little") != 0x10B:
+        raise SystemExit("x87 output is not PE32")
+
+    print(f"Created x87 PE32 fixture: {out}")
+    print(f"Size: {len(data)} bytes")
+    return 0
 
 
 if __name__ == "__main__":
