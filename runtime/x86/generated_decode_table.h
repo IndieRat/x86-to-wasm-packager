@@ -9,6 +9,10 @@ typedef struct {
   const char *id;
 } x86_decode_entry_t;
 static const x86_decode_entry_t x86_decode_table[] = {
+  {0,0xA0,0,-1,"MOV_AL_MOFFS8"},
+  {0,0xA1,0,-1,"MOV_EAX_MOFFS32"},
+  {0,0xA2,0,-1,"MOV_MOFFS8_AL"},
+  {0,0xA3,0,-1,"MOV_MOFFS32_EAX"},
   {0,0x89,1,-1,"MOV_RM32_R32"},
   {0,0xC6,1,0,"MOV_RM8_IMM8"},
   {0,0xC7,1,0,"MOV_RM32_IMM32"},
