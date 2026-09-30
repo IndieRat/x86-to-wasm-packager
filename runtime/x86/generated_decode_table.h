@@ -163,6 +163,18 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {1,0xBA,1,6,"BTR_RM32_IMM8"},
   {1,0x0F,1,7,"BTC_RM32_IMM8"},
   {1,0xBA,1,7,"BTC_RM32_IMM8"},
+  {0,0xD9,1,0,"FLD_RM32"},
+  {0,0xD9,1,2,"FST_RM32"},
+  {0,0xD9,1,3,"FSTP_RM32"},
+  {0,0xD8,1,0,"FADD_RM32"},
+  {0,0xD8,1,1,"FMUL_RM32"},
+  {0,0xD8,1,4,"FSUB_RM32"},
+  {0,0xD8,1,5,"FSUBR_RM32"},
+  {0,0xD8,1,6,"FDIV_RM32"},
+  {0,0xD8,1,7,"FDIVR_RM32"},
+  {0,0xDD,1,0,"FLD_RM64"},
+  {0,0xDD,1,2,"FST_RM64"},
+  {0,0xDD,1,3,"FSTP_RM64"},
 };
 #define X86_DECODE_TABLE_COUNT (sizeof(x86_decode_table)/sizeof(x86_decode_table[0]))
 #endif
