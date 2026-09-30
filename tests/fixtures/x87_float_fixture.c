@@ -1,3 +1,5 @@
+int __fltused = 0;
+
 typedef unsigned int u32;
 typedef float f32;
 
