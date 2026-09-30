@@ -1,7 +1,8 @@
 #ifdef __cplusplus
 extern "C"
 #endif
-int __fltused = 0;
+/* Clang's MSVC x87 code references the MSVC floating-point marker. */
+int _fltused = 0;
 
 typedef unsigned int u32;
 typedef float f32;
