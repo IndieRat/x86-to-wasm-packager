@@ -27,6 +27,7 @@ static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,eip=0,
 #define X86_CRT_EFAULT 14
 #define X86_CRT_CALLBACK_SENTINEL 0xF00DC0DEu
 #define X86_CRT_CALLBACK_MARKER 0xC2C0FFEEu
+#define X86_ENTRY_RETURN_SENTINEL 0xF00DCAFEu
 static int32_t crt_errno=0;
 static uint32_t crt_last_error=0,crt_started=0,crt_exited=0,crt_exit_code=0;
 static uint32_t crt_atexit_count=0,crt_last_atexit_result=0,crt_last_atexit_ok=0,crt_atexit_running=0;
@@ -1370,7 +1371,11 @@ static int load_pe(uint32_t f,uint32_t sz){
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
  x86_mem_reset(); x86_mem_register_image();
- loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset();
+ loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;
+/* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
+ * synthetic return address so C fixtures whose entrypoint is main() can RET cleanly. */
+if(!x86_stack_push32(X86_ENTRY_RETURN_SENTINEL)){loaded=0;load_error=16;return-7;}
+guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset();
  legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
  loghex("X86 mapped image base=",image_base);
@@ -1392,7 +1397,11 @@ __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
 __attribute__((export_name("x86_run"))) int x86_run(int32_t max_steps){
  if(!loaded)return -20; if(halted)return 1; if(max_steps<1)max_steps=1;
- for(int32_t i=0;i<max_steps&&!halted;i++){int r=cpu_step();if(r<0)return r;}
+ for(int32_t i=0;i<max_steps&&!halted;i++){
+  int r=cpu_step();
+  if(r<0)return r;
+  if(eip==X86_ENTRY_RETURN_SENTINEL){halted=1;break;}
+ }
  return halted?1:0;
 }
 __attribute__((export_name("x86_get_eip"))) uint32_t x86_get_eip(void){return eip;}
