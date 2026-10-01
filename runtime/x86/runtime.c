@@ -1670,7 +1670,6 @@ __attribute__((export_name("x86_mem_validate"))) uint32_t x86_mem_validate(uint3
 __attribute__((export_name("x86_mem_copy"))) uint32_t x86_mem_copy(uint32_t dst,uint32_t src,uint32_t size){if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}copy_bytes(dst,src,size);return 1;}
 __attribute__((export_name("x86_mem_set"))) uint32_t x86_mem_set(uint32_t dst,uint32_t value,uint32_t size){if(!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}for(uint32_t i=0;i<size;i++)wr8(dst+i,(uint8_t)value);return 1;}
 __attribute__((export_name("x86_get_memory_region_count"))) uint32_t x86_get_memory_region_count(void){return x86_mem_region_count;}
-__attribute__((export_name("x86_get_memory_faults"))) uint32_t x86_get_memory_faults(void){return x86_mem_faults;}
 __attribute__((export_name("x86_get_virtual_heap"))) uint32_t x86_get_virtual_heap(void){return guest_vm;}
 __attribute__((export_name("x86_get_last_virtual_alloc"))) uint32_t x86_get_last_virtual_alloc(void){return last_virtual_alloc;}
 __attribute__((export_name("x86_get_last_virtual_alloc_size"))) uint32_t x86_get_last_virtual_alloc_size(void){return last_virtual_alloc_size;}
