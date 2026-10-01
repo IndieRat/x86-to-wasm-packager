@@ -1246,6 +1246,71 @@
       }
     },
     {
+      "id": "FMULP",
+      "mnemonic": "FMULP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FMULP_STI_ST0"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "FSUBP",
+      "mnemonic": "FSUBP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FSUBP_STI_ST0"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "FSUBRP",
+      "mnemonic": "FSUBRP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FSUBRP_STI_ST0"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "FDIVP",
+      "mnemonic": "FDIVP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FDIVP_STI_ST0"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "FDIVRP",
+      "mnemonic": "FDIVRP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FDIVRP_STI_ST0"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
       "id": "FSUB",
       "mnemonic": "FSUB",
       "family": "x87_floating_point",
