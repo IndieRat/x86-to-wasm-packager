@@ -449,7 +449,7 @@
       "encoding": "RM",
       "operands": [
         {"kind": "reg32", "access": "w", "source": "modrm.reg"},
-        {"kind": "rm32", "width": 8, "access": "r", "source": "modrm.rm"}
+        {"kind": "rm8", "access": "r", "source": "modrm.rm"}
       ],
       "modrm": {"required": true}
     },
@@ -461,7 +461,7 @@
       "encoding": "RM",
       "operands": [
         {"kind": "reg32", "access": "w", "source": "modrm.reg"},
-        {"kind": "rm32", "width": 8, "access": "r", "source": "modrm.rm"}
+        {"kind": "rm8", "access": "r", "source": "modrm.rm"}
       ],
       "modrm": {"required": true}
     },
@@ -641,7 +641,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {"kind": "m32", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -652,7 +652,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 2},
       "operands": [
-        {"kind": "m32", "access": "w", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "w", "source": "modrm.rm"}
       ]
     },
     {
@@ -663,7 +663,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 3},
       "operands": [
-        {"kind": "m32", "access": "w", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "w", "source": "modrm.rm"}
       ]
     },
     {
@@ -674,7 +674,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {"kind": "m64", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -685,7 +685,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 2},
       "operands": [
-        {"kind": "m64", "access": "w", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "w", "source": "modrm.rm"}
       ]
     },
     {
@@ -696,7 +696,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 3},
       "operands": [
-        {"kind": "m64", "access": "w", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "w", "source": "modrm.rm"}
       ]
     },
     {
@@ -707,7 +707,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {"kind": "m32", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -718,7 +718,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 1},
       "operands": [
-        {"kind": "m32", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -729,7 +729,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 4},
       "operands": [
-        {"kind": "m32", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -740,7 +740,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 5},
       "operands": [
-        {"kind": "m32", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -751,7 +751,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 6},
       "operands": [
-        {"kind": "m32", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -762,7 +762,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 7},
       "operands": [
-        {"kind": "m32", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -773,7 +773,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -784,7 +784,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 1},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -795,7 +795,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 4},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -806,7 +806,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 5},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -817,7 +817,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 6},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -828,7 +828,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 7},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -839,7 +839,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -850,7 +850,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 1},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -861,7 +861,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 4},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -872,7 +872,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 5},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -883,7 +883,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 6},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -894,7 +894,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 7},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
@@ -905,7 +905,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 2},
       "operands": [
-        {"kind": "sti", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -916,7 +916,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 3},
       "operands": [
-        {"kind": "sti", "access": "r", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
@@ -925,7 +925,7 @@
       "opcode": ["DE"],
       "opcode_map": "primary",
       "encoding": "M",
-      "modrm": {"required": true, "reg_extension": 3, "mod_fixed": 3, "rm_fixed": 1},
+      "modrm": {"required": true, "reg_extension": 3},
       "operands": []
     },
     {
@@ -936,7 +936,7 @@
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
       ]
     },
     {
