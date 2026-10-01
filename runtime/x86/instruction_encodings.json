@@ -868,7 +868,7 @@
       "opcode": [
         "94"
       ],
-      "opcode_map": "0F",
+      "opcode_map": "escape_0f",
       "encoding": "M",
       "operands": [
         {
