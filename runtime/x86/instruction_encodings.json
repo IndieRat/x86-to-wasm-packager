@@ -2733,6 +2733,24 @@
       }
     },
     {
+      "id": "FMUL_STI_ST0",
+      "instruction": "FMUL",
+      "opcode": ["DC"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 1},
+      "operands": []
+    },
+    {
+      "id": "FADDP_STI_ST0",
+      "instruction": "FADDP",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 0},
+      "operands": []
+    },
+    {
       "id": "FLD_RM32",
       "instruction": "FLD",
       "opcode": [
