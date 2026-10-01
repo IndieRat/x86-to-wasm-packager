@@ -1513,7 +1513,13 @@ __attribute__((export_name("x86_run"))) int x86_run(int32_t max_steps){
  if(!loaded)return -20; if(halted)return 1; if(max_steps<1)max_steps=1;
  for(int32_t i=0;i<max_steps&&!halted;i++){
   int r=cpu_step();
-  if(r<0)return r;
+  if(r<0){
+   /* A CPU fault is terminal for this run, but the machine state remains
+    * intact for diagnostics: EIP, decoded opcode, trace, registers, stack,
+    * memory-fault counters, and cpu_error are all still queryable. */
+   halted=1;
+   return r;
+  }
   if(eip==X86_ENTRY_RETURN_SENTINEL){halted=1;break;}
  }
  return halted?1:0;
