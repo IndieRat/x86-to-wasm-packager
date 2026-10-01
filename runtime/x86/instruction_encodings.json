@@ -1036,18 +1036,6 @@
       ]
     },
     {
-      "id": "RCR_RM32_1",
-      "instruction": "RCR",
-      "opcode": ["D1"],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {"required": true, "reg_extension": 3},
-      "operands": [
-        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
-        {"kind": "imm8", "access": "r", "fixed": 1}
-      ]
-    },
-    {
       "id": "RCR_RM32_IMM8",
       "instruction": "RCR",
       "opcode": ["C1"],
