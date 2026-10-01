@@ -1,4 +1,5 @@
 const fs = require("fs");
+const { diagnosticCheck, printDiagnostics } = require("./xwasm_diagnostics");
 
 const runtimePath = process.argv[2];
 const payloadPath = process.argv[3];
@@ -27,10 +28,9 @@ for (const imp of imports) {
 
 const instance = new WebAssembly.Instance(module, {env});
 const e = instance.exports;
-const check = (name, actual, expected) => {
-  if (actual !== expected) throw new Error(`[FAIL] ${name}: got ${actual}, expected ${expected}`);
-  console.log(`[PASS] ${name}: ${actual}`);
-};
+let lastRunResult = null;
+const check = (name, actual, expected) => diagnosticCheck(e, name, actual, expected, {label:"XWASM CPU STRESS", runResult:lastRunResult});
+const fail = message => { printDiagnostics(e, "XWASM CPU STRESS", {runResult:lastRunResult}); throw new Error(message); };
 const hex = n => `0x${(n >>> 0).toString(16).padStart(8, "0")}`;
 
 check("runtime version", e.x86_get_runtime_version(), 0x00090000);
@@ -50,7 +50,7 @@ check("load error", e.x86_get_load_error(), 0);
 check("image base", e.x86_get_image_base(), 0x00400000);
 check("entry nonzero", e.x86_get_eip() !== 0, true);
 
-const runResult = e.x86_run(2000);
+lastRunResult = e.x86_run(2000);\nconst runResult = lastRunResult;
 console.log(`[INFO] CPU run result=${runResult} steps=${e.x86_get_steps()} EIP=${hex(e.x86_get_eip())} EAX=${hex(e.x86_get_eax())} EFLAGS=${hex(e.x86_get_eflags())}`);
 check("CPU halted", e.x86_get_halted(), 1);
 check("C0 callback return preserved", e.x86_get_esi(), 0x2a);
@@ -211,7 +211,7 @@ check("region count after 40 stress allocations", e.x86_get_memory_region_count(
 
 for (let i = 0; i < stress.length; i++) {
   if (e.x86_mem_validate(stress[i], 0x1000, 3) !== 1) {
-    throw new Error(`[FAIL] stress region ${i} invalid at ${hex(stress[i])}`);
+    fail(`[FAIL] stress region ${i} invalid at ${hex(stress[i])}`);
   }
 }
 console.log("[PASS] all stress allocations remain readable/writable");
