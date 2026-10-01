@@ -11,7 +11,7 @@ data=json.loads(src.read_text(encoding="utf-8"))
 names=("primary","escape_0f","escape_0f38","escape_0f3a")
 maps={n:[{"byte":f"{i:02X}","status":"RESERVED","encoding_ids":[]} for i in range(256)] for n in names}
 for e in data["encodings"]:
-    op=e["opcode"]; mp=e.get("opcode_map","primary")
+    # FCOMPP is an exact two-byte x87 form (DE D9) handled by the decoder\n    # as a special sequence rather than a single opcode-map slot.\n    if e["id"] == "FCOMPP":\n        continue\n    op=e["opcode"]; mp=e.get("opcode_map","primary")
     if mp not in maps: raise ValueError(f"unknown opcode map: {mp}")
     if not op: raise ValueError(f"empty opcode: {e['id']}")
     b=int(op[-1],16)
