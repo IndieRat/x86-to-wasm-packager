@@ -1134,16 +1134,19 @@ static int cpu_step_x87(uint8_t op,uint32_t *ip){
    if(m==0xE1u){if(!x87_need_top())return -61;if(x87_stack[0]<0)x87_stack[0]=-x87_stack[0];return 0;} /* FABS */
    if(m==0xF7u){x87_rotate_top(+1);return 0;} /* FINCSTP */
    if(m==0xF6u){x87_rotate_top(-1);return 0;} /* FDECSTP */
+   if(m==0xE4u){if(!x87_need_top())return -61;x87_set_compare(x87_stack[0],0.0);return 0;} /* FTST */
    if((m&0xF8u)==0xC8u)return x87_fxch(r)?0:-61; /* FXCH ST(i) */
-   if(r<x87_count){if(!x87_push(x87_stack[r]))return -62;return 0;} /* FLD ST(i) */
+   if((m&0xF8u)==0xC0u){if(!x87_valid_reg(r)||!x87_push(x87_stack[r]))return -62;return 0;} /* FLD ST(i) */
+   if((m&0xF8u)==0xD0u){if(!x87_valid_reg(r)||!x87_need_top()){return -61;}x87_stack[r]=x87_stack[0];return 0;} /* FST ST(i) */
+   if((m&0xF8u)==0xD8u){if(!x87_valid_reg(r)||!x87_need_top()){return -61;}x87_stack[r]=x87_stack[0];return x87_pop()?0:-61;} /* FSTP ST(i) */
   }else if(sub==0u){double v=(double)x87_load_f32(ea);return x87_push(v)?0:-62;} /* FLD m32 */
   else if(sub==2u||sub==3u){if(!x87_need_top())return -61;x87_store_f32(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;} /* FST/FSTP m32 */
  }
  if(op==0xDDu){
   if(mod==3u){
-   if(sub==0u){if(!x87_valid_reg(r)||!x87_push(x87_stack[r]))return -62;return 0;} /* FLD ST(i) */
-   if(sub==2u){if(!x87_valid_reg(r)||!x87_need_top())return -61;x87_stack[r]=x87_stack[0];return 0;} /* FST ST(i) */
-   if(sub==3u){if(!x87_need_top()||!x87_pop())return -61;return 0;} /* FSTP ST(i): stack-top store semantics simplified */
+   if((m&0xF8u)==0xC0u){if(!x87_valid_reg(r)||!x87_push(x87_stack[r]))return -62;return 0;} /* FLD ST(i) */
+   if((m&0xF8u)==0xD0u){if(!x87_valid_reg(r)||!x87_need_top())return -61;x87_stack[r]=x87_stack[0];return 0;} /* FST ST(i) */
+   if((m&0xF8u)==0xD8u){if(!x87_valid_reg(r)||!x87_need_top())return -61;x87_stack[r]=x87_stack[0];return x87_pop()?0:-61;} /* FSTP ST(i) */
   }else{
    if(sub==0u)return x87_push(x87_load_f64(ea))?0:-62; /* FLD m64 */
    if(sub==2u||sub==3u){if(!x87_need_top())return -61;x87_store_f64(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;} /* FST/FSTP m64 */
@@ -1762,6 +1765,10 @@ __attribute__((export_name("x86_crt_exit"))) uint32_t x86_crt_exit(uint32_t code
 __attribute__((export_name("x86_crt_get_last_atexit_result"))) uint32_t x86_crt_get_last_atexit_result(void){return crt_last_atexit_result;}
 __attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback,0);}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
+
+
+
+
 
 
 
