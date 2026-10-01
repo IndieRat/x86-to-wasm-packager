@@ -2791,7 +2791,7 @@
       "encoding": "OI",
       "operands": [
         {
-          "kind": "r32", 
+          "kind": "reg32", 
           "access": "rw", 
           "source": "eax"
         },
