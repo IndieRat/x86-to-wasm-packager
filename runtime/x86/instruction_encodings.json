@@ -633,6 +633,45 @@
         {"kind": "imm8", "access": "r", "fixed": 1}
       ]
     },
+        {
+      "id": "FCOM",
+      "mnemonic": "FCOM",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FCOM_STI"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "FCOMP",
+      "mnemonic": "FCOMP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FCOMP_STI"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "FCOMPP",
+      "mnemonic": "FCOMPP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FCOMPP"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
     {
       "id": "FLD_RM32",
       "instruction": "FLD",
