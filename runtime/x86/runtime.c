@@ -1170,7 +1170,7 @@ static int cpu_step_x87(uint8_t op,uint32_t *ip){
   return 0;
  }
  if(op==0xDEu && mod==3u){
-  if(m==0xD9u){if(x87_count<2u){cpu_error=0xD802u;return -61;}x87_set_compare(x87_stack[0],x87_stack[1]);if(!x87_pop())return -61;return 0;} /* FCOMPP */
+  if(m==0xD9u){if(x87_count<2u){cpu_error=0xD802u;return -61;}x87_set_compare(x87_stack[0],x87_stack[1]);if(!x87_pop())return -61;if(!x87_pop())return -61;return 0;} /* FCOMPP */
   if(!x87_valid_reg(r)||!x87_need_top())return -61;
   double a=x87_stack[0],b=x87_stack[r];
   if(sub==0u)x87_stack[r]=b+a; else if(sub==1u)x87_stack[r]=b*a; else if(sub==4u)x87_stack[r]=a-b; else if(sub==5u)x87_stack[r]=b-a; else if(sub==6u)x87_stack[r]=a/b; else if(sub==7u)x87_stack[r]=b/a; else {cpu_error=0xDE00u|sub;return -60;}
@@ -1250,7 +1250,7 @@ static int cpu_step_legacy(void){
   case 0x03: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t a=regs[d],b=modrm_read32(m,&ip),v=a+b;set_add_flags(a,b,v);regs[d]=v;eip=ip;return 0; } /* ADD r32,r/m32 */
   case 0x3B: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t a=regs[d],b=modrm_read32(m,&ip);set_sub_flags(a,b,a-b);eip=ip;return 0; } /* CMP r32,r/m32 */
   case 0x81: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,a; if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);} uint32_t b=rd32(ip);ip+=4; uint32_t v;
-   if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==2){uint32_t c=(eflags&CF)?1u:0u;v=a+b+c;set_adc_flags(a,b,c,v);}else if(sub==3){uint32_t c=(eflags&CF)?1u:0u;v=a-b-c;set_sbb_flags(a,b,c,v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8100u|sub;return -13;}
+   if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==2){uint32_t c=(eflags&CF)?1u:0u;v=a+b+c;set_adc_flags(a,b,c,v);}else if(sub==3){uint32_t c=(eflags&CF)?1u:0u;v=a-b-c;set_sbb_flags(a,b,c,v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==6){v=a^b;set_logic_flags(v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8100u|sub;return -13;}
    if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);eip=ip;return 0; } /* ADD/SUB/CMP r/m32,imm32 */
   case 0x83: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,a; if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);} int32_t sb=(int8_t)MEM8(ip++);uint32_t b=(uint32_t)sb,v;
    if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==2){uint32_t c=(eflags&CF)?1u:0u;v=a+b+c;set_adc_flags(a,b,c,v);}else if(sub==3){uint32_t c=(eflags&CF)?1u:0u;v=a-b-c;set_sbb_flags(a,b,c,v);}else if(sub==4){v=a&b;set_logic_flags(v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8300u|sub;return -14;}
