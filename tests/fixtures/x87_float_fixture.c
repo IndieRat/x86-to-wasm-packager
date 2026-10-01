@@ -32,6 +32,7 @@ int main(void) {
     bits_u bits;
     bits.d = out;
 
-    /* Expected: 2.75 + 2/3 - 0.75 = 2.666... */
-    return bits.u == 0x4012AAAAAAAAAAAAULL ? 1 : 0;
+    /* Expected: 2.75 + 2/3 - 0.75 = 2.6666666666666665,
+       whose IEEE-754 binary64 representation is 0x4005555555555555. */
+    return bits.u == 0x4005555555555555ULL ? 1 : 0;
 }
