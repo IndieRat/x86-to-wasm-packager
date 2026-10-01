@@ -47,6 +47,7 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {0,0x39,1,-1,"CMP_RM32_R32"},
   {0,0x3B,1,-1,"CMP_R32_RM32"},
   {0,0x81,1,7,"CMP_RM32_IMM32"},
+  {0,0x81,1,6,"XOR_RM32_IMM32"},
   {0,0x83,1,7,"CMP_RM32_IMM8"},
   {0,0x3D,0,-1,"CMP_EAX_IMM32"},
   {0,0x40,0,-1,"INC_R32"},
