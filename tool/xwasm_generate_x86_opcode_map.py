@@ -10,6 +10,12 @@ out=ROOT/"runtime/x86/opcode_map_i386.json"
 data=json.loads(src.read_text(encoding="utf-8"))
 names=("primary","escape_0f","escape_0f38","escape_0f3a")
 maps={n:[{"byte":f"{i:02X}","status":"RESERVED","encoding_ids":[]} for i in range(256)] for n in names}
+def prefix_bits(e):
+    p=e.get("prefix_required")
+    if p == "F2": return 0x02,0x02
+    if p == "F3": return 0x04,0x04
+    return 0,0
+
 for e in data["encodings"]:
     # FCOMPP is an exact two-byte x87 form (DE D9) handled by the decoder
     # as a special sequence rather than a single opcode-map slot.
@@ -23,6 +29,7 @@ for e in data["encodings"]:
         raise ValueError(f"empty opcode: {e['id']}")
     # The database uses opcode arrays for alternative single-byte opcodes
     # (for example B8..BF). Add every alternative to the map.
+    prefix_mask,prefix_value=prefix_bits(e)
     for opcode in op:
         if len(opcode) != 2:
             raise ValueError(f"opcode map requires single-byte opcodes: {e['id']}={opcode}")
