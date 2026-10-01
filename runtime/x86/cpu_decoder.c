@@ -23,6 +23,8 @@ typedef struct {
     uint8_t imm_size;
     uint8_t rel_size;
     int8_t modrm_ext;
+    uint8_t x87;        /* 1 when the opcode is in D8..DF (x87 escape) */
+    uint32_t op_pos;    /* address of the opcode byte (after any prefixes) */
     const x86_decode_entry_t *entry;
 } x86_decoded_t;
 
@@ -205,6 +207,8 @@ static int x86_decode_instruction(x86_decoded_t *d) {
     d->imm_size = 0;
     d->rel_size = 0;
     d->modrm_ext = -1;
+    d->x87 = 0;
+    d->op_pos = 0;
     d->entry = 0;
 
     for (uint32_t n = 0; n < 15u && x86_is_prefix(MEM8(d->cursor)); ++n) {
@@ -227,11 +231,20 @@ static int x86_decode_instruction(x86_decoded_t *d) {
         d->opcode = MEM8(d->cursor++);
     }
 
-    /* FCOMPP is the exact two-byte DE D9 form. */
-    static const x86_decode_entry_t x87_fcompp_entry = {0,0xDE,0, -1,"FCOMPP"};
-    if (d->map == 0 && d->opcode == 0xDE && MEM8(d->cursor) == 0xD9) {
-        d->cursor++;
-        d->entry = &x87_fcompp_entry;
+    /* x87 escape opcodes D8..DF. ModR/M selects the operation (including the
+     * register forms such as DE C9 = FMULP ST(1),ST(0) and DE D9 = FCOMPP), so
+     * these are not looked up in the semantic table. The x87 executor decodes
+     * ModR/M, displacement and the final instruction length itself. */
+    if (d->map == 0 && d->opcode >= 0xD8 && d->opcode <= 0xDF) {
+        static const x86_decode_entry_t x87_entry = {0,0,1,-1,"X87",0,0};
+        if (d->address16) {
+            cpu_error = 0xD100u | d->opcode;
+            return -3;
+        }
+        d->x87 = 1;
+        d->op_pos = d->cursor - 1u;
+        d->entry = &x87_entry;
+        return 0;
     }
 
     /* First locate an opcode candidate without consuming ModR/M. */
@@ -315,6 +328,54 @@ static int x86_decode_instruction(x86_decoded_t *d) {
     return 0;
 }
 
+/* Accurate semantic names for the x87 trace. DC/DE use the Intel encoding in
+ * which the SUB/SUBR and DIV/DIVR slots are swapped relative to D8. */
+static const char *x87_semantic_name(uint8_t op, uint8_t m, char *buf) {
+    static const char *const mem[8][8] = {
+        {"FADD_M32","FMUL_M32","FCOM_M32","FCOMP_M32","FSUB_M32","FSUBR_M32","FDIV_M32","FDIVR_M32"},
+        {"FLD_M32","X87_D9_1","FST_M32","FSTP_M32","FLDENV","FLDCW","FNSTENV","FNSTCW"},
+        {"FIADD_M32","FIMUL_M32","FICOM_M32","FICOMP_M32","FISUB_M32","FISUBR_M32","FIDIV_M32","FIDIVR_M32"},
+        {"FILD_M32","FISTTP_M32","FIST_M32","FISTP_M32","X87_DB_4","FLD_M80","X87_DB_6","FSTP_M80"},
+        {"FADD_M64","FMUL_M64","FCOM_M64","FCOMP_M64","FSUB_M64","FSUBR_M64","FDIV_M64","FDIVR_M64"},
+        {"FLD_M64","FISTTP_M64","FST_M64","FSTP_M64","FRSTOR","X87_DD_5","FNSAVE","FNSTSW"},
+        {"FIADD_M16","FIMUL_M16","FICOM_M16","FICOMP_M16","FISUB_M16","FISUBR_M16","FIDIV_M16","FIDIVR_M16"},
+        {"FILD_M16","FISTTP_M16","FIST_M16","FISTP_M16","FBLD","FILD_M64","FBSTP","FISTP_M64"}
+    };
+    static const char *const d8[8] = {"FADD_ST0_STI","FMUL_ST0_STI","FCOM_STI","FCOMP_STI","FSUB_ST0_STI","FSUBR_ST0_STI","FDIV_ST0_STI","FDIVR_ST0_STI"};
+    static const char *const dc[8] = {"FADD_STI_ST0","FMUL_STI_ST0",0,0,"FSUBR_STI_ST0","FSUB_STI_ST0","FDIVR_STI_ST0","FDIV_STI_ST0"};
+    static const char *const de[8] = {"FADDP_STI_ST0","FMULP_STI_ST0",0,0,"FSUBRP_STI_ST0","FSUBP_STI_ST0","FDIVRP_STI_ST0","FDIVP_STI_ST0"};
+    static const char hex[] = "0123456789ABCDEF";
+    uint8_t reg = (m >> 3) & 7u, i = (uint8_t)(op - 0xD8u);
+    const char *n = 0;
+    if ((m >> 6) != 3u) n = mem[i][reg];
+    else if (op == 0xD8u) n = d8[reg];
+    else if (op == 0xDCu) n = dc[reg];
+    else if (op == 0xDEu) n = (m == 0xD9u) ? "FCOMPP" : de[reg];
+    else if (op == 0xD9u) {
+        if ((m & 0xF8u) == 0xC0u) n = "FLD_STI";
+        else if ((m & 0xF8u) == 0xC8u) n = "FXCH_STI";
+        else switch (m) {
+            case 0xD0: n = "FNOP"; break;   case 0xE0: n = "FCHS"; break;
+            case 0xE1: n = "FABS"; break;   case 0xE4: n = "FTST"; break;
+            case 0xE5: n = "FXAM"; break;   case 0xE8: n = "FLD1"; break;
+            case 0xEE: n = "FLDZ"; break;   case 0xF6: n = "FDECSTP"; break;
+            case 0xF7: n = "FINCSTP"; break; default: break;
+        }
+    } else if (op == 0xDDu) {
+        switch (m & 0xF8u) {
+            case 0xC0: n = "FFREE_STI"; break;  case 0xD0: n = "FST_STI"; break;
+            case 0xD8: n = "FSTP_STI"; break;   case 0xE0: n = "FUCOM_STI"; break;
+            case 0xE8: n = "FUCOMP_STI"; break; default: break;
+        }
+    }
+    if (n) return n;
+    /* Unnamed form: X87_<op>_<modrm> */
+    buf[0]='X';buf[1]='8';buf[2]='7';buf[3]='_';
+    buf[4]=hex[op>>4];buf[5]=hex[op&15u];buf[6]='_';
+    buf[7]=hex[m>>4];buf[8]=hex[m&15u];buf[9]=0;
+    return buf;
+}
+
 static int cpu_step(void) {
     x86_decoded_t d;
     uint32_t saved_eip = eip;
@@ -374,30 +435,20 @@ static int cpu_step(void) {
         eip=d.cursor;last_dispatch_id=X86_DISPATCH_SSE_SCALAR;last_dispatch_count++;x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,before_opcode,last_dispatch_id);return 0;
     }
 
-    /* x87 is already decoded into authoritative semantic IDs. Route the
-     * decoded D8/D9/DC/DD families directly to the existing x87 executor
-     * instead of letting them fall through to the legacy raw-opcode switch. */
-    if (d.entry && (x86_id_is(d.entry->id,"FLD_RM32") ||
-                    x86_id_is(d.entry->id,"FST_RM32") ||
-                    x86_id_is(d.entry->id,"FSTP_RM32") ||
-                    x86_id_is(d.entry->id,"FADD_RM32") ||
-                    x86_id_is(d.entry->id,"FMUL_RM32") ||
-                    x86_id_is(d.entry->id,"FSUB_RM32") ||
-                    x86_id_is(d.entry->id,"FSUBR_RM32") ||
-                    x86_id_is(d.entry->id,"FDIV_RM32") ||
-                    x86_id_is(d.entry->id,"FDIVR_RM32") ||
-                    x86_id_is(d.entry->id,"FLD_RM64") ||
-                    x86_id_is(d.entry->id,"FST_RM64") ||
-                    x86_id_is(d.entry->id,"FSTP_RM64") ||
-                    x86_id_is(d.entry->id,"FMUL_STI_ST0") ||
-                    x86_id_is(d.entry->id,"FADDP_STI_ST0") ||
-                    x86_id_is(d.entry->id,"FCOM_STI") ||
-                    x86_id_is(d.entry->id,"FCOMP_STI") ||
-                    x86_id_is(d.entry->id,"FCOMPP"))) {
-        uint32_t op_ip = saved_eip + 1u;
+    /* x87: route every D8..DF escape to the x87 executor by opcode. The
+     * previous semantic-ID whitelist silently dropped any form that was not
+     * listed (for example DE C8+i), which then fell into the generic
+     * "unsupported opcode" path. ModR/M is read after the opcode byte, which
+     * is correct even when legacy prefixes precede it. */
+    if (d.x87) {
+        char x87_buf[12];
+        x86_copy_semantic_id(last_decoded_semantic_id,
+                             x87_semantic_name(d.opcode, MEM8(d.op_pos + 1u), x87_buf));
+        uint32_t op_ip = d.op_pos + 1u;
         int xr = cpu_step_x87(d.opcode, &op_ip);
         if (xr < 0) return xr;
         eip = op_ip;
+        last_decoded_length = eip - saved_eip;
         last_dispatch_id = X86_DISPATCH_X87;
         last_dispatch_count++;
         x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
