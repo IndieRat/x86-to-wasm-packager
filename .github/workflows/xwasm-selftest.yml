@@ -18,6 +18,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang lld python3
 
+
+
+      - name: Validate x86 instruction database
+        run: |
+          python3 tool/xwasm_generate_x86_opcode_map.py
+          python3 tool/xwasm_validate_instruction_db.py
+
       - name: Build XWASM x86 runtime
         run: |
           python3 tool/xwasm_build_x86_runtime.py \
@@ -46,3 +53,24 @@ jobs:
             --clang "$(command -v clang)" \
             --lld-link "$(command -v lld-link)" \
             --output dist/x87-fixture/x87_float_fixture.exe
+
+      - name: Build C5 PE32 fixture
+        run: |
+          python3 tool/xwasm_build_c5_fixture.py \
+            --clang "$(command -v clang)" \
+            --lld-link "$(command -v lld-link)" \
+            --output dist/c5-fixture/c5_game_fixture.exe
+
+      - name: Run x87 compiled-C gate
+        run: |
+          node tests/xwasm_ci_runner.js \
+            dist/x86-runtime-selftest/runtime.wasm \
+            dist/x87-fixture/x87_float_fixture.exe \
+            x87
+
+      - name: Run C5 compiled-C gate
+        run: |
+          node tests/xwasm_ci_runner.js \
+            dist/x86-runtime-selftest/runtime.wasm \
+            dist/c5-fixture/c5_game_fixture.exe \
+            c5
