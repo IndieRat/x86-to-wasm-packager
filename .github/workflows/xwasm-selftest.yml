@@ -23,6 +23,7 @@ jobs:
       - name: Validate x86 instruction database
         run: |
           python3 tool/xwasm_generate_x86_opcode_map.py
+          python3 tool/xwasm_generate_x86_decode_table.py
           python3 tool/xwasm_validate_instruction_db.py
 
       - name: Build XWASM x86 runtime
