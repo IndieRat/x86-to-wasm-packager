@@ -37,7 +37,11 @@ static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last
 static uint32_t regs[8],eflags=0x00000002u;
 /* Minimal x87 state. Values are kept as host doubles for the first compiler-coverage milestone; memory loads/stores still round through IEEE binary32/binary64 formats. */
 static double x87_stack[8];
-static uint32_t x87_count=0;
+static uint32_t x87_top=0;
+static uint32_t x87_top=0;x87_top=0;x87_count=0;x87_c0=0;x87_c2=0;x87_c3=0;x87_c0=0;x87_c2=0;x87_c3=0;
+static uint8_t x87_c0=0,x87_c2=0,x87_c3=0;
+#define X87_AT(i) x87_stack[(x87_top + (uint32_t)(i)) & 7u]
+#define X87_SET(i,v) (x87_stack[(x87_top + (uint32_t)(i)) & 7u]=(v))
 static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
@@ -136,15 +140,18 @@ static void wr32(uint32_t p,uint32_t v);
 static void wr8(uint32_t p,uint8_t v);
 static int x87_push(double v){
  if(x87_count>=8u){cpu_error=0xD801u;return 0;}
- for(uint32_t i=x87_count;i>0u;i--)x87_stack[i]=x87_stack[i-1u];
- x87_stack[0]=v;x87_count++;return 1;
+ x87_top=(x87_top+7u)&7u;x87_stack[x87_top]=v;x87_count++;return 1;
 }
 static int x87_pop(void){
  if(!x87_count){cpu_error=0xD802u;return 0;}
- for(uint32_t i=1;i<x87_count;i++)x87_stack[i-1u]=x87_stack[i];
- x87_count--;return 1;
+ x87_top=(x87_top+1u)&7u;x87_count--;return 1;
 }
 static int x87_need_top(void){if(!x87_count){cpu_error=0xD802u;return 0;}return 1;}
+static int x87_need(uint32_t i){if(i>=x87_count){cpu_error=0xD802u;return 0;}return 1;}
+static void x87_compare(double a,double b){
+ if(a!=a||b!=b){x87_c0=1;x87_c2=1;x87_c3=1;return;}
+ x87_c0=0;x87_c2=0;x87_c3=(a==b)?1:0;if(a<b)x87_c0=1;
+}
 static float x87_load_f32(uint32_t p){union{uint32_t u;float f;}x;x.u=rd32(p);return x.f;}
 static double x87_load_f64(uint32_t p){union{uint64_t u;double d;}x;x.u=(uint64_t)rd32(p)|((uint64_t)rd32(p+4u)<<32);return x.d;}
 static void x87_store_f32(uint32_t p,double v){union{uint32_t u;float f;}x;x.f=(float)v;wr32(p,x.u);}
@@ -1095,49 +1102,77 @@ static int x86_stack_discard(uint32_t n){
 }
 
 static int cpu_step_x87(uint8_t op,uint32_t *ip){
- uint8_t m=MEM8((*ip)++),sub=(m>>3)&7u;uint32_t ea=0;
- if((m>>6)!=3u){if(!x87_modrm_ea(m,ip,&ea))return -60;}
+ uint8_t m=MEM8((*ip)++),mod=m>>6,sub=(m>>3)&7u,r=m&7u;uint32_t ea=0;
+ if(mod!=3u&&!x87_modrm_ea(m,ip,&ea))return -60;
  if(op==0xD9u){
-  if(sub==0u){double v=(m>>6)==3u?(x87_count && (m&7u)<x87_count?x87_stack[m&7u]:0.0):(double)x87_load_f32(ea);if((m>>6)==3u && (m&7u)>=x87_count){cpu_error=0xD802u;return -61;}if(!x87_push(v))return -62;return 0;}
-  if(sub==2u||sub==3u){if(!x87_need_top())return -61;if((m>>6)==3u){cpu_error=0xD803u;return -63;}x87_store_f32(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;}
-  if((m>>6)==3u){uint8_t r=m&7u;if(m==0xE8u){return x87_push(1.0)?0:-62;}if(m==0xEEu){return x87_push(0.0)?0:-62;}if(m==0xE0u){if(!x87_need_top())return -61;x87_stack[0]=-x87_stack[0];return 0;}if(m==0xE1u){if(!x87_need_top())return -61;if(x87_stack[0]<0)x87_stack[0]=-x87_stack[0];return 0;}if(r<x87_count){double v=x87_stack[r];if(!x87_push(v))return -62;return 0;}}
- }
- if(op==0xDCu && (m>>6)==3u && sub==1u){
-  uint8_t r=m&7u;
-  if(r>=x87_count){cpu_error=0xD802u;return -61;}
-  x87_stack[r]*=x87_stack[0];
-  return 0;
- }
- if(op==0xDEu){
-  if((m>>6)!=3u || sub!=0u){cpu_error=0xDE00u|sub;return -60;}
-  { uint8_t r=m&7u;
-    if(r>=x87_count || !x87_need_top()){return -61;}
-    x87_stack[r]+=x87_stack[0];
-    if(!x87_pop())return -61;
-    return 0;
+  if(mod==3u){
+   if(m>=0xC0u&&m<=0xC7u){if(!x87_need(r))return -61;double v=X87_AT(r);return x87_push(v)?0:-62;}
+   if(m>=0xC8u&&m<=0xCFu){if(!x87_need(r))return -61;double t=X87_AT(0);X87_SET(0,X87_AT(r));X87_SET(r,t);return 0;}
+   if(m==0xE0u){if(!x87_need_top())return -61;X87_SET(0,-X87_AT(0));return 0;}
+   if(m==0xE1u){if(!x87_need_top())return -61;double v=X87_AT(0);X87_SET(0,v<0?-v:v);return 0;}
+   if(m==0xE4u){if(!x87_need_top())return -61;x87_compare(X87_AT(0),0.0);return 0;}
+   if(m>=0xE8u&&m<=0xEEu){static const double k[7]={1.0,3.3219280948873623,1.4426950408889634,3.1415926535897931,0.3010299956639812,0.6931471805599453,0.0};return x87_push(k[m-0xE8u])?0:-62;}
+   if(m==0xF6u){x87_top=(x87_top+7u)&7u;return 0;}
+   if(m==0xF7u){x87_top=(x87_top+1u)&7u;return 0;}
+  }else{
+   if(sub==0u)return x87_push((double)x87_load_f32(ea))?0:-62;
+   if(sub==2u||sub==3u){if(!x87_need_top())return -61;x87_store_f32(ea,X87_AT(0));if(sub==3u&&!x87_pop())return -61;return 0;}
   }
  }
  if(op==0xDDu){
-  if(sub==0u){double v=(m>>6)==3u?(x87_count&&(m&7u)<x87_count?x87_stack[m&7u]:0.0):x87_load_f64(ea);if((m>>6)==3u&&(m&7u)>=x87_count){cpu_error=0xD802u;return -61;}if(!x87_push(v))return -62;return 0;}
-  if(sub==2u||sub==3u){if(!x87_need_top())return -61;if((m>>6)==3u){if(sub==2u){uint8_t r=m&7u;if(r>=x87_count){cpu_error=0xD802u;return -61;}x87_stack[r]=x87_stack[0];return 0;}cpu_error=0xDD03u;return -63;}x87_store_f64(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;}
+  if(mod==3u){
+   if(m>=0xD0u&&m<=0xD7u){if(!x87_need(r)||!x87_need_top())return -61;X87_SET(r,X87_AT(0));return 0;}
+   if(m>=0xD8u&&m<=0xDFu){if(!x87_need(r)||!x87_need_top())return -61;X87_SET(r,X87_AT(0));return x87_pop()?0:-61;}
+  }else{
+   if(sub==0u)return x87_push(x87_load_f64(ea))?0:-62;
+   if(sub==2u||sub==3u){if(!x87_need_top())return -61;x87_store_f64(ea,X87_AT(0));if(sub==3u&&!x87_pop())return -61;return 0;}
+  }
  }
  if(op==0xD8u||op==0xDCu){
+  double v=(mod==3u)?(x87_need(r)?X87_AT(r):0.0):(op==0xD8u?(double)x87_load_f32(ea):x87_load_f64(ea));
   if(!x87_need_top())return -61;
-  double v;
-  if((m>>6)==3u){uint8_t r=m&7u;if(r>=x87_count){cpu_error=0xD802u;return -61;}v=x87_stack[r];}
-  else v=(op==0xD8u)?(double)x87_load_f32(ea):x87_load_f64(ea);
-  if(sub==0u)x87_stack[0]+=v;
-  else if(sub==1u)x87_stack[0]*=v;
-  else if(sub==4u)x87_stack[0]-=v;
-  else if(sub==5u)x87_stack[0]=v-x87_stack[0];
-  else if(sub==6u)x87_stack[0]/=v;
-  else if(sub==7u)x87_stack[0]=v/x87_stack[0];
+  if(sub==2u||sub==3u){x87_compare(X87_AT(0),v);if(sub==3u&&!x87_pop())return -61;return 0;}
+  if(sub==0u)X87_SET(0,X87_AT(0)+v);
+  else if(sub==1u)X87_SET(0,X87_AT(0)*v);
+  else if(sub==4u)X87_SET(0,X87_AT(0)-v);
+  else if(sub==5u)X87_SET(0,v-X87_AT(0));
+  else if(sub==6u)X87_SET(0,X87_AT(0)/v);
+  else if(sub==7u)X87_SET(0,v/X87_AT(0));
   else {cpu_error=0xD800u|sub;return -60;}
+  return 0;
+ }
+ if(op==0xDEu&&mod==3u){
+  if(m==0xD9u){if(!x87_need_top()||!x87_need(1u))return -61;x87_compare(X87_AT(0),X87_AT(1));if(!x87_pop()||!x87_pop())return -61;return 0;}
+  if(!x87_need_top()||!x87_need(r))return -61;double a=X87_AT(r),b=X87_AT(0);
+  switch(sub){case 0:X87_SET(r,a+b);break;case 1:X87_SET(r,a*b);break;case 4:X87_SET(r,b-a);break;case 5:X87_SET(r,a-b);break;case 6:X87_SET(r,b/a);break;case 7:X87_SET(r,a/b);break;default:cpu_error=0xDE00u|sub;return -60;}
+  return x87_pop()?0:-61;
+ }
+ if(op==0xD8u&&mod==3u){
+  if(!x87_need_top()||!x87_need(r))return -61;double v=X87_AT(r);
+  if(m>=0xD0u&&m<=0xD7u){x87_compare(X87_AT(0),v);return 0;}
+  if(m>=0xD8u&&m<=0xDFu){x87_compare(X87_AT(0),v);return x87_pop()?0:-61;}
+  if(m>=0xC0u&&m<=0xC7u)X87_SET(0,X87_AT(0)+v);
+  else if(m>=0xC8u&&m<=0xCFu)X87_SET(0,X87_AT(0)*v);
+  else if(m>=0xE0u&&m<=0xE7u)X87_SET(0,X87_AT(0)-v);
+  else if(m>=0xE8u&&m<=0xEFu)X87_SET(0,v-X87_AT(0));
+  else if(m>=0xF0u&&m<=0xF7u)X87_SET(0,X87_AT(0)/v);
+  else if(m>=0xF8u&&m<=0xFFu)X87_SET(0,v/X87_AT(0));
+  else {cpu_error=0xD800u|m;return -60;}
+  return 0;
+ }
+ if(op==0xDCu&&mod==3u){
+  if(!x87_need_top()||!x87_need(r))return -61;double a=X87_AT(r),b=X87_AT(0);
+  if(m>=0xC0u&&m<=0xC7u)X87_SET(r,a+b);
+  else if(m>=0xC8u&&m<=0xCFu)X87_SET(r,a*b);
+  else if(m>=0xE0u&&m<=0xE7u)X87_SET(r,a-b);
+  else if(m>=0xE8u&&m<=0xEFu)X87_SET(r,b-a);
+  else if(m>=0xF0u&&m<=0xF7u)X87_SET(r,a/b);
+  else if(m>=0xF8u&&m<=0xFFu)X87_SET(r,b/a);
+  else {cpu_error=0xDC00u|m;return -60;}
   return 0;
  }
  cpu_error=0xD800u|op;return -60;
 }
-
 static int cpu_step_legacy(void){
  uint32_t ip=eip; uint8_t op=MEM8(ip++); steps++;
  switch(op){
