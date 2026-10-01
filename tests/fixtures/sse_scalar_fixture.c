@@ -1,3 +1,5 @@
+int _fltused = 0;
+
 #include <stdint.h>
 static volatile float lhs32=1.5f,rhs32=2.25f;
 static volatile double lhs64=1.5,rhs64=2.25;
