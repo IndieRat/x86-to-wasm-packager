@@ -49,6 +49,13 @@ static uint32_t trace_eip[X86_TRACE_DEPTH],trace_next_eip[X86_TRACE_DEPTH];
 static uint32_t trace_opcode[X86_TRACE_DEPTH],trace_flags[X86_TRACE_DEPTH];
 static uint32_t trace_eax[X86_TRACE_DEPTH],trace_ecx[X86_TRACE_DEPTH];
 static uint32_t trace_ebx[X86_TRACE_DEPTH],trace_edx[X86_TRACE_DEPTH];
+/* Each trace entry keeps both sides of the instruction boundary.  The legacy
+ * trace_* register fields are the pre-state; trace_post_* are the state after
+ * execution.  This makes dataflow faults attributable without guessing from
+ * the next instruction's pre-state. */
+static uint32_t trace_post_eax[X86_TRACE_DEPTH],trace_post_ecx[X86_TRACE_DEPTH];
+static uint32_t trace_post_ebx[X86_TRACE_DEPTH],trace_post_edx[X86_TRACE_DEPTH];
+static uint32_t trace_post_flags[X86_TRACE_DEPTH];
 static uint32_t trace_dispatch[X86_TRACE_DEPTH];
 static char trace_semantic_id[X86_TRACE_DEPTH][X86_SEMANTIC_ID_MAX];
 static uint32_t trace_count=0,trace_head=0,trace_failure_index=0;
@@ -61,6 +68,9 @@ static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t 
  trace_eip[i]=before_eip; trace_next_eip[i]=eip; trace_opcode[i]=before_opcode;
  trace_flags[i]=before_flags; trace_eax[i]=before_eax; trace_ecx[i]=before_ecx;
  trace_edx[i]=before_edx; trace_ebx[i]=before_ebx; trace_dispatch[i]=dispatch;
+ trace_post_eax[i]=regs[R_EAX]; trace_post_ecx[i]=regs[R_ECX];
+ trace_post_edx[i]=regs[R_EDX]; trace_post_ebx[i]=regs[R_EBX];
+ trace_post_flags[i]=eflags;
  x86_copy_semantic_id(trace_semantic_id[i],last_decoded_semantic_id);
  trace_head=(trace_head+1u)%X86_TRACE_DEPTH; if(trace_count<X86_TRACE_DEPTH)trace_count++;
  if(regs[R_EAX]==0xDEADC0DEu && before_eax!=0xDEADC0DEu) trace_failure_index=i+1u;
@@ -1579,6 +1589,11 @@ __attribute__((export_name("x86_get_trace_eax"))) uint32_t x86_get_trace_eax(uin
 __attribute__((export_name("x86_get_trace_ecx"))) uint32_t x86_get_trace_ecx(uint32_t i){return i<X86_TRACE_DEPTH?trace_ecx[i]:0;}
 __attribute__((export_name("x86_get_trace_edx"))) uint32_t x86_get_trace_edx(uint32_t i){return i<X86_TRACE_DEPTH?trace_edx[i]:0;}
 __attribute__((export_name("x86_get_trace_ebx"))) uint32_t x86_get_trace_ebx(uint32_t i){return i<X86_TRACE_DEPTH?trace_ebx[i]:0;}
+__attribute__((export_name("x86_get_trace_post_eax"))) uint32_t x86_get_trace_post_eax(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_eax[i]:0;}
+__attribute__((export_name("x86_get_trace_post_ecx"))) uint32_t x86_get_trace_post_ecx(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_ecx[i]:0;}
+__attribute__((export_name("x86_get_trace_post_edx"))) uint32_t x86_get_trace_post_edx(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_edx[i]:0;}
+__attribute__((export_name("x86_get_trace_post_ebx"))) uint32_t x86_get_trace_post_ebx(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_ebx[i]:0;}
+__attribute__((export_name("x86_get_trace_post_flags"))) uint32_t x86_get_trace_post_flags(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_flags[i]:0;}
 __attribute__((export_name("x86_get_trace_dispatch"))) uint32_t x86_get_trace_dispatch(uint32_t i){return i<X86_TRACE_DEPTH?trace_dispatch[i]:0;}
 __attribute__((export_name("x86_get_trace_failure_index"))) uint32_t x86_get_trace_failure_index(void){return trace_failure_index;}
 __attribute__((export_name("x86_get_current_opcode")))
