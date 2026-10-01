@@ -636,38 +636,32 @@
     {
       "id": "FCOM_STI",
       "instruction": "FCOM",
-      "opcode": ["DE"],
+      "opcode": ["D8", "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7"],
       "opcode_map": "primary",
-      "encoding": "M",
+      "encoding": "O",
+      "opcode_reg": "low3",
       "operands": [
         {
           "kind": "sti",
           "access": "r",
-          "source": "modrm.rm"
+          "source": "opcode.low3"
         }
-      ],
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      }
+      ]
     },
     {
       "id": "FCOMP_STI",
       "instruction": "FCOMP",
-      "opcode": ["DE"],
+      "opcode": ["D8", "D8", "D9", "DA", "DB", "DC", "DD", "DE", "DF"],
       "opcode_map": "primary",
-      "encoding": "M",
+      "encoding": "O",
+      "opcode_reg": "low3",
       "operands": [
         {
           "kind": "sti",
           "access": "r",
-          "source": "modrm.rm"
+          "source": "opcode.low3"
         }
-      ],
-      "modrm": {
-        "required": true,
-        "reg_extension": 3
-      }
+      ]
     },
     {
       "id": "FCOMPP",
@@ -676,7 +670,7 @@
       "opcode_map": "primary",
       "encoding": "ZO",
       "operands": []
-    },
+    }
     {
       "id": "FLD_RM32",
       "instruction": "FLD",
