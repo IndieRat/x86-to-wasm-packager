@@ -21,7 +21,53 @@ async function main() {
   check("PE load",e.x86_load_pe(0x100000,payload.length),0);
   check("loaded",e.x86_get_loaded(),1); check("load error",e.x86_get_load_error(),0);
   const result=e.x86_run(10000);
-  console.log("[INFO] run="+result+" steps="+e.x86_get_steps()+" EIP=0x"+(e.x86_get_eip()>>>0).toString(16)+" EAX=0x"+(e.x86_get_eax()>>>0).toString(16));
+  const hex32=n=>(n>>>0).toString(16).padStart(8,"0");
+  const hex8=n=>(n&255).toString(16).padStart(2,"0");
+  const current=e.x86_get_eip()>>>0;
+  console.log("[INFO] run="+result+" steps="+e.x86_get_steps()+" EIP=0x"+hex32(current)+" EAX=0x"+hex32(e.x86_get_eax()));
+  if(result<0){
+    console.log("=== CPU FAILURE DIAGNOSTICS ===");
+    console.log("[FAULT] run result="+result+" cpu_error=0x"+hex32(e.x86_get_cpu_error())+" halted="+e.x86_get_halted());
+    console.log("[FAULT] current EIP=0x"+hex32(current));
+    console.log("[FAULT] next bytes="+Array.from({length:16},(_,i)=>hex8(e.x86_get_current_byte(i))).join(" "));
+    console.log("[FAULT] last opcode=0x"+hex8(e.x86_get_last_decoded_opcode())+
+      " map=0x"+hex32(e.x86_get_last_decoded_map())+
+      " length="+e.x86_get_last_decoded_length()+
+      " dispatch="+e.x86_get_last_dispatch_id()+
+      " dispatch_count="+e.x86_get_last_dispatch_count());
+    const slen=e.x86_get_last_semantic_id_len();
+    let sid="";
+    for(let i=0;i<slen;i++)sid+=String.fromCharCode(e.x86_get_last_semantic_id_char(i));
+    console.log("[FAULT] last semantic="+(sid||"<none>"));
+    console.log("[FAULT] regs EAX=0x"+hex32(e.x86_get_eax())+
+      " ECX=0x"+hex32(e.x86_get_ecx())+
+      " EDX=0x"+hex32(e.x86_get_edx())+
+      " EBX=0x"+hex32(e.x86_get_ebx())+
+      " ESP=0x"+hex32(e.x86_get_esp())+
+      " EBP=0x"+hex32(e.x86_get_ebp())+
+      " ESI=0x"+hex32(e.x86_get_esi())+
+      " EDI=0x"+hex32(e.x86_get_edi()));
+    console.log("[FAULT] EFLAGS=0x"+hex32(e.x86_get_eflags())+
+      " x87_depth="+e.x86_get_x87_count()+
+      " memory_faults="+e.x86_get_memory_faults());
+    console.log("[FAULT] stack="+Array.from({length:8},(_,i)=>"0x"+hex32(e.x86_get_stack_dword(i))).join(" "));
+    const tc=e.x86_get_trace_count();
+    console.log("[FAULT] trace_count="+tc+" trace_failure_index="+e.x86_get_trace_failure_index());
+    for(let j=0;j<tc;j++){
+      const i=e.x86_get_trace_index(j);
+      let ts="";
+      const tl=e.x86_get_trace_semantic_id_len(i);
+      for(let k=0;k<tl;k++)ts+=String.fromCharCode(e.x86_get_trace_semantic_id_char(i,k));
+      console.log("[FAULT TRACE "+String(j).padStart(2,"0")+"] EIP=0x"+hex32(e.x86_get_trace_eip(i))+
+        " -> 0x"+hex32(e.x86_get_trace_next_eip(i))+
+        " OP=0x"+hex8(e.x86_get_trace_opcode(i))+
+        " SEM="+(ts||"<none>")+
+        " DISPATCH="+e.x86_get_trace_dispatch(i)+
+        " EAX=0x"+hex32(e.x86_get_trace_eax(i))+
+        " FLAGS=0x"+hex32(e.x86_get_trace_flags(i)));
+    }
+    console.log("=== END CPU FAILURE DIAGNOSTICS ===");
+  }
   check("CPU halted",e.x86_get_halted(),1); check("CPU error",e.x86_get_cpu_error(),0);
   if(kind==="x87"){
     check("x87 compiled C result",e.x86_get_eax(),1);
