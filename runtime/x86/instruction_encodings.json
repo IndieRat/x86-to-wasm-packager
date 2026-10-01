@@ -820,6 +820,30 @@
       }
     },
     {
+      "id": "CMOVE_R32_RM32",
+      "instruction": "CMOVE",
+      "opcode": [
+        "44"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "RM",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "w",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
       "id": "MOVZX_R32_RM8",
       "instruction": "MOVZX",
       "opcode": [
