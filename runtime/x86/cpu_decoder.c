@@ -346,7 +346,9 @@ static int cpu_step(void) {
                     x86_id_is(d.entry->id,"FDIVR_RM32") ||
                     x86_id_is(d.entry->id,"FLD_RM64") ||
                     x86_id_is(d.entry->id,"FST_RM64") ||
-                    x86_id_is(d.entry->id,"FSTP_RM64"))) {
+                    x86_id_is(d.entry->id,"FSTP_RM64") ||
+                    x86_id_is(d.entry->id,"FMUL_STI_ST0") ||
+                    x86_id_is(d.entry->id,"FADDP_STI_ST0"))) {
         uint32_t op_ip = saved_eip + 1u;
         int xr = cpu_step_x87(d.opcode, &op_ip);
         if (xr < 0) return xr;
