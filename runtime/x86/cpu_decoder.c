@@ -128,6 +128,7 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
         x86_id_is(id, "CMP_EAX_IMM32") ||
         x86_id_is(id, "PUSH_IMM32")) d->imm_size = 4;
     else if (x86_id_is(id, "ADD_RM32_IMM8") ||
+             x86_id_is(id, "AND_RM32_IMM8") ||
              x86_id_is(id, "SUB_RM32_IMM8") ||
              x86_id_is(id, "CMP_RM32_IMM8") ||
              x86_id_is(id, "ADC_RM32_IMM8") ||
