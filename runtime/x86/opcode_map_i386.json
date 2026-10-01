@@ -947,23 +947,31 @@
       },
       {
         "byte": "A0",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_AL_MOFFS8"
+        ]
       },
       {
         "byte": "A1",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_EAX_MOFFS32"
+        ]
       },
       {
         "byte": "A2",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_MOFFS8_AL"
+        ]
       },
       {
         "byte": "A3",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_MOFFS32_EAX"
+        ]
       },
       {
         "byte": "A4",
@@ -1300,8 +1308,10 @@
       },
       {
         "byte": "DC",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "FMUL_STI_ST0"
+        ]
       },
       {
         "byte": "DD",
@@ -1314,8 +1324,10 @@
       },
       {
         "byte": "DE",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "FADDP_STI_ST0"
+        ]
       },
       {
         "byte": "DF",
