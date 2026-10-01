@@ -942,37 +942,6 @@
       ]
     },
     {
-      "id": "FCOM_STI",
-      "instruction": "FCOM",
-      "opcode": ["DE"],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {"required": true, "reg_extension": 2},
-      "operands": [
-        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
-      ]
-    },
-    {
-      "id": "FCOMP_STI",
-      "instruction": "FCOMP",
-      "opcode": ["DE"],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {"required": true, "reg_extension": 3},
-      "operands": [
-        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
-      ]
-    },
-    {
-      "id": "FCOMPP",
-      "instruction": "FCOMPP",
-      "opcode": ["DE"],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {"required": true, "reg_extension": 3},
-      "operands": []
-    },
-    {
       "id": "FADDP_STI_ST0",
       "instruction": "FADDP",
       "opcode": ["DE"],
