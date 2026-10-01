@@ -1152,7 +1152,21 @@
       "family": "x87_floating_point",
       "status": "EXECUTE",
       "forms": [
-        "FMUL_RM32"
+        "FMUL_RM32",
+        "FMUL_STI_ST0"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "FADDP",
+      "mnemonic": "FADDP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FADDP_STI_ST0"
       ],
       "flags": {
         "read": [],
