@@ -1029,7 +1029,7 @@ static void set_shift_flags(uint32_t v,uint32_t cf,int of_valid,uint32_t of){
 }
 static int cond(uint8_t op){
  switch(op){
-  case 0xD8:case 0xD9:case 0xDC:case 0xDD:{uint32_t ip=eip;int r=cpu_step_x87(op,&ip);if(r<0)return r;eip=ip;return 0;}
+  case 0xD8:case 0xD9:case 0xDC:case 0xDD:case 0xDE:{uint32_t ip=eip;int r=cpu_step_x87(op,&ip);if(r<0)return r;eip=ip;return 0;}
   case 0x70:return (eflags&OF)!=0; /* JO */
   case 0x71:return (eflags&OF)==0; /* JNO */
   case 0x72:return (eflags&CF)!=0; /* JB/JC */
@@ -1765,6 +1765,10 @@ __attribute__((export_name("x86_crt_exit"))) uint32_t x86_crt_exit(uint32_t code
 __attribute__((export_name("x86_crt_get_last_atexit_result"))) uint32_t x86_crt_get_last_atexit_result(void){return crt_last_atexit_result;}
 __attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback,0);}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
+
+
+
+
 
 
 
