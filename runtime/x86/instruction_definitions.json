@@ -214,7 +214,8 @@
       "status": "EXECUTE",
       "forms": [
         "XOR_RM32_R32",
-        "XOR_R32_RM32"
+        "XOR_R32_RM32",
+        "XOR_RM32_IMM32"
       ],
       "flags": {
         "read": [],
