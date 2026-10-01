@@ -1161,6 +1161,21 @@
       }
     },
     {
+      "id": "CMOVE",
+      "mnemonic": "CMOVE",
+      "family": "integer_control",
+      "status": "EXECUTE",
+      "forms": [
+        "CMOVE_R32_RM32"
+      ],
+      "flags": {
+        "read": [
+          "ZF"
+        ],
+        "write": []
+      }
+    },
+    {
       "id": "FADDP",
       "mnemonic": "FADDP",
       "family": "x87_floating_point",
