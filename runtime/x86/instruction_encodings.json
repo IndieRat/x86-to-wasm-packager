@@ -814,6 +814,31 @@
       }
     },
     {
+      "id": "XOR_RM32_IMM32",
+      "instruction": "XOR",
+      "opcode": [
+        "81"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ],
+      "modrm": {
+        "required": true,
+        "reg_extension": 6
+      }
+    },
+    {
       "id": "XOR_R32_RM32",
       "instruction": "XOR",
       "opcode": [
