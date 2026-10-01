@@ -633,44 +633,49 @@
         {"kind": "imm8", "access": "r", "fixed": 1}
       ]
     },
+    {
+      "id": "FCOM_STI",
+      "instruction": "FCOM",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "operands": [
         {
-      "id": "FCOM",
-      "mnemonic": "FCOM",
-      "family": "x87_floating_point",
-      "status": "EXECUTE",
-      "forms": [
-        "FCOM_STI"
+          "kind": "sti",
+          "access": "r",
+          "source": "modrm.rm"
+        }
       ],
-      "flags": {
-        "read": [],
-        "write": []
+      "modrm": {
+        "required": true,
+        "reg_extension": 2
       }
     },
     {
-      "id": "FCOMP",
-      "mnemonic": "FCOMP",
-      "family": "x87_floating_point",
-      "status": "EXECUTE",
-      "forms": [
-        "FCOMP_STI"
+      "id": "FCOMP_STI",
+      "instruction": "FCOMP",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "operands": [
+        {
+          "kind": "sti",
+          "access": "r",
+          "source": "modrm.rm"
+        }
       ],
-      "flags": {
-        "read": [],
-        "write": []
+      "modrm": {
+        "required": true,
+        "reg_extension": 3
       }
     },
     {
       "id": "FCOMPP",
-      "mnemonic": "FCOMPP",
-      "family": "x87_floating_point",
-      "status": "EXECUTE",
-      "forms": [
-        "FCOMPP"
-      ],
-      "flags": {
-        "read": [],
-        "write": []
-      }
+      "instruction": "FCOMPP",
+      "opcode": ["DE", "D9"],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
     },
     {
       "id": "FLD_RM32",
