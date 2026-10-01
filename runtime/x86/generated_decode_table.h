@@ -11,6 +11,7 @@ typedef struct {
 static const x86_decode_entry_t x86_decode_table[] = {
   {0,0x89,1,-1,"MOV_RM32_R32"},
   {0,0xC6,1,0,"MOV_RM8_IMM8"},
+  {0,0xC7,1,0,"MOV_RM32_IMM32"},
   {0,0x8B,1,-1,"MOV_R32_RM32"},
   {0,0xB0,0,-1,"MOV_R8_IMM8"},
   {0,0xB1,0,-1,"MOV_R8_IMM8"},
