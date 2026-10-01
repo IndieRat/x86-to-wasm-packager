@@ -1181,7 +1181,7 @@ static int cpu_step_x87(uint8_t op,uint32_t *ip){
   if(op==0xD8u){
    if(sub==0u)x87_stack[0]=a+b; else if(sub==1u)x87_stack[0]=a*b; else if(sub==4u)x87_stack[0]=a-b; else if(sub==5u)x87_stack[0]=b-a; else if(sub==6u)x87_stack[0]=a/b; else if(sub==7u)x87_stack[0]=b/a; else {cpu_error=0xD800u|sub;return -60;}
   }else{
-   if(sub==0u)x87_stack[r]=b+a; else if(sub==1u)x87_stack[r]=b*a; else if(sub==4u)x87_stack[r]=b-a; else if(sub==5u)x87_stack[r]=a-b; else if(sub==6u)x87_stack[r]=b/a; else if(sub==7u)x87_stack[r]=a/b; else {cpu_error=0xDC00u|sub;return -60;}
+   if(sub==0u)x87_stack[r]=b+a; else if(sub==1u)x87_stack[r]=b*a; else if(sub==4u)x87_stack[r]=a-b; else if(sub==5u)x87_stack[r]=b-a; else if(sub==6u)x87_stack[r]=a/b; else if(sub==7u)x87_stack[r]=b/a; else {cpu_error=0xDC00u|sub;return -60;}
   }
   return 0;
  }
@@ -1816,15 +1816,3 @@ __attribute__((export_name("x86_crt_exit"))) uint32_t x86_crt_exit(uint32_t code
 __attribute__((export_name("x86_crt_get_last_atexit_result"))) uint32_t x86_crt_get_last_atexit_result(void){return crt_last_atexit_result;}
 __attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback,0);}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
-
-
-
-
-
-
-
-
-
-
-
-
