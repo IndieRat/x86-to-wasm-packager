@@ -52,13 +52,24 @@ function printDiagnostics(e, label, options = {}) {
   const start = options.fullTrace ? 0 : Math.max(0, tc - 64);
   for (let j = start; j < tc; j++) {
     const i = e.x86_get_trace_index(j);
+    const post = typeof e.x86_get_trace_post_eax === "function";
+    const postText = post
+      ? " POST[EAX=0x" + hex32(e.x86_get_trace_post_eax(i)) +
+        " ECX=0x" + hex32(e.x86_get_trace_post_ecx(i)) +
+        " EDX=0x" + hex32(e.x86_get_trace_post_edx(i)) +
+        " EBX=0x" + hex32(e.x86_get_trace_post_ebx(i)) +
+        " FLAGS=0x" + hex32(e.x86_get_trace_post_flags(i)) + "]"
+      : "";
     console.log("[FAULT TRACE " + String(j).padStart(3, "0") + "] EIP=0x" +
       hex32(e.x86_get_trace_eip(i)) + " -> 0x" + hex32(e.x86_get_trace_next_eip(i)) +
       " OP=0x" + hex8(e.x86_get_trace_opcode(i)) +
       " SEM=" + readSemantic(e, i) +
       " DISPATCH=" + e.x86_get_trace_dispatch(i) +
-      " EAX=0x" + hex32(e.x86_get_trace_eax(i)) +
-      " FLAGS=0x" + hex32(e.x86_get_trace_flags(i)));
+      " PRE[EAX=0x" + hex32(e.x86_get_trace_eax(i)) +
+      " ECX=0x" + hex32(e.x86_get_trace_ecx(i)) +
+      " EDX=0x" + hex32(e.x86_get_trace_edx(i)) +
+      " EBX=0x" + hex32(e.x86_get_trace_ebx(i)) +
+      " FLAGS=0x" + hex32(e.x86_get_trace_flags(i)) + "]" + postText);
   }
   console.log("=== END " + label + " CPU FAILURE DIAGNOSTICS ===");
 }
