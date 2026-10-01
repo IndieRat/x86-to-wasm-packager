@@ -2786,19 +2786,321 @@
     {
       "id": "XOR_EAX_IMM32",
       "instruction": "XOR_EAX_IMM32",
-      "opcode": ["35"],
+      "opcode": [
+        "35"
+      ],
       "opcode_map": "primary",
       "encoding": "OI",
       "operands": [
         {
-          "kind": "reg32", 
-          "access": "rw", 
+          "kind": "reg32",
+          "access": "rw",
           "source": "eax"
         },
         {
-          "kind": "imm32", 
-          "access": "r", 
+          "kind": "imm32",
+          "access": "r",
           "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "MOVSS_XMM_RM32",
+      "instruction": "MOVSS_XMM_RM32",
+      "opcode": [
+        "10"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F3",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "MOVSS_RM32_XMM",
+      "instruction": "MOVSS_RM32_XMM",
+      "opcode": [
+        "11"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F3",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "w",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "xmm",
+          "access": "r",
+          "source": "modrm.reg"
+        }
+      ]
+    },
+    {
+      "id": "ADDSS_XMM_RM32",
+      "instruction": "ADDSS_XMM_RM32",
+      "opcode": [
+        "58"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F3",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "SUBSS_XMM_RM32",
+      "instruction": "SUBSS_XMM_RM32",
+      "opcode": [
+        "5C"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F3",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "MULSS_XMM_RM32",
+      "instruction": "MULSS_XMM_RM32",
+      "opcode": [
+        "59"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F3",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "DIVSS_XMM_RM32",
+      "instruction": "DIVSS_XMM_RM32",
+      "opcode": [
+        "5E"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F3",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "MOVSD_XMM_RM64",
+      "instruction": "MOVSD_XMM_RM64",
+      "opcode": [
+        "10"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F2",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm64",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "MOVSD_RM64_XMM",
+      "instruction": "MOVSD_RM64_XMM",
+      "opcode": [
+        "11"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F2",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "rm64",
+          "access": "w",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "xmm",
+          "access": "r",
+          "source": "modrm.reg"
+        }
+      ]
+    },
+    {
+      "id": "ADDSD_XMM_RM64",
+      "instruction": "ADDSD_XMM_RM64",
+      "opcode": [
+        "58"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F2",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm64",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "SUBSD_XMM_RM64",
+      "instruction": "SUBSD_XMM_RM64",
+      "opcode": [
+        "5C"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F2",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm64",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "MULSD_XMM_RM64",
+      "instruction": "MULSD_XMM_RM64",
+      "opcode": [
+        "59"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F2",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm64",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "DIVSD_XMM_RM64",
+      "instruction": "DIVSD_XMM_RM64",
+      "opcode": [
+        "5E"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "prefix_required": "F2",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "xmm",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm64",
+          "access": "r",
+          "source": "modrm.rm"
         }
       ]
     }
