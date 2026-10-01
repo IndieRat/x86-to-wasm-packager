@@ -2785,7 +2785,7 @@
     },
     {
       "id": "XOR_EAX_IMM32",
-      "instruction": "XOR",
+      "instruction": "XOR_EAX_IMM32",
       "opcode": ["35"],
       "opcode_map": "primary",
       "encoding": "OI",
