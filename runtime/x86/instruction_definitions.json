@@ -28,6 +28,7 @@
         "MOV_R32_RM32",
         "MOV_RM32_R32",
         "MOV_R32_IMM32",
+        "MOV_RM32_IMM32",
         "MOV_R8_IMM8",
         "MOV_AL_MOFFS8",
         "MOV_EAX_MOFFS32",
