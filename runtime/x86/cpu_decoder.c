@@ -106,6 +106,7 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
     if (x86_id_is(id, "MOV_AL_MOFFS8") || x86_id_is(id, "MOV_EAX_MOFFS32") || x86_id_is(id, "MOV_MOFFS8_AL") || x86_id_is(id, "MOV_MOFFS32_EAX")) d->imm_size = 4;
 
     else if (x86_id_is(id, "MOV_R32_IMM32") && !d->operand16) d->imm_size = 4;
+    else if (x86_id_is(id, "XOR_EAX_IMM32")) d->imm_size = 4;
     else if (x86_id_is(id, "MOV_R32_IMM32") && d->operand16) d->imm_size = 2;
     else if (d->operand16 &&
              (x86_id_is(id, "ADD_EAX_IMM32") ||
@@ -536,6 +537,18 @@ static int cpu_step(void) {
             }
             eip=d.cursor;
             last_dispatch_id=X86_DISPATCH_NONE;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"XOR_EAX_IMM32")) {
+            uint32_t b = rd32(d.cursor - 4u);
+            uint32_t v = regs[R_EAX] ^ b;
+            regs[R_EAX] = v;
+            set_logic_flags(v);
+            eip = d.cursor;
+            last_dispatch_id = X86_DISPATCH_XOR_RM32_IMM32;
             last_dispatch_count++;
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
                              before_opcode,last_dispatch_id);
