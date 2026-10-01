@@ -54,6 +54,13 @@ jobs:
             --lld-link "$(command -v lld-link)" \
             --output dist/x87-fixture/x87_float_fixture.exe
 
+      - name: Build SSE/SSE2 PE32 fixture
+        run: |
+          python3 tool/xwasm_build_sse_fixture.py \\
+            --clang "$(command -v clang)" \\
+            --lld-link "$(command -v lld-link)" \\
+            --output dist/sse-fixture/sse_scalar_fixture.exe
+
       - name: Build C5 PE32 fixture
         run: |
           python3 tool/xwasm_build_c5_fixture.py \
@@ -67,6 +74,13 @@ jobs:
             dist/x86-runtime-selftest/runtime.wasm \
             dist/x87-fixture/x87_float_fixture.exe \
             x87
+
+      - name: Run SSE/SSE2 compiled-C gate
+        run: |
+          node tests/xwasm_ci_runner.js \\
+            dist/x86-runtime-selftest/runtime.wasm \\
+            dist/sse-fixture/sse_scalar_fixture.exe \\
+            sse
 
       - name: Run C5 compiled-C gate
         run: |
