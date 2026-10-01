@@ -204,7 +204,10 @@ def main() -> int:
                         )
         map_counts[map_name] = mapped
 
-    # FCOMPP is an exact two-byte sequence (DE D9) handled by the decoder\n    # rather than represented by a single opcode-map slot.\n    missing_map_links = sorted(encoding_ids - map_references - {"FCOMPP"})\n    if missing_map_links:
+    # FCOMPP is an exact two-byte sequence (DE D9) handled by the decoder
+    # rather than represented by a single opcode-map slot.
+    missing_map_links = sorted(encoding_ids - map_references - {"FCOMPP"})
+    if missing_map_links:
         raise ValueError("encodings missing from opcode map: " +
                          ", ".join(missing_map_links))
 
