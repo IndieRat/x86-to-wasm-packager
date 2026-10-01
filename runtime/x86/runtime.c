@@ -1580,6 +1580,22 @@ uint32_t x86_get_current_opcode(void){
  if(!loaded)return 0xFFFFFFFFu;
  return (uint32_t)MEM8(eip);
 }
+__attribute__((export_name("x86_get_current_byte")))
+uint32_t x86_get_current_byte(uint32_t index){
+ if(!loaded||index>=32u)return 0xFFFFFFFFu;
+ return (uint32_t)MEM8(eip+index);
+}
+__attribute__((export_name("x86_get_stack_dword")))
+uint32_t x86_get_stack_dword(uint32_t index){
+ if(index>=16u)return 0xFFFFFFFFu;
+ uint32_t p=regs[R_ESP]+index*4u;
+ if(!x86_mem_region_find(p,4u,X86_MEM_READ))return 0xDEADFA11u;
+ return rd32(p);
+}
+__attribute__((export_name("x86_get_x87_count")))
+uint32_t x86_get_x87_count(void){return x87_count;}
+__attribute__((export_name("x86_get_memory_faults")))
+uint32_t x86_get_memory_faults(void){return x86_mem_faults;}
 __attribute__((export_name("x86_get_current_imm32")))
 uint32_t x86_get_current_imm32(void){
  if(!loaded)return 0xFFFFFFFFu;
