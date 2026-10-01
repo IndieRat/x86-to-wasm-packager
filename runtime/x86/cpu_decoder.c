@@ -224,8 +224,15 @@ static int x86_decode_instruction(x86_decoded_t *d) {
         d->opcode = MEM8(d->cursor++);
     }
 
+    /* FCOMPP is the exact two-byte DE D9 form. */
+    static const x86_decode_entry_t x87_fcompp_entry = {0,0xDE,0, -1,"FCOMPP"};
+    if (d->map == 0 && d->opcode == 0xDE && MEM8(d->cursor) == 0xD9) {
+        d->cursor++;
+        d->entry = &x87_fcompp_entry;
+    }
+
     /* First locate an opcode candidate without consuming ModR/M. */
-    d->entry = x86_find_entry(d->map, d->opcode, 0, 0);
+    if (!d->entry) d->entry = x86_find_entry(d->map, d->opcode, 0, 0);
 
     /* If there is no fixed-form entry, try the ModR/M forms. */
     if (!d->entry) {
@@ -349,7 +356,10 @@ static int cpu_step(void) {
                     x86_id_is(d.entry->id,"FST_RM64") ||
                     x86_id_is(d.entry->id,"FSTP_RM64") ||
                     x86_id_is(d.entry->id,"FMUL_STI_ST0") ||
-                    x86_id_is(d.entry->id,"FADDP_STI_ST0"))) {
+                    x86_id_is(d.entry->id,"FADDP_STI_ST0") ||
+                    x86_id_is(d.entry->id,"FCOM_STI") ||
+                    x86_id_is(d.entry->id,"FCOMP_STI") ||
+                    x86_id_is(d.entry->id,"FCOMPP"))) {
         uint32_t op_ip = saved_eip + 1u;
         int xr = cpu_step_x87(d.opcode, &op_ip);
         if (xr < 0) return xr;
