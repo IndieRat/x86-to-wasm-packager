@@ -167,6 +167,8 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {1,0xBA,1,6,"BTR_RM32_IMM8"},
   {1,0x0F,1,7,"BTC_RM32_IMM8"},
   {1,0xBA,1,7,"BTC_RM32_IMM8"},
+  {0,0xDC,1,1,"FMUL_STI_ST0"},
+  {0,0xDE,1,0,"FADDP_STI_ST0"},
   {0,0xD9,1,0,"FLD_RM32"},
   {0,0xD9,1,2,"FST_RM32"},
   {0,0xD9,1,3,"FSTP_RM32"},
