@@ -354,6 +354,26 @@ static int cpu_step(void) {
     x86_copy_semantic_id(last_decoded_semantic_id,
                          (d.entry && d.entry->id) ? d.entry->id : "NONE");
 
+    /* Scalar SSE/SSE2 execution. The decoder has already enforced the
+     * F3/F2 prefix constraint, so these semantic IDs are unambiguous. */
+    if (d.entry && (x86_id_is(d.entry->id,"MOVSS_XMM_RM32") || x86_id_is(d.entry->id,"MOVSS_RM32_XMM") ||
+                    x86_id_is(d.entry->id,"ADDSS_XMM_RM32") || x86_id_is(d.entry->id,"SUBSS_XMM_RM32") ||
+                    x86_id_is(d.entry->id,"MULSS_XMM_RM32") || x86_id_is(d.entry->id,"DIVSS_XMM_RM32") ||
+                    x86_id_is(d.entry->id,"MOVSD_XMM_RM64") || x86_id_is(d.entry->id,"MOVSD_RM64_XMM") ||
+                    x86_id_is(d.entry->id,"ADDSD_XMM_RM64") || x86_id_is(d.entry->id,"SUBSD_XMM_RM64") ||
+                    x86_id_is(d.entry->id,"MULSD_XMM_RM64") || x86_id_is(d.entry->id,"DIVSD_XMM_RM64"))) {
+        uint8_t m=d.modrm,dst=(uint8_t)((m>>3)&7u),rm=(uint8_t)(m&7u); int mem=((m>>6)!=3); uint32_t ea=0,op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+        if(mem&&!modrm_ea(m,&op_ip,&ea)){cpu_error=0x0F00u|d.opcode;return -60;}
+        const char *id=d.entry->id;
+        if(x86_id_is(id,"MOVSS_XMM_RM32")){uint32_t bits=mem?rd32(ea):xmm_get_u32(rm);xmm_set_u32(dst,bits);if(mem)for(uint32_t i=4;i<16;i++)xmm[dst][i]=0;}
+        else if(x86_id_is(id,"MOVSS_RM32_XMM")){uint32_t bits=xmm_get_u32(dst);if(mem)wr32(ea,bits);else xmm_set_u32(rm,bits);}
+        else if(x86_id_is(id,"MOVSD_XMM_RM64")){uint64_t bits=mem?((uint64_t)rd32(ea)|((uint64_t)rd32(ea+4u)<<32)):xmm_get_u64(rm);xmm_set_u64(dst,bits);if(mem)for(uint32_t i=8;i<16;i++)xmm[dst][i]=0;}
+        else if(x86_id_is(id,"MOVSD_RM64_XMM")){uint64_t bits=xmm_get_u64(dst);if(mem){wr32(ea,(uint32_t)bits);wr32(ea+4u,(uint32_t)(bits>>32));}else{xmm_set_u64(rm,bits);}}
+        else if(x86_id_is(id,"ADDSS_XMM_RM32")||x86_id_is(id,"SUBSS_XMM_RM32")||x86_id_is(id,"MULSS_XMM_RM32")||x86_id_is(id,"DIVSS_XMM_RM32")){union{uint32_t u;float f;}s;s.u=mem?rd32(ea):xmm_get_u32(rm);float a=xmm_get_f32(dst),r;if(x86_id_is(id,"ADDSS_XMM_RM32"))r=a+s.f;else if(x86_id_is(id,"SUBSS_XMM_RM32"))r=a-s.f;else if(x86_id_is(id,"MULSS_XMM_RM32"))r=a*s.f;else r=a/s.f;xmm_set_f32(dst,r);}
+        else{union{uint64_t u;double f;}s;s.u=mem?((uint64_t)rd32(ea)|((uint64_t)rd32(ea+4u)<<32)):xmm_get_u64(rm);double a=xmm_get_f64(dst),r;if(x86_id_is(id,"ADDSD_XMM_RM64"))r=a+s.f;else if(x86_id_is(id,"SUBSD_XMM_RM64"))r=a-s.f;else if(x86_id_is(id,"MULSD_XMM_RM64"))r=a*s.f;else r=a/s.f;xmm_set_f64(dst,r);}
+        eip=d.cursor;last_dispatch_id=X86_DISPATCH_SSE_SCALAR;last_dispatch_count++;x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,before_opcode,last_dispatch_id);return 0;
+    }
+
     /* x87 is already decoded into authoritative semantic IDs. Route the
      * decoded D8/D9/DC/DD families directly to the existing x87 executor
      * instead of letting them fall through to the legacy raw-opcode switch. */
