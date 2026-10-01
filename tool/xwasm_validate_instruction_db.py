@@ -15,6 +15,7 @@ VALID_ACCESS = {"r", "w", "rw"}
 VALID_KINDS = {
     "reg8", "reg16", "reg32", "rm8", "rm16", "rm32",
     "imm8", "imm16", "imm32", "rel8", "rel16", "rel32",
+    "moffs8", "moffs32",
 }
 
 
