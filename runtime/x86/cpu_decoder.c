@@ -54,12 +54,13 @@ static void x86_record_prefix(x86_decoded_t *d, uint8_t b) {
 }
 
 static const x86_decode_entry_t *x86_find_entry(uint8_t map, uint8_t opcode,
-                                                 int has_modrm, uint8_t modrm) {
+                                                 int has_modrm, uint8_t modrm, uint8_t prefixes) {
     const x86_decode_entry_t *best = 0;
     for (uint32_t i = 0; i < X86_DECODE_TABLE_COUNT; ++i) {
         const x86_decode_entry_t *e = &x86_decode_table[i];
         if (e->map != map || e->opcode != opcode) continue;
         if (e->needs_modrm != (uint8_t)has_modrm) continue;
+        if (e->prefix_mask && (prefixes & e->prefix_mask) != e->prefix_value) continue;
         if (e->modrm_ext >= 0) {
             if (!has_modrm || ((modrm >> 3) & 7u) != (uint8_t)e->modrm_ext) continue;
         }
@@ -234,11 +235,11 @@ static int x86_decode_instruction(x86_decoded_t *d) {
     }
 
     /* First locate an opcode candidate without consuming ModR/M. */
-    if (!d->entry) d->entry = x86_find_entry(d->map, d->opcode, 0, 0);
+    if (!d->entry) d->entry = x86_find_entry(d->map, d->opcode, 0, 0, d->prefixes);
 
     /* If there is no fixed-form entry, try the ModR/M forms. */
     if (!d->entry) {
-        d->entry = x86_find_entry(d->map, d->opcode, 1, MEM8(d->cursor));
+        d->entry = x86_find_entry(d->map, d->opcode, 1, MEM8(d->cursor), d->prefixes);
         if (d->entry) {
             d->has_modrm = 1;
             d->modrm = MEM8(d->cursor++);
@@ -260,7 +261,7 @@ static int x86_decode_instruction(x86_decoded_t *d) {
                 (d->opcode >= 0xB8 && d->opcode <= 0xBF) ||
                 (d->opcode >= 0x40 && d->opcode <= 0x4F) ||
                 (d->opcode >= 0x50 && d->opcode <= 0x5F)) {
-                d->entry = x86_find_entry(0, d->opcode, 0, 0);
+                d->entry = x86_find_entry(0, d->opcode, 0, 0, d->prefixes);
             }
         }
     }
