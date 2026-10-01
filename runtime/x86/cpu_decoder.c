@@ -98,6 +98,79 @@ static int x86_decode_modrm_tail(x86_decoded_t *d) {
 
 static int x86_id_is(const char *a,const char *b){while(*a&&*b){if(*a++!=*b++)return 0;}return *a==0&&*b==0;}
 
+static x86_decode_entry_t x87_dynamic_entry;
+static int x86_decode_x87_form(x86_decoded_t *d){
+    if(d->map!=0)return 0;
+    uint8_t op=d->opcode;
+    if(op!=0xD8u&&op!=0xD9u&&op!=0xDCu&&op!=0xDDu&&op!=0xDEu)return 0;
+    uint8_t m=MEM8(d->cursor),mod=m>>6,sub=(m>>3)&7u,rm=m&7u;
+    const char *id=0;
+    if(op==0xD9u){
+        if(mod==3u){
+            if(m>=0xC0u&&m<=0xC7u)id="X87_FLD_STI";
+            else if(m>=0xC8u&&m<=0xCFu)id="X87_FXCH";
+            else if(m==0xE0u)id="X87_FCHS";
+            else if(m==0xE1u)id="X87_FABS";
+            else if(m==0xE4u)id="X87_FTST";
+            else if(m>=0xE8u&&m<=0xEEu)id="X87_FLD_CONST";
+            else if(m==0xF6u)id="X87_FDECSTP";
+            else if(m==0xF7u)id="X87_FINCSTP";
+        }else if(sub==0u)id="X87_FLD_M32";
+        else if(sub==2u)id="X87_FST_M32";
+        else if(sub==3u)id="X87_FSTP_M32";
+    }else if(op==0xDDu){
+        if(mod==3u&&m>=0xD0u&&m<=0xD7u)id="X87_FST_STI";
+        else if(mod==3u&&m>=0xD8u&&m<=0xDFu)id="X87_FSTP_STI";
+        else if(mod!=3u&&sub==0u)id="X87_FLD_M64";
+        else if(mod!=3u&&sub==2u)id="X87_FST_M64";
+        else if(mod!=3u&&sub==3u)id="X87_FSTP_M64";
+    }else if(op==0xD8u){
+        if(mod!=3u){
+            static const char *mem_ids[8]={"X87_FADD_M32","X87_FMUL_M32","X87_FCOM_M32","X87_FCOMP_M32","X87_FSUB_M32","X87_FSUBR_M32","X87_FDIV_M32","X87_FDIVR_M32"};
+            id=mem_ids[sub];
+        }else if(m>=0xC0u&&m<=0xC7u)id="X87_FADD_ST0_STI";
+        else if(m>=0xC8u&&m<=0xCFu)id="X87_FMUL_ST0_STI";
+        else if(m>=0xD0u&&m<=0xD7u)id="X87_FCOM_STI";
+        else if(m>=0xD8u&&m<=0xDFu)id="X87_FCOMP_STI";
+        else if(m>=0xE0u&&m<=0xE7u)id="X87_FSUB_ST0_STI";
+        else if(m>=0xE8u&&m<=0xEFu)id="X87_FSUBR_ST0_STI";
+        else if(m>=0xF0u&&m<=0xF7u)id="X87_FDIV_ST0_STI";
+        else if(m>=0xF8u&&m<=0xFFu)id="X87_FDIVR_ST0_STI";
+    }else if(op==0xDCu){
+        if(mod!=3u){
+            static const char *mem_ids[8]={"X87_FADD_M64","X87_FMUL_M64","X87_FCOM_M64","X87_FCOMP_M64","X87_FSUB_M64","X87_FSUBR_M64","X87_FDIV_M64","X87_FDIVR_M64"};
+            id=mem_ids[sub];
+        }else if(m>=0xC0u&&m<=0xC7u)id="X87_FADD_STI_ST0";
+        else if(m>=0xC8u&&m<=0xCFu)id="X87_FMUL_STI_ST0";
+        else if(m>=0xE0u&&m<=0xE7u)id="X87_FSUB_STI_ST0";
+        else if(m>=0xE8u&&m<=0xEFu)id="X87_FSUBR_STI_ST0";
+        else if(m>=0xF0u&&m<=0xF7u)id="X87_FDIV_STI_ST0";
+        else if(m>=0xF8u&&m<=0xFFu)id="X87_FDIVR_STI_ST0";
+    }else if(op==0xDEu&&mod==3u){
+        if(m==0xD9u)id="X87_FCOMPP";
+        else if(m>=0xC0u&&m<=0xC7u)id="X87_FADDP";
+        else if(m>=0xC8u&&m<=0xCFu)id="X87_FMULP";
+        else if(m>=0xE0u&&m<=0xE7u)id="X87_FSUBRP";
+        else if(m>=0xE8u&&m<=0xEFu)id="X87_FSUBP";
+        else if(m>=0xF0u&&m<=0xF7u)id="X87_FDIVRP";
+        else if(m>=0xF8u&&m<=0xFFu)id="X87_FDIVP";
+    }
+    if(!id)return 0;
+    d->has_modrm=1;
+    d->modrm=m;
+    d->modrm_ext=(int8_t)((m>>3)&7u);
+    d->cursor++;
+    x86_decode_modrm_tail(d);
+    x87_dynamic_entry.map=0;
+    x87_dynamic_entry.opcode=op;
+    x87_dynamic_entry.needs_modrm=1;
+    x87_dynamic_entry.modrm_ext=-1;
+    x87_dynamic_entry.id=id;
+    d->entry=&x87_dynamic_entry;
+    (void)rm;
+    return 1;
+}
+
 static void x86_decode_payload_size(x86_decoded_t *d) {
     const char *id = d->entry ? d->entry->id : 0;
     if (!id) return;
@@ -221,6 +294,14 @@ static int x86_decode_instruction(x86_decoded_t *d) {
             d->map = MEM8(d->cursor++) == 0x38 ? 2 : 3;
         }
         d->opcode = MEM8(d->cursor++);
+    }
+
+    /* x87 gets first-class semantic IDs before the generic opcode table.
+     * This keeps the complete x87 family ahead of future SSE/SSE2 migration. */
+    if(x86_decode_x87_form(d)) {
+        x86_decode_payload_size(d);
+        if(d->cursor-d->start>15u){cpu_error=0xD002u;return -4;}
+        return 0;
     }
 
     /* First locate an opcode candidate without consuming ModR/M. */
