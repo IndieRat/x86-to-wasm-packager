@@ -1092,6 +1092,45 @@
       }
     },
     {
+      "id": "FCOM",
+      "mnemonic": "FCOM",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FCOM_STI"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "FCOMP",
+      "mnemonic": "FCOMP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FCOMP_STI"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "FCOMPP",
+      "mnemonic": "FCOMPP",
+      "family": "x87_floating_point",
+      "status": "EXECUTE",
+      "forms": [
+        "FCOMPP"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
       "id": "FLD",
       "mnemonic": "FLD",
       "family": "x87_floating_point",
