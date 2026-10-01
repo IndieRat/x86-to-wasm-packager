@@ -15,7 +15,7 @@ async function main() {
   const {instance} = await WebAssembly.instantiate(mod, {env}), e = instance.exports;
   if (!memory) throw new Error("runtime did not import memory");
   new Uint8Array(memory.buffer).set(payload, 0x00100000);
-  const check=(n,a,x)=>diagnosticCheck(e,n,a,x,{label:"XWASM "+kind,runResult:runResult});
+  const check=(n,a,x)=>diagnosticCheck(e,n,a,x,{label:"XWASM "+kind});
   console.log("=== XWASM CI "+kind+" ===");
   check("runtime version",e.x86_get_runtime_version(),0x90000);
   check("init",e.xwasm_init(),0);
