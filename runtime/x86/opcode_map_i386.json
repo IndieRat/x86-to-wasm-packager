@@ -1849,9 +1849,11 @@
       },
       {
         "byte": "44",
-        "status": "RESERVED",
-        "encoding_ids": []
-      },
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CMOVE_R32_RM32"
+        ]
+      }
       {
         "byte": "45",
         "status": "RESERVED",
