@@ -2782,6 +2782,27 @@
           "source": "next4"
         }
       ]
+    },
+    {
+      "id": "XOR_EAX_IMM32",
+      "instruction": "XOR",
+      "opcode": [
+        "35"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "eax",
+          "access": "rw",
+          "source": "eax"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
     }
   ]
 }
