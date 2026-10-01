@@ -1,4 +1,5 @@
 const fs = require("fs");
+const { diagnosticCheck, printDiagnostics } = require("./xwasm_diagnostics");
 
 async function main() {
   const runtimePath = process.argv[2], payloadPath = process.argv[3], kind = process.argv[4];
@@ -14,7 +15,7 @@ async function main() {
   const {instance} = await WebAssembly.instantiate(mod, {env}), e = instance.exports;
   if (!memory) throw new Error("runtime did not import memory");
   new Uint8Array(memory.buffer).set(payload, 0x00100000);
-  const check=(n,a,x)=>{if((a>>>0)!==(x>>>0))throw new Error("[FAIL] "+n+": got "+(a>>>0)+", expected "+(x>>>0));console.log("[PASS] "+n+": "+(a>>>0));};
+  const check=(n,a,x)=>diagnosticCheck(e,n,a,x,{label:"XWASM "+kind,runResult:runResult});
   console.log("=== XWASM CI "+kind+" ===");
   check("runtime version",e.x86_get_runtime_version(),0x90000);
   check("init",e.xwasm_init(),0);
@@ -25,49 +26,7 @@ async function main() {
   const hex8=n=>(n&255).toString(16).padStart(2,"0");
   const current=e.x86_get_eip()>>>0;
   console.log("[INFO] run="+result+" steps="+e.x86_get_steps()+" EIP=0x"+hex32(current)+" EAX=0x"+hex32(e.x86_get_eax()));
-  if(result<0){
-    console.log("=== CPU FAILURE DIAGNOSTICS ===");
-    console.log("[FAULT] run result="+result+" cpu_error=0x"+hex32(e.x86_get_cpu_error())+" halted="+e.x86_get_halted());
-    console.log("[FAULT] current EIP=0x"+hex32(current));
-    console.log("[FAULT] next bytes="+Array.from({length:16},(_,i)=>hex8(e.x86_get_current_byte(i))).join(" "));
-    console.log("[FAULT] last opcode=0x"+hex8(e.x86_get_last_decoded_opcode())+
-      " map=0x"+hex32(e.x86_get_last_decoded_map())+
-      " length="+e.x86_get_last_decoded_length()+
-      " dispatch="+e.x86_get_last_dispatch_id()+
-      " dispatch_count="+e.x86_get_last_dispatch_count());
-    const slen=e.x86_get_last_semantic_id_len();
-    let sid="";
-    for(let i=0;i<slen;i++)sid+=String.fromCharCode(e.x86_get_last_semantic_id_char(i));
-    console.log("[FAULT] last semantic="+(sid||"<none>"));
-    console.log("[FAULT] regs EAX=0x"+hex32(e.x86_get_eax())+
-      " ECX=0x"+hex32(e.x86_get_ecx())+
-      " EDX=0x"+hex32(e.x86_get_edx())+
-      " EBX=0x"+hex32(e.x86_get_ebx())+
-      " ESP=0x"+hex32(e.x86_get_esp())+
-      " EBP=0x"+hex32(e.x86_get_ebp())+
-      " ESI=0x"+hex32(e.x86_get_esi())+
-      " EDI=0x"+hex32(e.x86_get_edi()));
-    console.log("[FAULT] EFLAGS=0x"+hex32(e.x86_get_eflags())+
-      " x87_depth="+e.x86_get_x87_count()+
-      " memory_faults="+e.x86_get_memory_faults());
-    console.log("[FAULT] stack="+Array.from({length:8},(_,i)=>"0x"+hex32(e.x86_get_stack_dword(i))).join(" "));
-    const tc=e.x86_get_trace_count();
-    console.log("[FAULT] trace_count="+tc+" trace_failure_index="+e.x86_get_trace_failure_index());
-    for(let j=0;j<tc;j++){
-      const i=e.x86_get_trace_index(j);
-      let ts="";
-      const tl=e.x86_get_trace_semantic_id_len(i);
-      for(let k=0;k<tl;k++)ts+=String.fromCharCode(e.x86_get_trace_semantic_id_char(i,k));
-      console.log("[FAULT TRACE "+String(j).padStart(2,"0")+"] EIP=0x"+hex32(e.x86_get_trace_eip(i))+
-        " -> 0x"+hex32(e.x86_get_trace_next_eip(i))+
-        " OP=0x"+hex8(e.x86_get_trace_opcode(i))+
-        " SEM="+(ts||"<none>")+
-        " DISPATCH="+e.x86_get_trace_dispatch(i)+
-        " EAX=0x"+hex32(e.x86_get_trace_eax(i))+
-        " FLAGS=0x"+hex32(e.x86_get_trace_flags(i)));
-    }
-    console.log("=== END CPU FAILURE DIAGNOSTICS ===");
-  }
+  if(result<0) printDiagnostics(e, "XWASM "+kind, {runResult:result});
   check("CPU halted",e.x86_get_halted(),1); check("CPU error",e.x86_get_cpu_error(),0);
   if(kind==="x87"){
     check("x87 compiled C result",e.x86_get_eax(),1);
