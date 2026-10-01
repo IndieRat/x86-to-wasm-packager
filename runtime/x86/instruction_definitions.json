@@ -231,6 +231,21 @@
       }
     },
     {
+      "id": "SETE",
+      "mnemonic": "SETE",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "SETE_RM8"
+      ],
+      "flags": {
+        "read": [
+          "ZF"
+        ],
+        "write": []
+      }
+    },
+    {
       "id": "TEST",
       "mnemonic": "TEST",
       "family": "integer_core",
