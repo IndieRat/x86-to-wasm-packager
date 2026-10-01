@@ -670,7 +670,7 @@
       "opcode_map": "primary",
       "encoding": "ZO",
       "operands": []
-    }
+    },
     {
       "id": "FLD_RM32",
       "instruction": "FLD",
