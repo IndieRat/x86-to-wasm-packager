@@ -50,7 +50,8 @@ check("load error", e.x86_get_load_error(), 0);
 check("image base", e.x86_get_image_base(), 0x00400000);
 check("entry nonzero", e.x86_get_eip() !== 0, true);
 
-lastRunResult = e.x86_run(2000);\nconst runResult = lastRunResult;
+lastRunResult = e.x86_run(2000);
+const runResult = lastRunResult;
 console.log(`[INFO] CPU run result=${runResult} steps=${e.x86_get_steps()} EIP=${hex(e.x86_get_eip())} EAX=${hex(e.x86_get_eax())} EFLAGS=${hex(e.x86_get_eflags())}`);
 check("CPU halted", e.x86_get_halted(), 1);
 check("C0 callback return preserved", e.x86_get_esi(), 0x2a);
@@ -90,11 +91,11 @@ check("A byte end", getView()[a + 0xfff], 0x5a);
 const stackBase = 0x03e00000;
 const stackEnd = 0x03f00000;
 const nearStack = e.x86_virtual_alloc(0x01c00000);
-if (!nearStack) throw new Error("[FAIL] near-stack allocation returned zero");
+if (!nearStack) fail("[FAIL] near-stack allocation returned zero");
 console.log(`[PASS] near-stack allocation: ${hex(nearStack)}`);
 
 const afterStack = e.x86_virtual_alloc(0x00400000);
-if (!afterStack) throw new Error("[FAIL] post-stack allocation returned zero");
+if (!afterStack) fail("[FAIL] post-stack allocation returned zero");
 const afterStackEnd = afterStack + 0x00400000;
 const overlapsStack = afterStack < stackEnd && afterStackEnd > stackBase;
 check("allocator avoids stack overlap", overlapsStack, false);
@@ -204,7 +205,7 @@ check("CRT invalid operation faulted", e.x86_get_memory_faults(), c1Before + 1);
 const stress = [];
 for (let i = 0; i < 40; i++) {
   const p = e.x86_virtual_alloc(0x1000);
-  if (!p) throw new Error(`[FAIL] stress allocation ${i} returned zero`);
+  if (!p) fail(`[FAIL] stress allocation ${i} returned zero`);
   stress.push(p);
 }
 check("region count after 40 stress allocations", e.x86_get_memory_region_count(), initialRegions + 2 + stress.length);
