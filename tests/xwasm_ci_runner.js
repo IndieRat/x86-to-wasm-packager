@@ -3,7 +3,7 @@ const { diagnosticCheck, printDiagnostics } = require("./xwasm_diagnostics");
 
 async function main() {
   const runtimePath = process.argv[2], payloadPath = process.argv[3], kind = process.argv[4];
-  if (!runtimePath || !payloadPath || !kind) throw new Error("usage: node xwasm_ci_runner.js runtime.wasm payload.exe x87|c5");
+  if (!runtimePath || !payloadPath || !kind) throw new Error("usage: node xwasm_ci_runner.js runtime.wasm payload.exe x87|sse|c5");
   const runtime = fs.readFileSync(runtimePath), payload = fs.readFileSync(payloadPath);
   const mod = await WebAssembly.compile(runtime), env = {};
   let memory = null;
@@ -33,6 +33,11 @@ async function main() {
     let seen=0; for(let j=0;j<e.x86_get_trace_count();j++){const i=e.x86_get_trace_index(j),op=e.x86_get_trace_opcode(i)&255;if(op>=0xD8&&op<=0xDF)seen++;}
     if(!seen)throw new Error("[FAIL] no x87 opcode reached trace");
     console.log("[PASS] x87 trace coverage: "+seen);
+  } else if(kind==="sse"){
+    check("SSE/SSE2 compiled C result",e.x86_get_eax(),1);
+    let seen=0; for(let j=0;j<e.x86_get_trace_count();j++){const i=e.x86_get_trace_index(j),op=e.x86_get_trace_opcode(i)&255;if(op===0x0F)seen++;}
+    if(!seen)throw new Error("[FAIL] no SSE/SSE2 0F opcode reached trace");
+    console.log("[PASS] SSE/SSE2 trace coverage: "+seen);
   } else if(kind==="c5"){
     check("compiled C return value",e.x86_get_eax(),2);
     const view=()=>new Uint8Array(memory.buffer), dv=()=>new DataView(memory.buffer);
