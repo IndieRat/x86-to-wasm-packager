@@ -32,6 +32,6 @@ int main(void) {
     bits_u bits;
     bits.d = out;
 
-    /* 3.0 + 1.5 + (-0.5) + (1.5/2.25) = 4.666... */
+    /* Expected: 2.75 + 2/3 - 0.75 = 2.666... */
     return bits.u == 0x4012AAAAAAAAAAAAULL ? 1 : 0;
 }
