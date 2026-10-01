@@ -120,6 +120,7 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
         x86_id_is(id, "ADD_RM32_IMM32") ||
         x86_id_is(id, "SUB_RM32_IMM32") ||
         x86_id_is(id, "CMP_RM32_IMM32") ||
+        x86_id_is(id, "XOR_RM32_IMM32") ||
         x86_id_is(id, "ADC_RM32_IMM32") ||
         x86_id_is(id, "SBB_RM32_IMM32") ||
         x86_id_is(id, "IMUL_R32_RM32_IMM32") ||
@@ -322,7 +323,18 @@ static int cpu_step(void) {
     uint32_t before_ebx = regs[R_EBX];
     uint32_t before_opcode = (uint32_t)MEM8(saved_eip);
     int decoded = x86_decode_instruction(&d);
-    if (decoded < 0) return decoded;
+    if (decoded < 0) {
+        last_decoded_map = d.map;
+        last_decoded_opcode = d.opcode;
+        last_decoded_length = d.cursor - d.start;
+        x86_copy_semantic_id(last_decoded_semantic_id, "DECODE_FAULT");
+        last_dispatch_id = X86_DISPATCH_NONE;
+        last_dispatch_count++;
+        trace_failure_index = trace_head % X86_TRACE_DEPTH;
+        x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                         before_opcode,last_dispatch_id);
+        return decoded;
+    }
 
     /*
      * Semantic migration point.
@@ -524,6 +536,29 @@ static int cpu_step(void) {
             }
             eip=d.cursor;
             last_dispatch_id=X86_DISPATCH_NONE;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"XOR_RM32_IMM32")) {
+            uint32_t op_ip = d.cursor - d.imm_size - d.disp_size - (d.has_sib ? 1u : 0u);
+            uint32_t a = (d.modrm >> 6) == 3 ? regs[d.modrm & 7u] : modrm_read32(d.modrm, &op_ip);
+            uint32_t b = rd32(d.cursor - 4u);
+            uint32_t v = a ^ b;
+            if ((d.modrm >> 6) == 3) {
+                regs[d.modrm & 7u] = v;
+            } else {
+                uint32_t ea = 0;
+                if (!modrm_ea(d.modrm, &op_ip, &ea)) {
+                    cpu_error = 0x8180u;
+                    return -49;
+                }
+                wr32(ea, v);
+            }
+            set_logic_flags(v);
+            eip = d.cursor;
+            last_dispatch_id = X86_DISPATCH_XOR_RM32_IMM32;
             last_dispatch_count++;
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
                              before_opcode,last_dispatch_id);
