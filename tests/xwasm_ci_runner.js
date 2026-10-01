@@ -35,7 +35,7 @@ async function main() {
     console.log("[PASS] x87 trace coverage: "+seen);
   } else if(kind==="sse"){
     check("SSE/SSE2 compiled C result",e.x86_get_eax(),1);
-    let seen=0; for(let j=0;j<e.x86_get_trace_count();j++){const i=e.x86_get_trace_index(j),op=e.x86_get_trace_opcode(i)&255;if(op===0x0F)seen++;}
+    let seen=0; for(let j=0;j<e.x86_get_trace_count();j++){const i=e.x86_get_trace_index(j),op=e.x86_get_trace_opcode(i)&255;if(op===0xF2||op===0xF3)seen++;}
     if(!seen)throw new Error("[FAIL] no SSE/SSE2 0F opcode reached trace");
     console.log("[PASS] SSE/SSE2 trace coverage: "+seen);
   } else if(kind==="c5"){
