@@ -21,132 +21,61 @@
     {
       "id": "MOV_RM32_R32",
       "instruction": "MOV",
-      "opcode": [
-        "89"
-      ],
+      "opcode": ["89"],
       "opcode_map": "primary",
       "encoding": "MR",
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "w",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
+        {"kind": "rm32", "access": "w", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "MOV_RM8_IMM8",
       "instruction": "MOV",
-      "opcode": [
-        "C6"
-      ],
+      "opcode": ["C6"],
       "opcode_map": "primary",
       "encoding": "MI",
       "operands": [
-        {
-          "kind": "rm8",
-          "access": "w",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "imm"
-        }
+        {"kind": "rm8", "access": "w", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "imm"}
       ],
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      }
+      "modrm": {"required": true, "reg_extension": 0}
     },
     {
       "id": "MOV_R32_RM32",
       "instruction": "MOV",
-      "opcode": [
-        "8B"
-      ],
+      "opcode": ["8B"],
       "opcode_map": "primary",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "w",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "w", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "MOV_R8_IMM8",
       "instruction": "MOV",
-      "opcode": [
-        "B0",
-        "B1",
-        "B2",
-        "B3",
-        "B4",
-        "B5",
-        "B6",
-        "B7"
-      ],
+      "opcode": ["B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7"],
       "opcode_map": "primary",
       "encoding": "OI",
       "opcode_reg": "low3",
       "operands": [
-        {
-          "kind": "reg8",
-          "access": "w",
-          "source": "opcode.low3"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "reg8", "access": "w", "source": "opcode.low3"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
       ]
     },
     {
       "id": "MOV_R32_IMM32",
       "instruction": "MOV",
-      "opcode": [
-        "B8",
-        "B9",
-        "BA",
-        "BB",
-        "BC",
-        "BD",
-        "BE",
-        "BF"
-      ],
+      "opcode": ["B8", "B9", "BA", "BB", "BC", "BD", "BE", "BF"],
       "opcode_map": "primary",
       "encoding": "OI",
       "opcode_reg": "low3",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "w",
-          "source": "opcode.low3"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
+        {"kind": "reg32", "access": "w", "source": "opcode.low3"},
+        {"kind": "imm32", "access": "r", "source": "next4"}
       ]
     },
     {
@@ -196,2565 +125,656 @@
     {
       "id": "LEA_R32_M",
       "instruction": "LEA",
-      "opcode": [
-        "8D"
-      ],
+      "opcode": ["8D"],
       "opcode_map": "primary",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "w",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm",
-          "memory_only": true
-        }
+        {"kind": "reg32", "access": "w", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm", "memory_only": true}
       ],
-      "modrm": {
-        "required": true,
-        "memory_only": true
-      }
+      "modrm": {"required": true, "memory_only": true}
     },
     {
       "id": "ADD_RM32_R32",
       "instruction": "ADD",
-      "opcode": [
-        "01"
-      ],
+      "opcode": ["01"],
       "opcode_map": "primary",
       "encoding": "MR",
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "ADD_R32_RM32",
       "instruction": "ADD",
-      "opcode": [
-        "03"
-      ],
+      "opcode": ["03"],
       "opcode_map": "primary",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "rw", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "ADD_RM32_IMM32",
       "instruction": "ADD",
-      "opcode": [
-        "81"
-      ],
+      "opcode": ["81"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      },
+      "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm32", "access": "r", "source": "next4"}
       ]
     },
     {
       "id": "ADD_RM32_IMM8",
       "instruction": "ADD",
-      "opcode": [
-        "83"
-      ],
+      "opcode": ["83"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      },
+      "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "sign_extend": true,
-          "source": "next1"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "sign_extend": true, "source": "next1"}
       ]
     },
     {
       "id": "ADD_EAX_IMM32",
       "instruction": "ADD",
-      "opcode": [
-        "05"
-      ],
+      "opcode": ["05"],
       "opcode_map": "primary",
       "encoding": "OI",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "fixed": "EAX"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
+        {"kind": "reg32", "access": "rw", "fixed": "EAX"},
+        {"kind": "imm32", "access": "r", "source": "next4"}
       ]
     },
     {
       "id": "SUB_RM32_R32",
       "instruction": "SUB",
-      "opcode": [
-        "29"
-      ],
+      "opcode": ["29"],
       "opcode_map": "primary",
       "encoding": "MR",
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "SUB_R32_RM32",
       "instruction": "SUB",
-      "opcode": [
-        "2B"
-      ],
+      "opcode": ["2B"],
       "opcode_map": "primary",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "rw", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "SUB_RM32_IMM32",
       "instruction": "SUB",
-      "opcode": [
-        "81"
-      ],
+      "opcode": ["81"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 5
-      },
+      "modrm": {"required": true, "reg_extension": 5},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm32", "access": "r", "source": "next4"}
       ]
     },
     {
       "id": "SUB_RM32_IMM8",
       "instruction": "SUB",
-      "opcode": [
-        "83"
-      ],
+      "opcode": ["83"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 5
-      },
+      "modrm": {"required": true, "reg_extension": 5},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "sign_extend": true,
-          "source": "next1"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "sign_extend": true, "source": "next1"}
       ]
     },
     {
       "id": "SUB_EAX_IMM32",
       "instruction": "SUB",
-      "opcode": [
-        "2D"
-      ],
+      "opcode": ["2D"],
       "opcode_map": "primary",
       "encoding": "OI",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "fixed": "EAX"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
+        {"kind": "reg32", "access": "rw", "fixed": "EAX"},
+        {"kind": "imm32", "access": "r", "source": "next4"}
       ]
     },
     {
       "id": "CMP_RM32_R32",
       "instruction": "CMP",
-      "opcode": [
-        "39"
-      ],
+      "opcode": ["39"],
       "opcode_map": "primary",
       "encoding": "MR",
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "CMP_R32_RM32",
       "instruction": "CMP",
-      "opcode": [
-        "3B"
-      ],
+      "opcode": ["3B"],
       "opcode_map": "primary",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "CMP_RM32_IMM32",
       "instruction": "CMP",
-      "opcode": [
-        "81"
-      ],
+      "opcode": ["81"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 7
-      },
+      "modrm": {"required": true, "reg_extension": 7},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"},
+        {"kind": "imm32", "access": "r", "source": "next4"}
       ]
     },
     {
       "id": "CMP_RM32_IMM8",
       "instruction": "CMP",
-      "opcode": [
-        "83"
-      ],
+      "opcode": ["83"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 7
-      },
+      "modrm": {"required": true, "reg_extension": 7},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "sign_extend": true,
-          "source": "next1"
-        }
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "sign_extend": true, "source": "next1"}
       ]
     },
     {
       "id": "CMP_EAX_IMM32",
       "instruction": "CMP",
-      "opcode": [
-        "3D"
-      ],
+      "opcode": ["3D"],
       "opcode_map": "primary",
       "encoding": "OI",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "r",
-          "fixed": "EAX"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
+        {"kind": "reg32", "access": "r", "fixed": "EAX"},
+        {"kind": "imm32", "access": "r", "source": "next4"}
       ]
     },
     {
       "id": "INC_R32",
       "instruction": "INC",
-      "opcode": [
-        "40",
-        "41",
-        "42",
-        "43",
-        "44",
-        "45",
-        "46",
-        "47"
-      ],
+      "opcode": ["40", "41", "42", "43", "44", "45", "46", "47"],
       "opcode_map": "primary",
       "encoding": "O",
       "opcode_reg": "low3",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "opcode.low3"
-        }
+        {"kind": "reg32", "access": "rw", "source": "opcode.low3"}
       ]
     },
     {
       "id": "DEC_R32",
       "instruction": "DEC",
-      "opcode": [
-        "48",
-        "49",
-        "4A",
-        "4B",
-        "4C",
-        "4D",
-        "4E",
-        "4F"
-      ],
+      "opcode": ["48", "49", "4A", "4B", "4C", "4D", "4E", "4F"],
       "opcode_map": "primary",
       "encoding": "O",
       "opcode_reg": "low3",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "opcode.low3"
-        }
+        {"kind": "reg32", "access": "rw", "source": "opcode.low3"}
       ]
     },
     {
       "id": "AND_RM32_R32",
       "instruction": "AND",
-      "opcode": [
-        "21"
-      ],
+      "opcode": ["21"],
       "opcode_map": "primary",
       "encoding": "MR",
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "AND_R32_RM32",
       "instruction": "AND",
-      "opcode": [
-        "23"
-      ],
+      "opcode": ["23"],
       "opcode_map": "primary",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "rw", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "OR_RM32_R32",
       "instruction": "OR",
-      "opcode": [
-        "09"
-      ],
+      "opcode": ["09"],
       "opcode_map": "primary",
       "encoding": "MR",
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "OR_R32_RM32",
       "instruction": "OR",
-      "opcode": [
-        "0B"
-      ],
+      "opcode": ["0B"],
       "opcode_map": "primary",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "rw", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "XOR_RM32_R32",
       "instruction": "XOR",
-      "opcode": [
-        "31"
-      ],
+      "opcode": ["31"],
       "opcode_map": "primary",
       "encoding": "MR",
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "XOR_R32_RM32",
       "instruction": "XOR",
-      "opcode": [
-        "33"
-      ],
+      "opcode": ["33"],
       "opcode_map": "primary",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "rw", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "TEST_RM32_R32",
       "instruction": "TEST",
-      "opcode": [
-        "85"
-      ],
+      "opcode": ["85"],
       "opcode_map": "primary",
       "encoding": "MR",
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "IMUL_R32_RM32",
       "instruction": "IMUL",
-      "opcode": [
-        "AF"
-      ],
+      "opcode": ["AF"],
       "opcode_map": "escape_0f",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "rw", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "CMOVE_R32_RM32",
       "instruction": "CMOVE",
-      "opcode": [
-        "44"
-      ],
+      "opcode": ["44"],
       "opcode_map": "escape_0f",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "w",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "w", "source": "modrm.reg"},
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "MOVZX_R32_RM8",
       "instruction": "MOVZX",
-      "opcode": [
-        "B6"
-      ],
+      "opcode": ["B6"],
       "opcode_map": "escape_0f",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "w",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "width": 8,
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "w", "source": "modrm.reg"},
+        {"kind": "rm32", "width": 8, "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "MOVSX_R32_RM8",
       "instruction": "MOVSX",
-      "opcode": [
-        "BE"
-      ],
+      "opcode": ["BE"],
       "opcode_map": "escape_0f",
       "encoding": "RM",
       "operands": [
-        {
-          "kind": "reg32",
-          "access": "w",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "width": 8,
-          "access": "r",
-          "source": "modrm.rm"
-        }
+        {"kind": "reg32", "access": "w", "source": "modrm.reg"},
+        {"kind": "rm32", "width": 8, "access": "r", "source": "modrm.rm"}
       ],
-      "modrm": {
-        "required": true
-      }
+      "modrm": {"required": true}
     },
     {
       "id": "SHL_RM32_IMM8",
       "instruction": "SHL",
-      "opcode": [
-        "C1"
-      ],
+      "opcode": ["C1"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 4
-      },
+      "modrm": {"required": true, "reg_extension": 4},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
       ]
     },
     {
       "id": "SHR_RM32_IMM8",
       "instruction": "SHR",
-      "opcode": [
-        "C1"
-      ],
+      "opcode": ["C1"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 5
-      },
+      "modrm": {"required": true, "reg_extension": 5},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
       ]
     },
     {
       "id": "SAR_RM32_IMM8",
       "instruction": "SAR",
-      "opcode": [
-        "C1"
-      ],
+      "opcode": ["C1"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 7
-      },
+      "modrm": {"required": true, "reg_extension": 7},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
       ]
     },
     {
       "id": "SHL_RM32_1",
       "instruction": "SHL",
-      "opcode": [
-        "D1"
-      ],
+      "opcode": ["D1"],
       "opcode_map": "primary",
       "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 4
-      },
+      "modrm": {"required": true, "reg_extension": 4},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "fixed": 1
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "fixed": 1}
       ]
     },
     {
       "id": "SHR_RM32_1",
       "instruction": "SHR",
-      "opcode": [
-        "D1"
-      ],
+      "opcode": ["D1"],
       "opcode_map": "primary",
       "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 5
-      },
+      "modrm": {"required": true, "reg_extension": 5},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "fixed": 1
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "fixed": 1}
       ]
     },
     {
       "id": "SAR_RM32_1",
       "instruction": "SAR",
-      "opcode": [
-        "D1"
-      ],
+      "opcode": ["D1"],
       "opcode_map": "primary",
       "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 7
-      },
+      "modrm": {"required": true, "reg_extension": 7},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "fixed": 1
-        }
-      ]
-    },
-    {
-      "id": "PUSH_R32",
-      "instruction": "PUSH",
-      "opcode": [
-        "50",
-        "51",
-        "52",
-        "53",
-        "54",
-        "55",
-        "56",
-        "57"
-      ],
-      "opcode_map": "primary",
-      "encoding": "O",
-      "opcode_reg": "low3",
-      "operands": [
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "opcode.low3"
-        }
-      ]
-    },
-    {
-      "id": "POP_R32",
-      "instruction": "POP",
-      "opcode": [
-        "58",
-        "59",
-        "5A",
-        "5B",
-        "5C",
-        "5D",
-        "5E",
-        "5F"
-      ],
-      "opcode_map": "primary",
-      "encoding": "O",
-      "opcode_reg": "low3",
-      "operands": [
-        {
-          "kind": "reg32",
-          "access": "w",
-          "source": "opcode.low3"
-        }
-      ]
-    },
-    {
-      "id": "PUSH_IMM32",
-      "instruction": "PUSH",
-      "opcode": [
-        "68"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "PUSH_IMM8",
-      "instruction": "PUSH",
-      "opcode": [
-        "6A"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "imm8",
-          "access": "r",
-          "sign_extend": true,
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "CALL_REL32",
-      "instruction": "CALL",
-      "opcode": [
-        "E8"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "CALL_RM32",
-      "instruction": "CALL",
-      "opcode": [
-        "FF"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "RET",
-      "instruction": "RET",
-      "opcode": [
-        "C3"
-      ],
-      "opcode_map": "primary",
-      "encoding": "NONE",
-      "operands": []
-    },
-    {
-      "id": "JMP_REL32",
-      "instruction": "JMP",
-      "opcode": [
-        "E9"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JMP_REL8",
-      "instruction": "JMP",
-      "opcode": [
-        "EB"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JMP_RM32",
-      "instruction": "JMP",
-      "opcode": [
-        "FF"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 4
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "JE_REL8",
-      "instruction": "JE",
-      "opcode": [
-        "74"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JNE_REL8",
-      "instruction": "JNE",
-      "opcode": [
-        "75"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JB_REL8",
-      "instruction": "JB",
-      "opcode": [
-        "72"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JAE_REL8",
-      "instruction": "JAE",
-      "opcode": [
-        "73"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JA_REL8",
-      "instruction": "JA",
-      "opcode": [
-        "77"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JBE_REL8",
-      "instruction": "JBE",
-      "opcode": [
-        "76"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JL_REL8",
-      "instruction": "JL",
-      "opcode": [
-        "7C"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JGE_REL8",
-      "instruction": "JGE",
-      "opcode": [
-        "7D"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JLE_REL8",
-      "instruction": "JLE",
-      "opcode": [
-        "7E"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JG_REL8",
-      "instruction": "JG",
-      "opcode": [
-        "7F"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JE_REL32",
-      "instruction": "JE",
-      "opcode": [
-        "84"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JNE_REL32",
-      "instruction": "JNE",
-      "opcode": [
-        "85"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "HLT",
-      "instruction": "HLT",
-      "opcode": [
-        "F4"
-      ],
-      "opcode_map": "primary",
-      "encoding": "NONE",
-      "operands": []
-    },
-    {
-      "id": "ADC_RM32_R32",
-      "instruction": "ADC",
-      "opcode": [
-        "11"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
-      ]
-    },
-    {
-      "id": "SBB_RM32_R32",
-      "instruction": "SBB",
-      "opcode": [
-        "19"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
-      ]
-    },
-    {
-      "id": "ADC_R32_RM32",
-      "instruction": "ADC",
-      "opcode": [
-        "13"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "SBB_R32_RM32",
-      "instruction": "SBB",
-      "opcode": [
-        "1B"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "ADC_EAX_IMM32",
-      "instruction": "ADC",
-      "opcode": [
-        "15"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "fixed": "EAX"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "SBB_EAX_IMM32",
-      "instruction": "SBB",
-      "opcode": [
-        "1D"
-      ],
-      "opcode_map": "primary",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "fixed": "EAX"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "ADC_RM32_IMM32",
-      "instruction": "ADC",
-      "opcode": [
-        "81"
-      ],
-      "opcode_map": "primary",
-      "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "SBB_RM32_IMM32",
-      "instruction": "SBB",
-      "opcode": [
-        "81"
-      ],
-      "opcode_map": "primary",
-      "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 3
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "ADC_RM32_IMM8",
-      "instruction": "ADC",
-      "opcode": [
-        "83"
-      ],
-      "opcode_map": "primary",
-      "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1",
-          "sign_extend": true
-        }
-      ]
-    },
-    {
-      "id": "SBB_RM32_IMM8",
-      "instruction": "SBB",
-      "opcode": [
-        "83"
-      ],
-      "opcode_map": "primary",
-      "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 3
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1",
-          "sign_extend": true
-        }
-      ]
-    },
-    {
-      "id": "NEG_RM32",
-      "instruction": "NEG",
-      "opcode": [
-        "F7"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 3
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "NOT_RM32",
-      "instruction": "NOT",
-      "opcode": [
-        "F7"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "MUL_RM32",
-      "instruction": "MUL",
-      "opcode": [
-        "F7"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 4
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "IMUL_RM32",
-      "instruction": "IMUL",
-      "opcode": [
-        "F7"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 5
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "DIV_RM32",
-      "instruction": "DIV",
-      "opcode": [
-        "F7"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 6
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "IDIV_RM32",
-      "instruction": "IDIV",
-      "opcode": [
-        "F7"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 7
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "IMUL_R32_RM32_IMM32",
-      "instruction": "IMUL",
-      "opcode": [
-        "69"
-      ],
-      "opcode_map": "primary",
-      "encoding": "MI",
-      "operands": [
-        {
-          "kind": "reg32",
-          "access": "w",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "IMUL_R32_RM32_IMM8",
-      "instruction": "IMUL",
-      "opcode": [
-        "6B"
-      ],
-      "opcode_map": "primary",
-      "encoding": "MI",
-      "operands": [
-        {
-          "kind": "reg32",
-          "access": "w",
-          "source": "modrm.reg"
-        },
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1",
-          "sign_extend": true
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "fixed": 1}
       ]
     },
     {
       "id": "ROL_RM32_IMM8",
       "instruction": "ROL",
-      "opcode": [
-        "C1"
-      ],
+      "opcode": ["C1"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      },
+      "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "ROL_RM32_1",
-      "instruction": "ROL",
-      "opcode": [
-        "D1"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "fixed": 1
-        }
-      ]
-    },
-    {
-      "id": "ROL_RM32_CL",
-      "instruction": "ROL",
-      "opcode": [
-        "D3"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg8",
-          "access": "r",
-          "fixed": "CL"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
       ]
     },
     {
       "id": "ROR_RM32_IMM8",
       "instruction": "ROR",
-      "opcode": [
-        "C1"
-      ],
+      "opcode": ["C1"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 1
-      },
+      "modrm": {"required": true, "reg_extension": 1},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "ROR_RM32_1",
-      "instruction": "ROR",
-      "opcode": [
-        "D1"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 1
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "fixed": 1
-        }
-      ]
-    },
-    {
-      "id": "ROR_RM32_CL",
-      "instruction": "ROR",
-      "opcode": [
-        "D3"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 1
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg8",
-          "access": "r",
-          "fixed": "CL"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
       ]
     },
     {
       "id": "RCL_RM32_IMM8",
       "instruction": "RCL",
-      "opcode": [
-        "C1"
-      ],
+      "opcode": ["C1"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      },
+      "modrm": {"required": true, "reg_extension": 2},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "RCL_RM32_1",
-      "instruction": "RCL",
-      "opcode": [
-        "D1"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "fixed": 1
-        }
-      ]
-    },
-    {
-      "id": "RCL_RM32_CL",
-      "instruction": "RCL",
-      "opcode": [
-        "D3"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg8",
-          "access": "r",
-          "fixed": "CL"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
       ]
     },
     {
       "id": "RCR_RM32_IMM8",
       "instruction": "RCR",
-      "opcode": [
-        "C1"
-      ],
+      "opcode": ["C1"],
       "opcode_map": "primary",
       "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 3
-      },
+      "modrm": {"required": true, "reg_extension": 3},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "ROL_RM32_1",
+      "instruction": "ROL",
+      "opcode": ["D1"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 0},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "fixed": 1}
+      ]
+    },
+    {
+      "id": "ROR_RM32_1",
+      "instruction": "ROR",
+      "opcode": ["D1"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 1},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "fixed": 1}
+      ]
+    },
+    {
+      "id": "RCL_RM32_1",
+      "instruction": "RCL",
+      "opcode": ["D1"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 2},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "fixed": 1}
       ]
     },
     {
       "id": "RCR_RM32_1",
       "instruction": "RCR",
-      "opcode": [
-        "D1"
-      ],
+      "opcode": ["D1"],
       "opcode_map": "primary",
       "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 3
-      },
+      "modrm": {"required": true, "reg_extension": 3},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "fixed": 1
-        }
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "fixed": 1}
       ]
     },
     {
-      "id": "RCR_RM32_CL",
-      "instruction": "RCR",
-      "opcode": [
-        "D3"
-      ],
+      "id": "FLD_RM32",
+      "instruction": "FLD",
+      "opcode": ["D9"],
       "opcode_map": "primary",
       "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 3
-      },
+      "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg8",
-          "access": "r",
-          "fixed": "CL"
-        }
+        {"kind": "m32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "BT_RM32_R32",
-      "instruction": "BT",
-      "opcode": [
-        "A3"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "MR",
-      "modrm": {
-        "required": true
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
-      ]
-    },
-    {
-      "id": "BTS_RM32_R32",
-      "instruction": "BTS",
-      "opcode": [
-        "AB"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "MR",
-      "modrm": {
-        "required": true
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
-      ]
-    },
-    {
-      "id": "BTR_RM32_R32",
-      "instruction": "BTR",
-      "opcode": [
-        "B3"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "MR",
-      "modrm": {
-        "required": true
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
-      ]
-    },
-    {
-      "id": "BTC_RM32_R32",
-      "instruction": "BTC",
-      "opcode": [
-        "BB"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "MR",
-      "modrm": {
-        "required": true
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "reg32",
-          "access": "r",
-          "source": "modrm.reg"
-        }
-      ]
-    },
-    {
-      "id": "BT_RM32_IMM8",
-      "instruction": "BT",
-      "opcode": [
-        "BA"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 4
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "r",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "BTS_RM32_IMM8",
-      "instruction": "BTS",
-      "opcode": [
-        "BA"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 5
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "BTR_RM32_IMM8",
-      "instruction": "BTR",
-      "opcode": [
-        "BA"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 6
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "BTC_RM32_IMM8",
-      "instruction": "BTC",
-      "opcode": [
-        "BA"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "MI",
-      "modrm": {
-        "required": true,
-        "reg_extension": 7
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm8",
-          "access": "r",
-          "source": "next1"
-        }
-      ]
-    },
-    {
-      "id": "JO_REL8",
-      "instruction": "JO",
-      "opcode": [
-        "70"
-      ],
+      "id": "FST_RM32",
+      "instruction": "FST",
+      "opcode": ["D9"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 2},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m32", "access": "w", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "JNO_REL8",
-      "instruction": "JNO",
-      "opcode": [
-        "71"
-      ],
+      "id": "FSTP_RM32",
+      "instruction": "FSTP",
+      "opcode": ["D9"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 3},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m32", "access": "w", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "JS_REL8",
-      "instruction": "JS",
-      "opcode": [
-        "78"
-      ],
+      "id": "FLD_RM64",
+      "instruction": "FLD",
+      "opcode": ["DD"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m64", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "JNS_REL8",
-      "instruction": "JNS",
-      "opcode": [
-        "79"
-      ],
+      "id": "FST_RM64",
+      "instruction": "FST",
+      "opcode": ["DD"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 2},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m64", "access": "w", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "JP_REL8",
-      "instruction": "JP",
-      "opcode": [
-        "7A"
-      ],
+      "id": "FSTP_RM64",
+      "instruction": "FSTP",
+      "opcode": ["DD"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 3},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m64", "access": "w", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "JNP_REL8",
-      "instruction": "JNP",
-      "opcode": [
-        "7B"
-      ],
+      "id": "FADD_RM32",
+      "instruction": "FADD",
+      "opcode": ["D8"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "JCXZ_REL8",
-      "instruction": "JCXZ",
-      "opcode": [
-        "E3"
-      ],
+      "id": "FMUL_RM32",
+      "instruction": "FMUL",
+      "opcode": ["D8"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 1},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "LOOPNE_REL8",
-      "instruction": "LOOPNE",
-      "opcode": [
-        "E0"
-      ],
+      "id": "FSUB_RM32",
+      "instruction": "FSUB",
+      "opcode": ["D8"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 4},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "LOOPE_REL8",
-      "instruction": "LOOPE",
-      "opcode": [
-        "E1"
-      ],
+      "id": "FSUBR_RM32",
+      "instruction": "FSUBR",
+      "opcode": ["D8"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 5},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "LOOP_REL8",
-      "instruction": "LOOP",
-      "opcode": [
-        "E2"
-      ],
+      "id": "FDIV_RM32",
+      "instruction": "FDIV",
+      "opcode": ["D8"],
       "opcode_map": "primary",
-      "encoding": "I",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 6},
       "operands": [
-        {
-          "kind": "rel8",
-          "access": "r",
-          "source": "next1"
-        }
+        {"kind": "m32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "JO_REL32",
-      "instruction": "JO",
-      "opcode": [
-        "80"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JNO_REL32",
-      "instruction": "JNO",
-      "opcode": [
-        "81"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JB_REL32",
-      "instruction": "JB",
-      "opcode": [
-        "82"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JAE_REL32",
-      "instruction": "JAE",
-      "opcode": [
-        "83"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JBE_REL32",
-      "instruction": "JBE",
-      "opcode": [
-        "86"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JA_REL32",
-      "instruction": "JA",
-      "opcode": [
-        "87"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JS_REL32",
-      "instruction": "JS",
-      "opcode": [
-        "88"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JNS_REL32",
-      "instruction": "JNS",
-      "opcode": [
-        "89"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JP_REL32",
-      "instruction": "JP",
-      "opcode": [
-        "8A"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JNP_REL32",
-      "instruction": "JNP",
-      "opcode": [
-        "8B"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JL_REL32",
-      "instruction": "JL",
-      "opcode": [
-        "8C"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JGE_REL32",
-      "instruction": "JGE",
-      "opcode": [
-        "8D"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JLE_REL32",
-      "instruction": "JLE",
-      "opcode": [
-        "8E"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "JG_REL32",
-      "instruction": "JG",
-      "opcode": [
-        "8F"
-      ],
-      "opcode_map": "escape_0f",
-      "encoding": "I",
-      "operands": [
-        {
-          "kind": "rel32",
-          "access": "r",
-          "source": "next4"
-        }
-      ]
-    },
-    {
-      "id": "LEAVE",
-      "instruction": "LEAVE",
-      "opcode": [
-        "C9"
-      ],
+      "id": "FDIVR_RM32",
+      "instruction": "FDIVR",
+      "opcode": ["D8"],
       "opcode_map": "primary",
-      "encoding": "ZO",
-      "operands": []
-    },
-    {
-      "id": "RET_IMM16",
-      "instruction": "RET_IMM16",
-      "opcode": [
-        "C2"
-      ],
-      "opcode_map": "primary",
-      "encoding": "ZO",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 7},
       "operands": [
-        {
-          "kind": "imm16",
-          "access": "r",
-          "source": "next2"
-        }
+        {"kind": "m32", "access": "r", "source": "modrm.rm"}
       ]
     },
     {
-      "id": "MOV_RM32_IMM32",
-      "instruction": "MOV",
-      "opcode": [
-        "C7"
-      ],
+      "id": "FADD_STI_ST0",
+      "instruction": "FADD",
+      "opcode": ["DC"],
       "opcode_map": "primary",
-      "encoding": "MI",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 0},
       "operands": [
-        {
-          "kind": "rm32",
-          "access": "w",
-          "source": "modrm.rm"
-        },
-        {
-          "kind": "imm32",
-          "access": "r",
-          "source": "imm"
-        }
-      ],
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      }
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
     },
     {
       "id": "FMUL_STI_ST0",
@@ -2763,6 +783,149 @@
       "opcode_map": "primary",
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 1},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FSUB_STI_ST0",
+      "instruction": "FSUB",
+      "opcode": ["DC"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 4},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FSUBR_ST0_STI",
+      "instruction": "FSUBR",
+      "opcode": ["DC"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 5},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FDIV_STI_ST0",
+      "instruction": "FDIV",
+      "opcode": ["DC"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 6},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FDIVR_ST0_STI",
+      "instruction": "FDIVR",
+      "opcode": ["DC"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 7},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FADD_ST0_STI",
+      "instruction": "FADD",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 0},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FMUL_ST0_STI",
+      "instruction": "FMUL",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 1},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FSUB_ST0_STI",
+      "instruction": "FSUB",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 4},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FSUBR_STI_ST0",
+      "instruction": "FSUBR",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 5},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FDIV_ST0_STI",
+      "instruction": "FDIV",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 6},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FDIVR_STI_ST0",
+      "instruction": "FDIVR",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 7},
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FCOM_STI",
+      "instruction": "FCOM",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 2},
+      "operands": [
+        {"kind": "sti", "access": "r", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FCOMP_STI",
+      "instruction": "FCOMP",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 3},
+      "operands": [
+        {"kind": "sti", "access": "r", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "FCOMPP",
+      "instruction": "FCOMPP",
+      "opcode": ["DE"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 3, "mod_fixed": 3, "rm_fixed": 1},
       "operands": []
     },
     {
@@ -2772,175 +935,207 @@
       "opcode_map": "primary",
       "encoding": "M",
       "modrm": {"required": true, "reg_extension": 0},
-      "operands": []
+      "operands": [
+        {"kind": "sti", "access": "rw", "source": "modrm.rm"}
+      ]
     },
     {
-      "id": "FLD_RM32",
-      "instruction": "FLD",
-      "opcode": [
-        "D9"
+      "id": "BT_RM32_R32",
+      "instruction": "BT",
+      "opcode": ["A3"],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "operands": [
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      },
-      "operands": []
+      "modrm": {"required": true}
     },
     {
-      "id": "FST_RM32",
-      "instruction": "FST",
-      "opcode": [
-        "D9"
+      "id": "BTS_RM32_R32",
+      "instruction": "BTS",
+      "opcode": ["AB"],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      },
-      "operands": []
+      "modrm": {"required": true}
     },
     {
-      "id": "FSTP_RM32",
-      "instruction": "FSTP",
-      "opcode": [
-        "D9"
+      "id": "BTR_RM32_R32",
+      "instruction": "BTR",
+      "opcode": ["B3"],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 3
-      },
-      "operands": []
+      "modrm": {"required": true}
     },
     {
-      "id": "FADD_RM32",
-      "instruction": "FADD",
-      "opcode": [
-        "D8"
+      "id": "BTC_RM32_R32",
+      "instruction": "BTC",
+      "opcode": ["BB"],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "reg32", "access": "r", "source": "modrm.reg"}
       ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      },
-      "operands": []
+      "modrm": {"required": true}
     },
     {
-      "id": "FMUL_RM32",
-      "instruction": "FMUL",
-      "opcode": [
-        "D8"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 1
-      },
-      "operands": []
+      "id": "BT_RM32_IMM8",
+      "instruction": "BT",
+      "opcode": ["BA"],
+      "opcode_map": "escape_0f",
+      "encoding": "MI",
+      "modrm": {"required": true, "reg_extension": 4},
+      "operands": [
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
+      ]
     },
     {
-      "id": "FSUB_RM32",
-      "instruction": "FSUB",
-      "opcode": [
-        "D8"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 4
-      },
-      "operands": []
+      "id": "BTS_RM32_IMM8",
+      "instruction": "BTS",
+      "opcode": ["BA"],
+      "opcode_map": "escape_0f",
+      "encoding": "MI",
+      "modrm": {"required": true, "reg_extension": 5},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
+      ]
     },
     {
-      "id": "FSUBR_RM32",
-      "instruction": "FSUBR",
-      "opcode": [
-        "D8"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 5
-      },
-      "operands": []
+      "id": "BTR_RM32_IMM8",
+      "instruction": "BTR",
+      "opcode": ["BA"],
+      "opcode_map": "escape_0f",
+      "encoding": "MI",
+      "modrm": {"required": true, "reg_extension": 6},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
+      ]
     },
     {
-      "id": "FDIV_RM32",
-      "instruction": "FDIV",
-      "opcode": [
-        "D8"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 6
-      },
-      "operands": []
+      "id": "BTC_RM32_IMM8",
+      "instruction": "BTC",
+      "opcode": ["BA"],
+      "opcode_map": "escape_0f",
+      "encoding": "MI",
+      "modrm": {"required": true, "reg_extension": 7},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
+      ]
     },
     {
-      "id": "FDIVR_RM32",
-      "instruction": "FDIVR",
-      "opcode": [
-        "D8"
-      ],
+      "id": "RCR_RM32_1",
+      "instruction": "RCR",
+      "opcode": ["D1"],
       "opcode_map": "primary",
       "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 7
-      },
-      "operands": []
+      "modrm": {"required": true, "reg_extension": 3},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "fixed": 1}
+      ]
     },
     {
-      "id": "FLD_RM64",
-      "instruction": "FLD",
-      "opcode": [
-        "DD"
-      ],
+      "id": "RCR_RM32_IMM8",
+      "instruction": "RCR",
+      "opcode": ["C1"],
       "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      },
-      "operands": []
+      "encoding": "MI",
+      "modrm": {"required": true, "reg_extension": 3},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "imm8", "access": "r", "source": "next1"}
+      ]
     },
     {
-      "id": "FST_RM64",
-      "instruction": "FST",
-      "opcode": [
-        "DD"
-      ],
+      "id": "RCR_RM32_CL",
+      "instruction": "RCR",
+      "opcode": ["D3"],
       "opcode_map": "primary",
       "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 2
-      },
-      "operands": []
+      "modrm": {"required": true, "reg_extension": 3},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"},
+        {"kind": "reg8", "access": "r", "fixed": "CL"}
+      ]
     },
     {
-      "id": "FSTP_RM64",
-      "instruction": "FSTP",
-      "opcode": [
-        "DD"
-      ],
+      "id": "NEG_RM32",
+      "instruction": "NEG",
+      "opcode": ["F7"],
       "opcode_map": "primary",
       "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 3
-      },
-      "operands": []
+      "modrm": {"required": true, "reg_extension": 3},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "NOT_RM32",
+      "instruction": "NOT",
+      "opcode": ["F7"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 2},
+      "operands": [
+        {"kind": "rm32", "access": "rw", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "MUL_RM32",
+      "instruction": "MUL",
+      "opcode": ["F7"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 4},
+      "operands": [
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "IMUL_RM32",
+      "instruction": "IMUL",
+      "opcode": ["F7"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 5},
+      "operands": [
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "DIV_RM32",
+      "instruction": "DIV",
+      "opcode": ["F7"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 6},
+      "operands": [
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
+      ]
+    },
+    {
+      "id": "IDIV_RM32",
+      "instruction": "IDIV",
+      "opcode": ["F7"],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {"required": true, "reg_extension": 7},
+      "operands": [
+        {"kind": "rm32", "access": "r", "source": "modrm.rm"}
+      ]
     }
   ]
 }
