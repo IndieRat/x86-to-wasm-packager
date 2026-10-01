@@ -2,12 +2,10 @@
   "format": "xwasm-x86-opcode-map",
   "version": 1,
   "architecture": "i386",
-  "source": "Intel IA-32 instruction opcode maps; XWASM-maintained mapping layer",
+  "source": "XWASM-maintained map generated from instruction_encodings.json",
   "notes": [
-    "Every legacy one-byte primary opcode slot and every 0F escape opcode slot is represented.",
-    "RESERVED means no XWASM encoding is currently attached; it does not by itself assert that Intel reserves the opcode in every mode.",
-    "Additional opcode maps such as 0F 38 and 0F 3A are represented by the schema and can be added without changing the file format.",
-    "The 0F 38 and 0F 3A maps are also materialized as complete 256-slot tables so future SSE/SSSE3/SSE4 expansion does not change the schema."
+    "Generated; do not hand-edit. RESERVED does not assert Intel reservation in every mode.",
+    "All four legacy/escape maps are represented as 256-slot tables."
   ],
   "maps": {
     "primary": [
@@ -108,8 +106,10 @@
       },
       {
         "byte": "11",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADC_RM32_R32"
+        ]
       },
       {
         "byte": "12",
@@ -148,8 +148,10 @@
       },
       {
         "byte": "19",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SBB_RM32_R32"
+        ]
       },
       {
         "byte": "1A",
@@ -302,8 +304,10 @@
       },
       {
         "byte": "35",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XOR_EAX_IMM32"
+        ]
       },
       {
         "byte": "36",
@@ -627,10 +631,8 @@
       },
       {
         "byte": "68",
-        "status": "MAPPED",
-        "encoding_ids": [
-          "PUSH_IMM32"
-        ]
+        "status": "RESERVED",
+        "encoding_ids": []
       },
       {
         "byte": "69",
@@ -639,10 +641,8 @@
       },
       {
         "byte": "6A",
-        "status": "MAPPED",
-        "encoding_ids": [
-          "PUSH_IMM8"
-        ]
+        "status": "RESERVED",
+        "encoding_ids": []
       },
       {
         "byte": "6B",
@@ -671,13 +671,17 @@
       },
       {
         "byte": "70",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JO_REL8"
+        ]
       },
       {
         "byte": "71",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JNO_REL8"
+        ]
       },
       {
         "byte": "72",
@@ -723,23 +727,31 @@
       },
       {
         "byte": "78",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JS_REL8"
+        ]
       },
       {
         "byte": "79",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JNS_REL8"
+        ]
       },
       {
         "byte": "7A",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JP_REL8"
+        ]
       },
       {
         "byte": "7B",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JNP_REL8"
+        ]
       },
       {
         "byte": "7C",
@@ -780,7 +792,8 @@
         "encoding_ids": [
           "ADD_RM32_IMM32",
           "SUB_RM32_IMM32",
-          "CMP_RM32_IMM32"
+          "CMP_RM32_IMM32",
+          "XOR_RM32_IMM32"
         ]
       },
       {
@@ -794,7 +807,8 @@
         "encoding_ids": [
           "ADD_RM32_IMM8",
           "SUB_RM32_IMM8",
-          "CMP_RM32_IMM8"
+          "CMP_RM32_IMM8",
+          "AND_RM32_IMM8"
         ]
       },
       {
@@ -1156,13 +1170,19 @@
         "encoding_ids": [
           "SHL_RM32_IMM8",
           "SHR_RM32_IMM8",
-          "SAR_RM32_IMM8"
+          "SAR_RM32_IMM8",
+          "ROL_RM32_IMM8",
+          "ROR_RM32_IMM8",
+          "RCL_RM32_IMM8",
+          "RCR_RM32_IMM8"
         ]
       },
       {
         "byte": "C2",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "RET_IMM16"
+        ]
       },
       {
         "byte": "C3",
@@ -1183,13 +1203,17 @@
       },
       {
         "byte": "C6",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_RM8_IMM8"
+        ]
       },
       {
         "byte": "C7",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_RM32_IMM32"
+        ]
       },
       {
         "byte": "C8",
@@ -1198,8 +1222,10 @@
       },
       {
         "byte": "C9",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "LEAVE"
+        ]
       },
       {
         "byte": "CA",
@@ -1242,7 +1268,11 @@
         "encoding_ids": [
           "SHL_RM32_1",
           "SHR_RM32_1",
-          "SAR_RM32_1"
+          "SAR_RM32_1",
+          "ROL_RM32_1",
+          "ROR_RM32_1",
+          "RCL_RM32_1",
+          "RCR_RM32_1"
         ]
       },
       {
@@ -1252,8 +1282,10 @@
       },
       {
         "byte": "D3",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "RCR_RM32_CL"
+        ]
       },
       {
         "byte": "D4",
@@ -1279,6 +1311,8 @@
         "byte": "D8",
         "status": "MAPPED",
         "encoding_ids": [
+          "FCOM_STI",
+          "FCOMP_STI",
           "FADD_RM32",
           "FMUL_RM32",
           "FSUB_RM32",
@@ -1310,7 +1344,12 @@
         "byte": "DC",
         "status": "MAPPED",
         "encoding_ids": [
-          "FMUL_STI_ST0"
+          "FADD_STI_ST0",
+          "FMUL_STI_ST0",
+          "FSUBR_STI_ST0",
+          "FSUB_STI_ST0",
+          "FDIVR_STI_ST0",
+          "FDIV_STI_ST0"
         ]
       },
       {
@@ -1326,7 +1365,12 @@
         "byte": "DE",
         "status": "MAPPED",
         "encoding_ids": [
-          "FADDP_STI_ST0"
+          "FADDP_STI_ST0",
+          "FMULP_STI_ST0",
+          "FSUBRP_STI_ST0",
+          "FSUBP_STI_ST0",
+          "FDIVRP_STI_ST0",
+          "FDIVP_STI_ST0"
         ]
       },
       {
@@ -1336,23 +1380,31 @@
       },
       {
         "byte": "E0",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "LOOPNE_REL8"
+        ]
       },
       {
         "byte": "E1",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "LOOPE_REL8"
+        ]
       },
       {
         "byte": "E2",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "LOOP_REL8"
+        ]
       },
       {
         "byte": "E3",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JCXZ_REL8"
+        ]
       },
       {
         "byte": "E4",
@@ -1459,8 +1511,15 @@
       },
       {
         "byte": "F7",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "NEG_RM32",
+          "NOT_RM32",
+          "MUL_RM32",
+          "IMUL_RM32",
+          "DIV_RM32",
+          "IDIV_RM32"
+        ]
       },
       {
         "byte": "F8",
@@ -1499,11 +1558,8 @@
       },
       {
         "byte": "FF",
-        "status": "MAPPED",
-        "encoding_ids": [
-          "CALL_RM32",
-          "JMP_RM32"
-        ]
+        "status": "RESERVED",
+        "encoding_ids": []
       }
     ],
     "escape_0f": [
@@ -1589,13 +1645,19 @@
       },
       {
         "byte": "10",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOVSS_XMM_RM32",
+          "MOVSD_XMM_RM64"
+        ]
       },
       {
         "byte": "11",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOVSS_RM32_XMM",
+          "MOVSD_RM64_XMM"
+        ]
       },
       {
         "byte": "12",
@@ -1853,7 +1915,7 @@
         "encoding_ids": [
           "CMOVE_R32_RM32"
         ]
-      }
+      },
       {
         "byte": "45",
         "status": "RESERVED",
@@ -1951,13 +2013,19 @@
       },
       {
         "byte": "58",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADDSS_XMM_RM32",
+          "ADDSD_XMM_RM64"
+        ]
       },
       {
         "byte": "59",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MULSS_XMM_RM32",
+          "MULSD_XMM_RM64"
+        ]
       },
       {
         "byte": "5A",
@@ -1971,8 +2039,11 @@
       },
       {
         "byte": "5C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SUBSS_XMM_RM32",
+          "SUBSD_XMM_RM64"
+        ]
       },
       {
         "byte": "5D",
@@ -1981,8 +2052,11 @@
       },
       {
         "byte": "5E",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "DIVSS_XMM_RM32",
+          "DIVSD_XMM_RM64"
+        ]
       },
       {
         "byte": "5F",
@@ -2171,17 +2245,13 @@
       },
       {
         "byte": "84",
-        "status": "MAPPED",
-        "encoding_ids": [
-          "JE_REL32"
-        ]
+        "status": "RESERVED",
+        "encoding_ids": []
       },
       {
         "byte": "85",
-        "status": "MAPPED",
-        "encoding_ids": [
-          "JNE_REL32"
-        ]
+        "status": "RESERVED",
+        "encoding_ids": []
       },
       {
         "byte": "86",
@@ -2255,8 +2325,10 @@
       },
       {
         "byte": "94",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SETE_RM8"
+        ]
       },
       {
         "byte": "95",
@@ -2330,8 +2402,10 @@
       },
       {
         "byte": "A3",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "BT_RM32_R32"
+        ]
       },
       {
         "byte": "A4",
@@ -2370,8 +2444,10 @@
       },
       {
         "byte": "AB",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "BTS_RM32_R32"
+        ]
       },
       {
         "byte": "AC",
@@ -2412,8 +2488,10 @@
       },
       {
         "byte": "B3",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "BTR_RM32_R32"
+        ]
       },
       {
         "byte": "B4",
@@ -2449,13 +2527,20 @@
       },
       {
         "byte": "BA",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "BT_RM32_IMM8",
+          "BTS_RM32_IMM8",
+          "BTR_RM32_IMM8",
+          "BTC_RM32_IMM8"
+        ]
       },
       {
         "byte": "BB",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "BTC_RM32_R32"
+        ]
       },
       {
         "byte": "BC",
@@ -5364,9 +5449,5 @@
         "encoding_ids": []
       }
     ]
-  },
-  "extended_maps": [
-    "0F38",
-    "0F3A"
-  ]
+  }
 }
