@@ -1269,6 +1269,166 @@
       "operands": [
         {"kind": "rel8", "access": "r", "source": "next1"}
       ]
+    },
+    {
+      "id": "JO_REL8",
+      "instruction": "JO",
+      "opcode": ["70"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JNO_REL8",
+      "instruction": "JNO",
+      "opcode": ["71"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JB_REL8",
+      "instruction": "JB",
+      "opcode": ["72"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JAE_REL8",
+      "instruction": "JAE",
+      "opcode": ["73"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JE_REL8",
+      "instruction": "JE",
+      "opcode": ["74"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JNE_REL8",
+      "instruction": "JNE",
+      "opcode": ["75"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JBE_REL8",
+      "instruction": "JBE",
+      "opcode": ["76"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JA_REL8",
+      "instruction": "JA",
+      "opcode": ["77"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JS_REL8",
+      "instruction": "JS",
+      "opcode": ["78"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JNS_REL8",
+      "instruction": "JNS",
+      "opcode": ["79"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JP_REL8",
+      "instruction": "JP",
+      "opcode": ["7A"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JNP_REL8",
+      "instruction": "JNP",
+      "opcode": ["7B"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JL_REL8",
+      "instruction": "JL",
+      "opcode": ["7C"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JGE_REL8",
+      "instruction": "JGE",
+      "opcode": ["7D"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JLE_REL8",
+      "instruction": "JLE",
+      "opcode": ["7E"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
+    },
+    {
+      "id": "JG_REL8",
+      "instruction": "JG",
+      "opcode": ["7F"],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {"kind": "rel8", "access": "r", "source": "next1"}
+      ]
     }
   ]
 }
