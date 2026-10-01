@@ -1,4 +1,9 @@
 #include <stdint.h>
+#ifdef __cplusplus
+extern "C"
+#endif
+int _fltused = 0;
+
 static volatile float lhs32=1.5f,rhs32=2.25f;
 static volatile double lhs64=1.5,rhs64=2.25;
 typedef union{float f;uint32_t u;}f32_bits;
