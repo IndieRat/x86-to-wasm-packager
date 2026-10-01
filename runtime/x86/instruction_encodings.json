@@ -1688,8 +1688,8 @@
       ]
     },
     {
-      "id": "FSUB_STI_ST0",
-      "instruction": "FSUB",
+      "id": "FSUBR_STI_ST0",
+      "instruction": "FSUBR",
       "opcode": [
         "DC"
       ],
@@ -1708,8 +1708,8 @@
       ]
     },
     {
-      "id": "FSUBR_ST0_STI",
-      "instruction": "FSUBR",
+      "id": "FSUB_STI_ST0",
+      "instruction": "FSUB",
       "opcode": [
         "DC"
       ],
@@ -1718,6 +1718,26 @@
       "modrm": {
         "required": true,
         "reg_extension": 5
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "FDIVR_STI_ST0",
+      "instruction": "FDIVR",
+      "opcode": [
+        "DC"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 6
       },
       "operands": [
         {
@@ -1732,146 +1752,6 @@
       "instruction": "FDIV",
       "opcode": [
         "DC"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 6
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "FDIVR_ST0_STI",
-      "instruction": "FDIVR",
-      "opcode": [
-        "DC"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 7
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "FADD_ST0_STI",
-      "instruction": "FADD",
-      "opcode": [
-        "DE"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 0
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "FMUL_ST0_STI",
-      "instruction": "FMUL",
-      "opcode": [
-        "DE"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 1
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "FSUB_ST0_STI",
-      "instruction": "FSUB",
-      "opcode": [
-        "DE"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 4
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "FSUBR_STI_ST0",
-      "instruction": "FSUBR",
-      "opcode": [
-        "DE"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 5
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "FDIV_ST0_STI",
-      "instruction": "FDIV",
-      "opcode": [
-        "DE"
-      ],
-      "opcode_map": "primary",
-      "encoding": "M",
-      "modrm": {
-        "required": true,
-        "reg_extension": 6
-      },
-      "operands": [
-        {
-          "kind": "rm32",
-          "access": "rw",
-          "source": "modrm.rm"
-        }
-      ]
-    },
-    {
-      "id": "FDIVR_STI_ST0",
-      "instruction": "FDIVR",
-      "opcode": [
-        "DE"
       ],
       "opcode_map": "primary",
       "encoding": "M",
@@ -1898,6 +1778,106 @@
       "modrm": {
         "required": true,
         "reg_extension": 0
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "FMULP_STI_ST0",
+      "instruction": "FMULP",
+      "opcode": [
+        "DE"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 1
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "FSUBRP_STI_ST0",
+      "instruction": "FSUBRP",
+      "opcode": [
+        "DE"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 4
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "FSUBP_STI_ST0",
+      "instruction": "FSUBP",
+      "opcode": [
+        "DE"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 5
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "FDIVRP_STI_ST0",
+      "instruction": "FDIVRP",
+      "opcode": [
+        "DE"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 6
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "FDIVP_STI_ST0",
+      "instruction": "FDIVP",
+      "opcode": [
+        "DE"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 7
       },
       "operands": [
         {
