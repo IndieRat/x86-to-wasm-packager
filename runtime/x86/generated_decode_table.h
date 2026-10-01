@@ -111,6 +111,8 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {0,0xDF,0,-1,"FCOMP_STI"},
   {0,0xDE,0,-1,"FCOMPP"},
   {0,0xD9,0,-1,"FCOMPP"},
+  {0,0xD8,1,2,"FCOM_STI"},
+  {0,0xD8,1,3,"FCOMP_STI"},
   {0,0xD9,1,0,"FLD_RM32"},
   {0,0xD9,1,2,"FST_RM32"},
   {0,0xD9,1,3,"FSTP_RM32"},
