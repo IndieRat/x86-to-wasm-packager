@@ -1296,6 +1296,26 @@
         "read": [],
         "write": []
       }
+    },
+    {
+      "id": "XOR_EAX_IMM32",
+      "mnemonic": "XOR",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "XOR_EAX_IMM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "CF",
+          "OF",
+          "SF",
+          "ZF",
+          "PF",
+          "AF"
+        ]
+      }
     }
   ]
 }
