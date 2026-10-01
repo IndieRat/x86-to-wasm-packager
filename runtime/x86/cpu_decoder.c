@@ -54,12 +54,13 @@ static void x86_record_prefix(x86_decoded_t *d, uint8_t b) {
 }
 
 static const x86_decode_entry_t *x86_find_entry(uint8_t map, uint8_t opcode,
-                                                 int has_modrm, uint8_t modrm) {
+                                                 int has_modrm, uint8_t modrm, uint8_t prefixes) {
     const x86_decode_entry_t *best = 0;
     for (uint32_t i = 0; i < X86_DECODE_TABLE_COUNT; ++i) {
         const x86_decode_entry_t *e = &x86_decode_table[i];
         if (e->map != map || e->opcode != opcode) continue;
         if (e->needs_modrm != (uint8_t)has_modrm) continue;
+        if (e->prefix_mask && (prefixes & e->prefix_mask) != e->prefix_value) continue;
         if (e->modrm_ext >= 0) {
             if (!has_modrm || ((modrm >> 3) & 7u) != (uint8_t)e->modrm_ext) continue;
         }
@@ -234,11 +235,11 @@ static int x86_decode_instruction(x86_decoded_t *d) {
     }
 
     /* First locate an opcode candidate without consuming ModR/M. */
-    if (!d->entry) d->entry = x86_find_entry(d->map, d->opcode, 0, 0);
+    if (!d->entry) d->entry = x86_find_entry(d->map, d->opcode, 0, 0, d->prefixes);
 
     /* If there is no fixed-form entry, try the ModR/M forms. */
     if (!d->entry) {
-        d->entry = x86_find_entry(d->map, d->opcode, 1, MEM8(d->cursor));
+        d->entry = x86_find_entry(d->map, d->opcode, 1, MEM8(d->cursor), d->prefixes);
         if (d->entry) {
             d->has_modrm = 1;
             d->modrm = MEM8(d->cursor++);
@@ -260,7 +261,7 @@ static int x86_decode_instruction(x86_decoded_t *d) {
                 (d->opcode >= 0xB8 && d->opcode <= 0xBF) ||
                 (d->opcode >= 0x40 && d->opcode <= 0x4F) ||
                 (d->opcode >= 0x50 && d->opcode <= 0x5F)) {
-                d->entry = x86_find_entry(0, d->opcode, 0, 0);
+                d->entry = x86_find_entry(0, d->opcode, 0, 0, d->prefixes);
             }
         }
     }
@@ -352,6 +353,26 @@ static int cpu_step(void) {
     last_decoded_length = d.cursor - d.start;
     x86_copy_semantic_id(last_decoded_semantic_id,
                          (d.entry && d.entry->id) ? d.entry->id : "NONE");
+
+    /* Scalar SSE/SSE2 execution. The decoder has already enforced the
+     * F3/F2 prefix constraint, so these semantic IDs are unambiguous. */
+    if (d.entry && (x86_id_is(d.entry->id,"MOVSS_XMM_RM32") || x86_id_is(d.entry->id,"MOVSS_RM32_XMM") ||
+                    x86_id_is(d.entry->id,"ADDSS_XMM_RM32") || x86_id_is(d.entry->id,"SUBSS_XMM_RM32") ||
+                    x86_id_is(d.entry->id,"MULSS_XMM_RM32") || x86_id_is(d.entry->id,"DIVSS_XMM_RM32") ||
+                    x86_id_is(d.entry->id,"MOVSD_XMM_RM64") || x86_id_is(d.entry->id,"MOVSD_RM64_XMM") ||
+                    x86_id_is(d.entry->id,"ADDSD_XMM_RM64") || x86_id_is(d.entry->id,"SUBSD_XMM_RM64") ||
+                    x86_id_is(d.entry->id,"MULSD_XMM_RM64") || x86_id_is(d.entry->id,"DIVSD_XMM_RM64"))) {
+        uint8_t m=d.modrm,dst=(uint8_t)((m>>3)&7u),rm=(uint8_t)(m&7u); int mem=((m>>6)!=3); uint32_t ea=0,op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+        if(mem&&!modrm_ea(m,&op_ip,&ea)){cpu_error=0x0F00u|d.opcode;return -60;}
+        const char *id=d.entry->id;
+        if(x86_id_is(id,"MOVSS_XMM_RM32")){uint32_t bits=mem?rd32(ea):xmm_get_u32(rm);xmm_set_u32(dst,bits);if(mem)for(uint32_t i=4;i<16;i++)xmm[dst][i]=0;}
+        else if(x86_id_is(id,"MOVSS_RM32_XMM")){uint32_t bits=xmm_get_u32(dst);if(mem)wr32(ea,bits);else xmm_set_u32(rm,bits);}
+        else if(x86_id_is(id,"MOVSD_XMM_RM64")){uint64_t bits=mem?((uint64_t)rd32(ea)|((uint64_t)rd32(ea+4u)<<32)):xmm_get_u64(rm);xmm_set_u64(dst,bits);if(mem)for(uint32_t i=8;i<16;i++)xmm[dst][i]=0;}
+        else if(x86_id_is(id,"MOVSD_RM64_XMM")){uint64_t bits=xmm_get_u64(dst);if(mem){wr32(ea,(uint32_t)bits);wr32(ea+4u,(uint32_t)(bits>>32));}else{xmm_set_u64(rm,bits);}}
+        else if(x86_id_is(id,"ADDSS_XMM_RM32")||x86_id_is(id,"SUBSS_XMM_RM32")||x86_id_is(id,"MULSS_XMM_RM32")||x86_id_is(id,"DIVSS_XMM_RM32")){union{uint32_t u;float f;}s;s.u=mem?rd32(ea):xmm_get_u32(rm);float a=xmm_get_f32(dst),r;if(x86_id_is(id,"ADDSS_XMM_RM32"))r=a+s.f;else if(x86_id_is(id,"SUBSS_XMM_RM32"))r=a-s.f;else if(x86_id_is(id,"MULSS_XMM_RM32"))r=a*s.f;else r=a/s.f;xmm_set_f32(dst,r);}
+        else{union{uint64_t u;double f;}s;s.u=mem?((uint64_t)rd32(ea)|((uint64_t)rd32(ea+4u)<<32)):xmm_get_u64(rm);double a=xmm_get_f64(dst),r;if(x86_id_is(id,"ADDSD_XMM_RM64"))r=a+s.f;else if(x86_id_is(id,"SUBSD_XMM_RM64"))r=a-s.f;else if(x86_id_is(id,"MULSD_XMM_RM64"))r=a*s.f;else r=a/s.f;xmm_set_f64(dst,r);}
+        eip=d.cursor;last_dispatch_id=X86_DISPATCH_SSE_SCALAR;last_dispatch_count++;x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,before_opcode,last_dispatch_id);return 0;
+    }
 
     /* x87 is already decoded into authoritative semantic IDs. Route the
      * decoded D8/D9/DC/DD families directly to the existing x87 executor

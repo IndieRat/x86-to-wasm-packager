@@ -78,10 +78,14 @@
     "operand_size": "16 or 32 bits in i386; 66h toggles the default operand size.",
     "address_size": "16 or 32 bits in i386; 67h toggles the default address size.",
     "implicit_operands": "Allow fixed registers such as EAX, EDX:EAX, ESP, EIP, segment registers, flags, and string-operation indices.",
-    "validity": "Encoding records may impose memory_only, register_only, fixed_mod, fixed_rm, fixed_reg, prefix_required, prefix_forbidden, and mode restrictions."
+    "validity": "Encoding records may impose memory_only, register_only, fixed_mod, fixed_rm, fixed_reg, prefix_required, prefix_forbidden, and mode restrictions.",
+    "legacy_prefix_constraints": [
+      "prefix_required"
+    ]
   },
   "lookup_order": [
     "consume legacy prefixes",
+    "retain legacy prefix state for prefix-constrained encodings",
     "select opcode map",
     "read opcode byte(s)",
     "apply opcode-embedded register or fixed opcode constraints",
@@ -92,4 +96,4 @@
     "validate encoding constraints",
     "resolve semantic instruction definition"
   ]
-}\n
+}

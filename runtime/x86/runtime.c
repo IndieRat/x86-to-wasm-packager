@@ -38,6 +38,9 @@ static uint32_t regs[8],eflags=0x00000002u;
 /* Minimal x87 state. Values are kept as host doubles for the first compiler-coverage milestone; memory loads/stores still round through IEEE binary32/binary64 formats. */
 static double x87_stack[8];
 static uint32_t x87_count=0;
+/* IA-32 SSE/SSE2 architectural XMM0-XMM7 state. The first SIMD milestone
+ * implements scalar operations while retaining all 128 register bits. */
+static uint8_t xmm[8][16];
 static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
@@ -61,6 +64,15 @@ static char trace_semantic_id[X86_TRACE_DEPTH][X86_SEMANTIC_ID_MAX];
 static uint32_t trace_count=0,trace_head=0,trace_failure_index=0;
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea);
 static int cpu_step_x87(uint8_t op,uint32_t *ip);
+static uint32_t xmm_get_u32(uint8_t r){return (uint32_t)xmm[r][0]|((uint32_t)xmm[r][1]<<8)|((uint32_t)xmm[r][2]<<16)|((uint32_t)xmm[r][3]<<24);}
+static void xmm_set_u32(uint8_t r,uint32_t v){xmm[r][0]=(uint8_t)v;xmm[r][1]=(uint8_t)(v>>8);xmm[r][2]=(uint8_t)(v>>16);xmm[r][3]=(uint8_t)(v>>24);}
+static uint64_t xmm_get_u64(uint8_t r){uint64_t lo=xmm_get_u32(r);uint32_t hi=(uint32_t)xmm[r][4]|((uint32_t)xmm[r][5]<<8)|((uint32_t)xmm[r][6]<<16)|((uint32_t)xmm[r][7]<<24);return lo|((uint64_t)hi<<32);}
+static void xmm_set_u64(uint8_t r,uint64_t v){xmm_set_u32(r,(uint32_t)v);uint32_t hi=(uint32_t)(v>>32);xmm[r][4]=(uint8_t)hi;xmm[r][5]=(uint8_t)(hi>>8);xmm[r][6]=(uint8_t)(hi>>16);xmm[r][7]=(uint8_t)(hi>>24);}
+static float xmm_get_f32(uint8_t r){union{uint32_t u;float f;}v;v.u=xmm_get_u32(r);return v.f;}
+static void xmm_set_f32(uint8_t r,float v){union{uint32_t u;float f;}x;x.f=v;xmm_set_u32(r,x.u);}
+static double xmm_get_f64(uint8_t r){union{uint64_t u;double f;}v;v.u=xmm_get_u64(r);return v.f;}
+static void xmm_set_f64(uint8_t r,double v){union{uint64_t u;double f;}x;x.f=v;xmm_set_u64(r,x.u);}
+static void xmm_reset(void){for(uint32_t r=0;r<8u;r++)for(uint32_t b=0;b<16u;b++)xmm[r][b]=0;}
 static void x86_copy_semantic_id(char *dst,const char *src){uint32_t i=0;if(!src)src="NONE";for(;i+1u<X86_SEMANTIC_ID_MAX&&src[i];++i)dst[i]=src[i];dst[i]=0;}
 static void x86_trace_reset(void){trace_count=0;trace_head=0;trace_failure_index=0;last_decoded_semantic_id[0]=0;}
 static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t before_eax,uint32_t before_ecx,uint32_t before_edx,uint32_t before_ebx,uint32_t before_opcode,uint32_t dispatch){
@@ -75,7 +87,7 @@ static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t 
  trace_head=(trace_head+1u)%X86_TRACE_DEPTH; if(trace_count<X86_TRACE_DEPTH)trace_count++;
  if(regs[R_EAX]==0xDEADC0DEu && before_eax!=0xDEADC0DEu) trace_failure_index=i+1u;
 }
-enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_DISPATCH_RCR=3, X86_DISPATCH_MOV_R8_IMM8=4, X86_DISPATCH_MOV_R16_IMM16=5, X86_DISPATCH_CMP_R16_IMM16=6, X86_DISPATCH_MOV_R32_IMM32=7, X86_DISPATCH_ADD_EAX_IMM=8, X86_DISPATCH_SUB_EAX_IMM=9, X86_DISPATCH_CMP_EAX_IMM=10, X86_DISPATCH_MOV_R32_RM32=11, X86_DISPATCH_MOV_RM32_R32=12, X86_DISPATCH_CMP_R32_RM32=13, X86_DISPATCH_CMP_RM32_R32=14, X86_DISPATCH_JCC=15, X86_DISPATCH_GROUP2=16, X86_DISPATCH_F7=17, X86_DISPATCH_HLT=18, X86_DISPATCH_BT=19, X86_DISPATCH_BTS=20, X86_DISPATCH_BTR=21, X86_DISPATCH_BTC=22, X86_DISPATCH_X87=23, X86_DISPATCH_XOR_RM32_IMM32=24 };
+enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_DISPATCH_RCR=3, X86_DISPATCH_MOV_R8_IMM8=4, X86_DISPATCH_MOV_R16_IMM16=5, X86_DISPATCH_CMP_R16_IMM16=6, X86_DISPATCH_MOV_R32_IMM32=7, X86_DISPATCH_ADD_EAX_IMM=8, X86_DISPATCH_SUB_EAX_IMM=9, X86_DISPATCH_CMP_EAX_IMM=10, X86_DISPATCH_MOV_R32_RM32=11, X86_DISPATCH_MOV_RM32_R32=12, X86_DISPATCH_CMP_R32_RM32=13, X86_DISPATCH_CMP_RM32_R32=14, X86_DISPATCH_JCC=15, X86_DISPATCH_GROUP2=16, X86_DISPATCH_F7=17, X86_DISPATCH_HLT=18, X86_DISPATCH_BT=19, X86_DISPATCH_BTS=20, X86_DISPATCH_BTR=21, X86_DISPATCH_BTC=22, X86_DISPATCH_X87=23, X86_DISPATCH_XOR_RM32_IMM32=24, X86_DISPATCH_SSE_SCALAR=25 };
 
 /* v0.4 guest memory/import foundation. The guest-visible address space is
  * intentionally separate from the WASM allocator used for diagnostics. */
@@ -1493,13 +1505,13 @@ static int load_pe(uint32_t f,uint32_t sz){
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
  x86_mem_reset(); x86_mem_register_image();
- x87_count=0;
+ x87_count=0; xmm_reset();
  loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;
 /* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
  * synthetic return address so C fixtures whose entrypoint is main() can RET cleanly. */
 if(!x86_stack_push32(X86_ENTRY_RETURN_SENTINEL)){loaded=0;load_error=16;return-7;}
 guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset();
- x87_count=0;
+ x87_count=0; xmm_reset();
  legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
  loghex("X86 mapped image base=",image_base);
@@ -1615,6 +1627,8 @@ uint32_t x86_get_stack_dword(uint32_t index){
 }
 __attribute__((export_name("x86_get_x87_count")))
 uint32_t x86_get_x87_count(void){return x87_count;}
+__attribute__((export_name("x86_get_xmm_dword")))
+uint32_t x86_get_xmm_dword(uint32_t reg,uint32_t lane){if(reg>=8u||lane>=4u)return 0xFFFFFFFFu;uint32_t p=lane*4u;return (uint32_t)xmm[reg][p]|((uint32_t)xmm[reg][p+1u]<<8)|((uint32_t)xmm[reg][p+2u]<<16)|((uint32_t)xmm[reg][p+3u]<<24);}
 __attribute__((export_name("x86_get_memory_faults")))
 uint32_t x86_get_memory_faults(void){return x86_mem_faults;}
 __attribute__((export_name("x86_get_current_imm32")))

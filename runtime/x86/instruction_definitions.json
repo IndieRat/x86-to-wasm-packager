@@ -1316,6 +1316,162 @@
           "AF"
         ]
       }
+    },
+    {
+      "id": "MOVSS_XMM_RM32",
+      "mnemonic": "MOVSS",
+      "family": "sse",
+      "status": "EXECUTE",
+      "forms": [
+        "MOVSS_XMM_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MOVSS_RM32_XMM",
+      "mnemonic": "MOVSS",
+      "family": "sse",
+      "status": "EXECUTE",
+      "forms": [
+        "MOVSS_RM32_XMM"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "ADDSS_XMM_RM32",
+      "mnemonic": "ADDSS",
+      "family": "sse",
+      "status": "EXECUTE",
+      "forms": [
+        "ADDSS_XMM_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "SUBSS_XMM_RM32",
+      "mnemonic": "SUBSS",
+      "family": "sse",
+      "status": "EXECUTE",
+      "forms": [
+        "SUBSS_XMM_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MULSS_XMM_RM32",
+      "mnemonic": "MULSS",
+      "family": "sse",
+      "status": "EXECUTE",
+      "forms": [
+        "MULSS_XMM_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "DIVSS_XMM_RM32",
+      "mnemonic": "DIVSS",
+      "family": "sse",
+      "status": "EXECUTE",
+      "forms": [
+        "DIVSS_XMM_RM32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MOVSD_XMM_RM64",
+      "mnemonic": "MOVSD",
+      "family": "sse2",
+      "status": "EXECUTE",
+      "forms": [
+        "MOVSD_XMM_RM64"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MOVSD_RM64_XMM",
+      "mnemonic": "MOVSD",
+      "family": "sse2",
+      "status": "EXECUTE",
+      "forms": [
+        "MOVSD_RM64_XMM"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "ADDSD_XMM_RM64",
+      "mnemonic": "ADDSD",
+      "family": "sse2",
+      "status": "EXECUTE",
+      "forms": [
+        "ADDSD_XMM_RM64"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "SUBSD_XMM_RM64",
+      "mnemonic": "SUBSD",
+      "family": "sse2",
+      "status": "EXECUTE",
+      "forms": [
+        "SUBSD_XMM_RM64"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MULSD_XMM_RM64",
+      "mnemonic": "MULSD",
+      "family": "sse2",
+      "status": "EXECUTE",
+      "forms": [
+        "MULSD_XMM_RM64"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "DIVSD_XMM_RM64",
+      "mnemonic": "DIVSD",
+      "family": "sse2",
+      "status": "EXECUTE",
+      "forms": [
+        "DIVSD_XMM_RM64"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
     }
   ]
 }
