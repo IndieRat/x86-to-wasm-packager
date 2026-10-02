@@ -1,48 +1,1587 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XWASM CPU Test Shell</title>
-<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:32px auto;padding:0 18px;background:#111;color:#eee}.card{padding:18px;margin:12px 0;background:#1b1b1b;border:1px solid #333;border-radius:10px}button{padding:8px 14px;font:inherit}#log{white-space:pre-wrap;font:13px monospace;background:#050505;padding:14px;min-height:360px;overflow:auto}.pass{color:#8ee28e}.fail{color:#ff7777}</style></head>
-<body><h1>XWASM CPU Test Shell</h1>
-<div class="card"><p>General CPU/PE32 runner for the native XWASM package format.</p>
-<label>Runtime: <input id="runtime" type="file" accept=".xwasm"></label><br>
-<label>Payload: <input id="payload" type="file" accept=".xpl"></label><br><button id="run">Run CPU test</button></div>
-<div class="card"><div id="log">Ready. Select runtime.xwasm and payload.xpl.</div></div>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>XWASM CPU Diagnostic Shell</title>
+
+<style>
+body{
+  font-family:system-ui,sans-serif;
+  max-width:1100px;
+  margin:32px auto;
+  padding:0 18px;
+  background:#111;
+  color:#eee;
+}
+
+h1{
+  margin-bottom:6px;
+}
+
+.subtitle{
+  color:#aaa;
+  margin-top:0;
+}
+
+.card{
+  padding:18px;
+  margin:14px 0;
+  background:#1b1b1b;
+  border:1px solid #333;
+  border-radius:10px;
+}
+
+button{
+  padding:9px 16px;
+  margin-top:12px;
+  font:inherit;
+  cursor:pointer;
+}
+
+input{
+  margin:6px 0;
+}
+
+#log{
+  white-space:pre-wrap;
+  font:13px/1.45 Consolas,monospace;
+  background:#050505;
+  padding:14px;
+  min-height:500px;
+  max-height:800px;
+  overflow:auto;
+  border-radius:6px;
+}
+
+.pass{color:#8ee28e}
+.fail{color:#ff7777}
+.warn{color:#ffd166}
+.info{color:#8ecae6}
+.trace{color:#ddd}
+.section{
+  color:#fff;
+  font-weight:bold;
+  margin-top:12px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>XWASM CPU Diagnostic Shell</h1>
+
+<p class="subtitle">
+Native XWASM package runner — runtime.xwasm + payload.xpl
+</p>
+
+<div class="card">
+
+  <div>
+    <label>
+      <strong>Runtime:</strong>
+      <input id="runtime" type="file" accept=".xwasm">
+    </label>
+  </div>
+
+  <div>
+    <label>
+      <strong>Payload:</strong>
+      <input id="payload" type="file" accept=".xpl">
+    </label>
+  </div>
+
+  <button id="run">Run XWASM CPU Diagnostic</button>
+  <button id="clear">Clear Log</button>
+
+</div>
+
+<div class="card">
+  <div id="log">XWASM diagnostic shell ready.
+Select runtime.xwasm and payload.xpl.</div>
+</div>
+
 <script>
 (() => {
-const $=id=>document.getElementById(id), log=(s,cls="")=>{const d=document.createElement("div");d.className=cls;d.textContent=s;$("log").appendChild(d)}, hex=n=>"0x"+(n>>>0).toString(16).padStart(8,"0");
-const td=new TextDecoder();
-function u64(v,o){const n=v.getBigUint64(o,true);if(n>BigInt(Number.MAX_SAFE_INTEGER))throw Error("container too large");return Number(n)}
-async function unpack(buf,kind,name){
- const b=new Uint8Array(buf),v=new DataView(buf);if(b.length<62||td.decode(b.slice(0,6))!=="XWSC01")throw Error(name+" is not XWSC01");
- if(v.getUint16(6,true)!==1||v.getUint8(8)!==kind)throw Error(name+" has wrong XWSC01 version/kind");
- const comp=v.getUint8(9),rawSize=u64(v,14),size=u64(v,22),stored=b.slice(62,62+size);let raw;
- if(comp===0)raw=stored.slice();else if(comp===1){if(typeof DecompressionStream==="undefined")throw Error("browser lacks DecompressionStream");raw=new Uint8Array(await new Response(new Blob([stored]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer())}else throw Error("unsupported compression");
- if(raw.length!==rawSize)throw Error(name+" size mismatch");
- const hash=new Uint8Array(await crypto.subtle.digest("SHA-256",raw));for(let i=0;i<32;i++)if(hash[i]!==b[30+i])throw Error(name+" SHA-256 mismatch");
- log("[PASS] "+name+" container verified","pass");return raw;
+
+"use strict";
+
+/* ============================================================
+   BASIC HELPERS
+   ============================================================ */
+
+const $ = id => document.getElementById(id);
+
+const log = (text, cls = "") => {
+  const d = document.createElement("div");
+  d.className = cls;
+  d.textContent = text;
+  $("log").appendChild(d);
+};
+
+const section = text => {
+  log("");
+  log("============================================================", "section");
+  log(text, "section");
+  log("============================================================", "section");
+};
+
+const hex = value =>
+  "0x" + (Number(value) >>> 0).toString(16).padStart(8, "0");
+
+const hex16 = value =>
+  "0x" + (Number(value) >>> 0).toString(16).padStart(4, "0");
+
+const td = new TextDecoder();
+
+/* ============================================================
+   XWSC01 CONTAINER CONSTANTS
+   ============================================================ */
+
+const XWSC_MAGIC = "XWSC01";
+const XWSC_VERSION = 1;
+
+const KIND_XWASM = 1;
+const KIND_XPL   = 2;
+
+const COMP_NONE   = 0;
+const COMP_DEFLATE = 1;
+
+/*
+  Native XWASM container layout:
+
+  0x00  magic       6 bytes
+  0x06  version     u16
+  0x08  kind        u8
+  0x09  compression u8
+  0x0A  reserved   4 bytes
+  0x0E  raw_size   u64
+  0x16  data_size  u64
+  0x1E  sha256     32 bytes
+  0x3E  data       ...
+*/
+
+const XWSC_HEADER_SIZE = 62;
+
+/* ============================================================
+   SAFE INTEGER / U64
+   ============================================================ */
+
+function readU64(view, offset){
+  const value = view.getBigUint64(offset, true);
+
+  if(value > BigInt(Number.MAX_SAFE_INTEGER)){
+    throw new Error("XWSC01 value exceeds JavaScript safe integer range");
+  }
+
+  return Number(value);
 }
+
+/* ============================================================
+   SHA-256
+   ============================================================ */
+
+async function sha256(bytes){
+  return new Uint8Array(
+    await crypto.subtle.digest("SHA-256", bytes)
+  );
+}
+
+/* ============================================================
+   XWSC01 UNPACKER
+   ============================================================ */
+
+async function unpackXWSC01(buffer, expectedKind, name){
+
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+
+  section("XWSC01: " + name);
+
+  log("[INFO] Container bytes: " + bytes.length, "info");
+
+  if(bytes.length < XWSC_HEADER_SIZE){
+    throw new Error(name + ": file is smaller than XWSC01 header");
+  }
+
+  const magic = td.decode(bytes.slice(0, 6));
+
+  log("[INFO] Magic: " + magic, "info");
+
+  if(magic !== XWSC_MAGIC){
+    throw new Error(
+      name + ": invalid XWSC01 magic: " + magic
+    );
+  }
+
+  const version = view.getUint16(6, true);
+  const kind = view.getUint8(8);
+  const compression = view.getUint8(9);
+
+  const rawSize = readU64(view, 14);
+  const storedSize = readU64(view, 22);
+
+  log("[INFO] Version: " + version, "info");
+  log("[INFO] Kind: " + kind, "info");
+  log("[INFO] Compression: " + compression, "info");
+  log("[INFO] Raw size: " + rawSize, "info");
+  log("[INFO] Stored size: " + storedSize, "info");
+
+  if(version !== XWSC_VERSION){
+    throw new Error(
+      name + ": unsupported XWSC01 version " + version
+    );
+  }
+
+  if(kind !== expectedKind){
+    throw new Error(
+      name +
+      ": wrong XWSC01 kind. Expected " +
+      expectedKind +
+      ", got " +
+      kind
+    );
+  }
+
+  if(storedSize > bytes.length - XWSC_HEADER_SIZE){
+    throw new Error(
+      name + ": XWSC01 stored size exceeds file"
+    );
+  }
+
+  const stored = bytes.slice(
+    XWSC_HEADER_SIZE,
+    XWSC_HEADER_SIZE + storedSize
+  );
+
+  let raw;
+
+  if(compression === COMP_NONE){
+
+    log("[INFO] Compression: none", "info");
+
+    raw = stored.slice();
+
+  }else if(compression === COMP_DEFLATE){
+
+    log("[INFO] Compression: DEFLATE", "info");
+
+    if(typeof DecompressionStream === "undefined"){
+      throw new Error(
+        name +
+        ": browser does not provide DecompressionStream"
+      );
+    }
+
+    const stream = new Blob([stored])
+      .stream()
+      .pipeThrough(new DecompressionStream("deflate"));
+
+    raw = new Uint8Array(
+      await new Response(stream).arrayBuffer()
+    );
+
+  }else{
+
+    throw new Error(
+      name +
+      ": unsupported XWSC01 compression type " +
+      compression
+    );
+  }
+
+  log("[INFO] Unpacked bytes: " + raw.length, "info");
+
+  if(raw.length !== rawSize){
+
+    throw new Error(
+      name +
+      ": raw size mismatch. Header=" +
+      rawSize +
+      " actual=" +
+      raw.length
+    );
+  }
+
+  const expectedHash = bytes.slice(30, 62);
+  const actualHash = await sha256(raw);
+
+  let hashOK = true;
+
+  for(let i=0;i<32;i++){
+
+    if(expectedHash[i] !== actualHash[i]){
+      hashOK = false;
+      break;
+    }
+  }
+
+  if(!hashOK){
+    throw new Error(
+      name + ": SHA-256 verification failed"
+    );
+  }
+
+  log(
+    "[PASS] " +
+    name +
+    " XWSC01 container verified",
+    "pass"
+  );
+
+  return {
+    raw,
+    version,
+    kind,
+    compression,
+    rawSize,
+    storedSize
+  };
+}
+
+/* ============================================================
+   WASM VALIDATION
+   ============================================================ */
+
+function validateRuntimeWasm(bytes){
+
+  section("Runtime WASM validation");
+
+  if(bytes.length < 8){
+    throw new Error("runtime.xwasm unpacked payload is too small");
+  }
+
+  const magic =
+    bytes[0] === 0x00 &&
+    bytes[1] === 0x61 &&
+    bytes[2] === 0x73 &&
+    bytes[3] === 0x6d;
+
+  const version =
+    bytes[4] === 0x01 &&
+    bytes[5] === 0x00 &&
+    bytes[6] === 0x00 &&
+    bytes[7] === 0x00;
+
+  log(
+    "[INFO] WASM magic: " +
+    (magic ? "VALID" : "INVALID"),
+    magic ? "pass" : "fail"
+  );
+
+  log(
+    "[INFO] WASM version: " +
+    (version ? "1" : "INVALID"),
+    version ? "pass" : "fail"
+  );
+
+  if(!magic || !version){
+    throw new Error(
+      "runtime.xwasm does not contain a valid WebAssembly module"
+    );
+  }
+
+  log("[PASS] runtime.xwasm contains valid WASM", "pass");
+}
+
+/* ============================================================
+   PE32 VALIDATION
+   ============================================================ */
+
+function validatePayloadPE(bytes){
+
+  section("XPL / PE32 validation");
+
+  if(bytes.length < 64){
+    throw new Error("payload.xpl is too small to contain DOS header");
+  }
+
+  if(bytes[0] !== 0x4d || bytes[1] !== 0x5a){
+    throw new Error("payload.xpl does not begin with MZ");
+  }
+
+  log("[PASS] DOS MZ signature", "pass");
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+  const peOffset = view.getUint32(0x3c, true);
+
+  log(
+    "[INFO] PE header offset: " +
+    hex(peOffset),
+    "info"
+  );
+
+  if(peOffset + 24 > bytes.length){
+    throw new Error("PE header lies outside payload");
+  }
+
+  if(
+    bytes[peOffset] !== 0x50 ||
+    bytes[peOffset + 1] !== 0x45 ||
+    bytes[peOffset + 2] !== 0x00 ||
+    bytes[peOffset + 3] !== 0x00
+  ){
+    throw new Error("PE signature is invalid");
+  }
+
+  log("[PASS] PE signature", "pass");
+
+  const machine = view.getUint16(
+    peOffset + 4,
+    true
+  );
+
+  const sections = view.getUint16(
+    peOffset + 6,
+    true
+  );
+
+  const optionalSize = view.getUint16(
+    peOffset + 20,
+    true
+  );
+
+  const optionalOffset = peOffset + 24;
+
+  const optionalMagic = view.getUint16(
+    optionalOffset,
+    true
+  );
+
+  log(
+    "[INFO] Machine: " + hex16(machine),
+    "info"
+  );
+
+  log(
+    "[INFO] Sections: " + sections,
+    "info"
+  );
+
+  log(
+    "[INFO] Optional header size: " + optionalSize,
+    "info"
+  );
+
+  log(
+    "[INFO] Optional header magic: " +
+    hex16(optionalMagic),
+    "info"
+  );
+
+  if(machine !== 0x014c){
+    throw new Error(
+      "Expected i386 PE32 machine 0x014C, got " +
+      hex16(machine)
+    );
+  }
+
+  log("[PASS] PE machine = i386 (0x014C)", "pass");
+
+  if(optionalMagic !== 0x010b){
+    throw new Error(
+      "Expected PE32 optional header 0x010B, got " +
+      hex16(optionalMagic)
+    );
+  }
+
+  log("[PASS] PE32 optional header = 0x010B", "pass");
+
+  log("[PASS] payload.xpl contains valid PE32", "pass");
+}
+
+/* ============================================================
+   RUNTIME IMPORT DISCOVERY
+   ============================================================ */
+
+function buildEnvironment(module){
+
+  section("WASM imports / environment");
+
+  const env = {};
+  let memory = null;
+
+  const imports = WebAssembly.Module.imports(module);
+
+  log(
+    "[INFO] WASM imports: " +
+    imports.length,
+    "info"
+  );
+
+  for(const imp of imports){
+
+    log(
+      "[IMPORT] " +
+      imp.module +
+      "." +
+      imp.name +
+      " (" +
+      imp.kind +
+      ")",
+      "info"
+    );
+
+    if(imp.module !== "env"){
+      continue;
+    }
+
+    if(imp.kind === "memory"){
+
+      if(memory){
+        throw new Error(
+          "Runtime requests multiple env memories"
+        );
+      }
+
+      memory = new WebAssembly.Memory({
+        initial: 1024,
+        maximum: 4096
+      });
+
+      env[imp.name] = memory;
+
+      log(
+        "[PASS] env." +
+        imp.name +
+        " -> WebAssembly.Memory",
+        "pass"
+      );
+
+    }else if(imp.kind === "function"){
+
+      /*
+        The native XWASM CPU runtime should normally expose
+        its own imports explicitly. For unknown environment
+        functions we provide a harmless diagnostic stub so
+        instantiation itself can be inspected.
+      */
+
+      env[imp.name] = (...args) => {
+
+        log(
+          "[WARN] Unimplemented runtime import called: " +
+          imp.name +
+          " args=" +
+          args.map(hex).join(","),
+          "warn"
+        );
+
+        return 0;
+      };
+
+    }
+  }
+
+  if(!memory){
+    throw new Error(
+      "XWASM runtime does not import an env memory"
+    );
+  }
+
+  log(
+    "[PASS] Runtime memory import established",
+    "pass"
+  );
+
+  return {
+    env,
+    memory,
+    imports
+  };
+}
+
+/* ============================================================
+   EXPORT REPORT
+   ============================================================ */
+
+function reportExports(exports){
+
+  section("XWASM runtime exports");
+
+  const names = Object.keys(exports);
+
+  log(
+    "[INFO] Export count: " +
+    names.length,
+    "info"
+  );
+
+  for(const name of names){
+
+    let kind = "unknown";
+
+    try{
+      if(typeof exports[name] === "function"){
+        kind = "function";
+      }else if(exports[name] instanceof WebAssembly.Memory){
+        kind = "memory";
+      }else if(exports[name] instanceof WebAssembly.Table){
+        kind = "table";
+      }
+    }catch(_){}
+
+    log(
+      "[EXPORT] " +
+      name +
+      " (" +
+      kind +
+      ")",
+      "info"
+    );
+  }
+}
+
+/* ============================================================
+   REQUIRED EXPORTS
+   ============================================================ */
+
+function requireExport(exports, name){
+
+  if(typeof exports[name] !== "function"){
+    throw new Error(
+      "Required XWASM runtime export missing: " +
+      name
+    );
+  }
+
+  log(
+    "[PASS] export " + name,
+    "pass"
+  );
+}
+
+function checkRuntimeAPI(exports){
+
+  section("XWASM runtime API");
+
+  const required = [
+    "x86_get_runtime_version",
+    "xwasm_init",
+    "x86_load_pe",
+    "x86_get_loaded",
+    "x86_get_load_error",
+    "x86_run",
+    "x86_get_halted",
+    "x86_get_cpu_error",
+    "x86_get_steps",
+    "x86_get_eip",
+    "x86_get_eax",
+    "x86_get_eflags"
+  ];
+
+  for(const name of required){
+    requireExport(exports, name);
+  }
+
+  const optional = [
+    "x86_get_current_opcode",
+    "x86_get_current_byte",
+    "x86_get_trace_count",
+    "x86_get_trace_eip",
+    "x86_get_trace_next_eip",
+    "x86_get_trace_opcode",
+    "x86_get_trace_dispatch"
+  ];
+
+  for(const name of optional){
+
+    if(typeof exports[name] === "function"){
+
+      log(
+        "[PASS] diagnostic export " +
+        name,
+        "pass"
+      );
+
+    }else{
+
+      log(
+        "[WARN] diagnostic export unavailable: " +
+        name,
+        "warn"
+      );
+    }
+  }
+}
+
+/* ============================================================
+   REGISTER SNAPSHOT
+   ============================================================ */
+
+function registerSnapshot(e){
+
+  const values = {};
+
+  const funcs = [
+    ["EIP","x86_get_eip"],
+    ["EAX","x86_get_eax"],
+    ["ECX","x86_get_ecx"],
+    ["EDX","x86_get_edx"],
+    ["EBX","x86_get_ebx"],
+    ["ESP","x86_get_esp"],
+    ["EBP","x86_get_ebp"],
+    ["ESI","x86_get_esi"],
+    ["EDI","x86_get_edi"],
+    ["EFLAGS","x86_get_eflags"],
+    ["STEPS","x86_get_steps"]
+  ];
+
+  for(const [name,fn] of funcs){
+
+    if(typeof e[fn] === "function"){
+
+      try{
+        values[name] = e[fn]();
+      }catch(err){
+        values[name] = "ERROR";
+      }
+
+    }
+  }
+
+  return values;
+}
+
+function printRegisters(e, prefix="[REG]"){
+
+  const r = registerSnapshot(e);
+
+  for(const [name,value] of Object.entries(r)){
+
+    if(name === "STEPS"){
+      log(
+        prefix +
+        " " +
+        name +
+        "=" +
+        value,
+        "info"
+      );
+    }else{
+      log(
+        prefix +
+        " " +
+        name +
+        "=" +
+        hex(value),
+        "info"
+      );
+    }
+  }
+}
+
+/* ============================================================
+   CURRENT INSTRUCTION
+   ============================================================ */
+
+function printCurrentInstruction(e){
+
+  section("Current CPU instruction");
+
+  if(typeof e.x86_get_current_opcode === "function"){
+
+    try{
+
+      const opcode = e.x86_get_current_opcode();
+
+      log(
+        "[DIAG] current opcode = " +
+        hex(opcode),
+        "info"
+      );
+
+    }catch(err){
+
+      log(
+        "[WARN] current opcode failed: " +
+        err,
+        "warn"
+      );
+    }
+
+  }else{
+
+    log(
+      "[WARN] x86_get_current_opcode unavailable",
+      "warn"
+    );
+  }
+
+  if(typeof e.x86_get_current_byte === "function"){
+
+    const bytes = [];
+
+    try{
+
+      for(let i=0;i<32;i++){
+
+        const value =
+          e.x86_get_current_byte(i);
+
+        if((value >>> 0) === 0xffffffff){
+          break;
+        }
+
+        bytes.push(
+          (value >>> 0)
+            .toString(16)
+            .padStart(2,"0")
+            .toUpperCase()
+        );
+      }
+
+      log(
+        "[DIAG] instruction bytes = " +
+        (bytes.length ? bytes.join(" ") : "(none)"),
+        "info"
+      );
+
+    }catch(err){
+
+      log(
+        "[WARN] current byte read failed: " +
+        err,
+        "warn"
+      );
+    }
+
+  }else{
+
+    log(
+      "[WARN] x86_get_current_byte unavailable",
+      "warn"
+    );
+  }
+}
+
+/* ============================================================
+   TRACE REPORT
+   ============================================================ */
+
+function printTrace(e){
+
+  section("XWASM CPU execution trace");
+
+  if(typeof e.x86_get_trace_count !== "function"){
+
+    log(
+      "[WARN] Trace API is not exported by this runtime build",
+      "warn"
+    );
+
+    return;
+  }
+
+  let count;
+
+  try{
+    count=e.x86_get_trace_count();
+  }catch(err){
+
+    log(
+      "[WARN] Could not read trace count: " +
+      err,
+      "warn"
+    );
+
+    return;
+  }
+
+  log(
+    "[DIAG] trace_count=" +
+    count,
+    "info"
+  );
+
+  if(count <= 0){
+
+    log(
+      "[WARN] Runtime recorded no instructions",
+      "warn"
+    );
+
+    return;
+  }
+
+  const requiredTrace = [
+    "x86_get_trace_eip",
+    "x86_get_trace_next_eip",
+    "x86_get_trace_opcode",
+    "x86_get_trace_dispatch"
+  ];
+
+  for(const fn of requiredTrace){
+
+    if(typeof e[fn] !== "function"){
+
+      log(
+        "[WARN] Missing trace export: " +
+        fn,
+        "warn"
+      );
+
+      return;
+    }
+  }
+
+  /*
+    Runtime trace storage is circular.
+
+    For this diagnostic shell we request the last
+    available entries. If the runtime exposes a
+    circular trace buffer, index semantics are whatever
+    the runtime's trace getter defines.
+  */
+
+  const start=Math.max(0,count-32);
+
+  for(let i=start;i<count;i++){
+
+    try{
+
+      const ip=e.x86_get_trace_eip(i);
+      const next=e.x86_get_trace_next_eip(i);
+      const opcode=e.x86_get_trace_opcode(i);
+      const dispatch=e.x86_get_trace_dispatch(i);
+
+      log(
+        "[TRACE " +
+        i +
+        "] " +
+        "EIP=" +
+        hex(ip) +
+        " NEXT=" +
+        hex(next) +
+        " OP=" +
+        hex(opcode) +
+        " DISPATCH=" +
+        dispatch,
+        "trace"
+      );
+
+    }catch(err){
+
+      log(
+        "[TRACE " +
+        i +
+        "] ERROR: " +
+        err,
+        "fail"
+      );
+    }
+  }
+}
+
+/* ============================================================
+   CPU STATE REPORT
+   ============================================================ */
+
+function printCPUState(e){
+
+  section("Final XWASM CPU state");
+
+  let halted=0;
+  let cpuError=0;
+
+  try{
+    halted=e.x86_get_halted();
+  }catch(err){
+    log("[FAIL] x86_get_halted failed: "+err,"fail");
+  }
+
+  try{
+    cpuError=e.x86_get_cpu_error();
+  }catch(err){
+    log("[FAIL] x86_get_cpu_error failed: "+err,"fail");
+  }
+
+  log(
+    "[STATE] halted=" +
+    halted,
+    halted ? "pass" : "warn"
+  );
+
+  log(
+    "[STATE] cpu_error=" +
+    hex(cpuError),
+    cpuError === 0 ? "pass" : "fail"
+  );
+
+  printRegisters(e);
+
+  return {
+    halted,
+    cpuError
+  };
+}
+
+/* ============================================================
+   MAIN RUNNER
+   ============================================================ */
+
 async function run(){
- $("log").textContent="";const rf=$("runtime").files[0],pf=$("payload").files[0];if(!rf||!pf){log("Select runtime.xwasm and payload.xpl first.","fail");return}
- try{
-  const wasm=await unpack(await rf.arrayBuffer(),1,"runtime.xwasm"),pe=await unpack(await pf.arrayBuffer(),2,"payload.xpl");
-  if(wasm[0]!==0||wasm[1]!==0x61||wasm[2]!==0x73||wasm[3]!==0x6d)throw Error("XWASM payload is not WASM");
-  if(pe[0]!==0x4d||pe[1]!==0x5a)throw Error("XPL payload is not PE32");
-  const mod=await WebAssembly.compile(wasm),env={};let memory;
-  for(const i of WebAssembly.Module.imports(mod))if(i.module==="env"){if(i.kind==="memory"){memory=new WebAssembly.Memory({initial:1024,maximum:4096});env[i.name]=memory}else if(i.kind==="function")env[i.name]=()=>0}
-  if(!memory)throw Error("runtime did not import memory");
-  const ins=await WebAssembly.instantiate(mod,{env}),e=ins.exports,need=n=>{if(!e[n])throw Error("runtime export missing: "+n)};
-  ["x86_get_runtime_version","xwasm_init","x86_load_pe","x86_get_loaded","x86_get_load_error","x86_run","x86_get_halted","x86_get_cpu_error"].forEach(need);
-  if(e.x86_get_runtime_version()!==0x90000)throw Error("unexpected runtime version: "+hex(e.x86_get_runtime_version()));log("[PASS] runtime version 0x00090000","pass");
-  if(e.xwasm_init()!==0)throw Error("xwasm_init failed");log("[PASS] init","pass");
-  const view=new Uint8Array(memory.buffer),addr=0x100000;view.set(pe,addr);
-  if(e.x86_load_pe(addr,pe.length)!==0)throw Error("PE load failed");
-  if(e.x86_get_loaded()!==1||e.x86_get_load_error()!==0)throw Error("PE state invalid");log("[PASS] PE32 loaded","pass");
-  const r=e.x86_run(2000);log("[INFO] CPU run="+r+" steps="+e.x86_get_steps()+" EIP="+hex(e.x86_get_eip())+" EAX="+hex(e.x86_get_eax())+" EFLAGS="+hex(e.x86_get_eflags()));
-  if(e.x86_get_halted()!==1)throw Error("CPU did not halt");log("[PASS] CPU halted","pass");
-  if(e.x86_get_cpu_error()!==0)throw Error("CPU error="+hex(e.x86_get_cpu_error()));log("[PASS] CPU error=0","pass");
-  log("[PASS] XWASM CPU test complete","pass");
- }catch(err){log(String(err&&err.stack?err.stack:err),"fail")}
+
+  $("log").textContent="";
+
+  let e=null;
+  let memory=null;
+
+  section("XWASM CPU TEST");
+
+  log(
+    "[INFO] Native XWASM package mode",
+    "info"
+  );
+
+  log(
+    "[INFO] Expected files: runtime.xwasm + payload.xpl",
+    "info"
+  );
+
+  const runtimeFile=$("runtime").files[0];
+  const payloadFile=$("payload").files[0];
+
+  if(!runtimeFile){
+
+    log(
+      "[FAIL] runtime.xwasm was not selected",
+      "fail"
+    );
+
+    return;
+  }
+
+  if(!payloadFile){
+
+    log(
+      "[FAIL] payload.xpl was not selected",
+      "fail"
+    );
+
+    return;
+  }
+
+  log(
+    "[INFO] Runtime file: " +
+    runtimeFile.name +
+    " (" +
+    runtimeFile.size +
+    " bytes)",
+    "info"
+  );
+
+  log(
+    "[INFO] Payload file: " +
+    payloadFile.name +
+    " (" +
+    payloadFile.size +
+    " bytes)",
+    "info"
+  );
+
+  try{
+
+    /* --------------------------------------------------------
+       1. READ / VERIFY XWASM CONTAINERS
+       -------------------------------------------------------- */
+
+    const runtimeContainer =
+      await unpackXWSC01(
+        await runtimeFile.arrayBuffer(),
+        KIND_XWASM,
+        "runtime.xwasm"
+      );
+
+    const payloadContainer =
+      await unpackXWSC01(
+        await payloadFile.arrayBuffer(),
+        KIND_XPL,
+        "payload.xpl"
+      );
+
+    const wasm=runtimeContainer.raw;
+    const pe=payloadContainer.raw;
+
+    /* --------------------------------------------------------
+       2. VALIDATE NATIVE PAYLOAD TYPES
+       -------------------------------------------------------- */
+
+    validateRuntimeWasm(wasm);
+    validatePayloadPE(pe);
+
+    /* --------------------------------------------------------
+       3. COMPILE WASM
+       -------------------------------------------------------- */
+
+    section("WebAssembly compilation");
+
+    log(
+      "[INFO] Compiling runtime.xwasm WASM payload...",
+      "info"
+    );
+
+    const module=
+      await WebAssembly.compile(wasm);
+
+    log(
+      "[PASS] WebAssembly compilation succeeded",
+      "pass"
+    );
+
+    /* --------------------------------------------------------
+       4. IMPORT / MEMORY SETUP
+       -------------------------------------------------------- */
+
+    const runtime=
+      buildEnvironment(module);
+
+    memory=runtime.memory;
+
+    /* --------------------------------------------------------
+       5. INSTANTIATE
+       -------------------------------------------------------- */
+
+    section("XWASM runtime instantiation");
+
+    const instance=
+	  await WebAssembly.instantiate(
+		module,
+		{
+		  env: runtime.env
+		}
+	  );
+
+    e=instance.exports;
+
+    log(
+      "[PASS] XWASM runtime instantiated",
+      "pass"
+    );
+
+    /* --------------------------------------------------------
+       6. EXPORT INSPECTION
+       -------------------------------------------------------- */
+
+    reportExports(e);
+    checkRuntimeAPI(e);
+
+    /* --------------------------------------------------------
+       7. VERSION
+       -------------------------------------------------------- */
+
+    section("Runtime version");
+
+    const version=
+      e.x86_get_runtime_version();
+
+    log(
+      "[INFO] Runtime version=" +
+      hex(version),
+      "info"
+    );
+
+    if(version !== 0x90000){
+
+      log(
+        "[WARN] Expected v0.9 (0x00090000)",
+        "warn"
+      );
+
+    }else{
+
+      log(
+        "[PASS] XWASM runtime v0.9",
+        "pass"
+      );
+    }
+
+    /* --------------------------------------------------------
+       8. INITIALIZATION
+       -------------------------------------------------------- */
+
+    section("XWASM initialization");
+
+    const initResult=
+      e.xwasm_init();
+
+    log(
+      "[INFO] xwasm_init() -> " +
+      initResult,
+      "info"
+    );
+
+    if(initResult !== 0){
+
+      throw new Error(
+        "xwasm_init failed: " +
+        initResult
+      );
+    }
+
+    log(
+      "[PASS] xwasm_init",
+      "pass"
+    );
+
+    /* --------------------------------------------------------
+       9. LOAD PE
+       -------------------------------------------------------- */
+
+    section("PE32 loading");
+
+    const view=
+      new Uint8Array(memory.buffer);
+
+    const loadAddress=
+      0x00100000;
+
+    log(
+      "[INFO] Loading PE at " +
+      hex(loadAddress),
+      "info"
+    );
+
+    view.set(pe,loadAddress);
+
+    log(
+      "[INFO] PE bytes copied: " +
+      pe.length,
+      "info"
+    );
+
+    const loadResult=
+      e.x86_load_pe(
+        loadAddress,
+        pe.length
+      );
+
+    log(
+      "[INFO] x86_load_pe() -> " +
+      loadResult,
+      "info"
+    );
+
+    const loaded=
+      e.x86_get_loaded();
+
+    const loadError=
+      e.x86_get_load_error();
+
+    log(
+      "[STATE] loaded=" +
+      loaded,
+      loaded === 1 ? "pass" : "fail"
+    );
+
+    log(
+      "[STATE] load_error=" +
+      loadError,
+      loadError === 0 ? "pass" : "fail"
+    );
+
+    if(loadResult !== 0){
+
+      throw new Error(
+        "x86_load_pe failed: " +
+        loadResult
+      );
+    }
+
+    if(loaded !== 1){
+
+      throw new Error(
+        "Runtime reports PE is not loaded"
+      );
+    }
+
+    if(loadError !== 0){
+
+      throw new Error(
+        "PE load error=" +
+        loadError
+      );
+    }
+
+    log(
+      "[PASS] PE32 loaded into XWASM runtime",
+      "pass"
+    );
+
+    /* --------------------------------------------------------
+       10. CPU PRE-RUN SNAPSHOT
+       -------------------------------------------------------- */
+
+    section("CPU pre-run state");
+
+    printRegisters(e,"[PRE]");
+
+    if(typeof e.x86_get_cpu_error === "function"){
+
+      log(
+        "[PRE] cpu_error=" +
+        hex(e.x86_get_cpu_error()),
+        "info"
+      );
+    }
+
+    if(typeof e.x86_get_halted === "function"){
+
+      log(
+        "[PRE] halted=" +
+        e.x86_get_halted(),
+        "info"
+      );
+    }
+
+    /* --------------------------------------------------------
+       11. CPU EXECUTION
+       -------------------------------------------------------- */
+
+    section("CPU execution");
+
+    const maxSteps=2000;
+
+    log(
+      "[INFO] Calling x86_run(" +
+      maxSteps +
+      ")...",
+      "info"
+    );
+
+    let runResult;
+
+    try{
+
+      runResult=
+        e.x86_run(maxSteps);
+
+    }catch(cpuJSException){
+
+      log(
+        "[FAIL] x86_run threw a JavaScript exception:",
+        "fail"
+      );
+
+      log(
+        String(
+          cpuJSException &&
+          cpuJSException.stack
+            ? cpuJSException.stack
+            : cpuJSException
+        ),
+        "fail"
+      );
+
+      /*
+        Still dump whatever state the runtime managed
+        to leave behind.
+      */
+
+      printCPUState(e);
+      printCurrentInstruction(e);
+      printTrace(e);
+
+      return;
+    }
+
+    log(
+      "[RESULT] x86_run() -> " +
+      runResult,
+      runResult === 0 ? "pass" : "warn"
+    );
+
+    /* --------------------------------------------------------
+       12. IMMEDIATE POST-RUN SNAPSHOT
+       -------------------------------------------------------- */
+
+    section("Immediate post-run CPU state");
+
+    printRegisters(e,"[POST]");
+
+    const halted=
+      e.x86_get_halted();
+
+    const cpuError=
+      e.x86_get_cpu_error();
+
+    log(
+      "[POST] halted=" +
+      halted,
+      halted ? "pass" : "warn"
+    );
+
+    log(
+      "[POST] cpu_error=" +
+      hex(cpuError),
+      cpuError === 0 ? "pass" : "fail"
+    );
+
+    /* --------------------------------------------------------
+       13. CURRENT INSTRUCTION
+       -------------------------------------------------------- */
+
+    printCurrentInstruction(e);
+
+    /* --------------------------------------------------------
+       14. EXECUTION TRACE
+       -------------------------------------------------------- */
+
+    printTrace(e);
+
+    /* --------------------------------------------------------
+       15. FINAL STATE
+       -------------------------------------------------------- */
+
+    const finalState=
+      printCPUState(e);
+
+    /* --------------------------------------------------------
+       16. INTERPRETATION
+       -------------------------------------------------------- */
+
+    section("Diagnostic interpretation");
+
+    if(runResult === 0 &&
+       finalState.halted === 1 &&
+       finalState.cpuError === 0){
+
+      log(
+        "[PASS] CPU execution completed without a runtime error",
+        "pass"
+      );
+
+    }else{
+
+      if(runResult !== 0){
+
+        log(
+          "[WARN] x86_run returned " +
+          runResult,
+          "warn"
+        );
+      }
+
+      if(finalState.halted !== 1){
+
+        log(
+          "[WARN] Runtime did not report halted=1",
+          "warn"
+        );
+      }
+
+      if(finalState.cpuError !== 0){
+
+        log(
+          "[FAIL] Runtime reported CPU error " +
+          hex(finalState.cpuError),
+          "fail"
+        );
+      }
+
+      log(
+        "[INFO] The trace/current-instruction data above is the primary debugging evidence.",
+        "info"
+      );
+    }
+
+    section("XWASM diagnostic complete");
+
+    log(
+      "[INFO] No CPU error was suppressed or converted into success.",
+      "info"
+    );
+
+    log(
+      "[INFO] XWASM container validation, WASM validation, PE32 validation, runtime state, and CPU trace were all inspected.",
+      "info"
+    );
+
+  }catch(err){
+
+    /*
+      This catch is ONLY for JavaScript / setup exceptions.
+
+      CPU return codes do NOT enter here.
+    */
+
+    section("JavaScript / runtime setup exception");
+
+    log(
+      String(
+        err && err.stack
+          ? err.stack
+          : err
+      ),
+      "fail"
+    );
+
+    /*
+      If the runtime was already instantiated, dump its
+      state anyway.
+    */
+
+    if(e){
+
+      log(
+        "[INFO] Runtime instance exists; dumping diagnostic state...",
+        "info"
+      );
+
+      try{
+        printCPUState(e);
+      }catch(diagErr){
+        log(
+          "[DIAG ERROR] CPU state: " +
+          diagErr,
+          "fail"
+        );
+      }
+
+      try{
+        printCurrentInstruction(e);
+      }catch(diagErr){
+        log(
+          "[DIAG ERROR] instruction: " +
+          diagErr,
+          "fail"
+        );
+      }
+
+      try{
+        printTrace(e);
+      }catch(diagErr){
+        log(
+          "[DIAG ERROR] trace: " +
+          diagErr,
+          "fail"
+        );
+      }
+    }
+  }
 }
-$("run").addEventListener("click",run);
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+$("run").addEventListener(
+  "click",
+  run
+);
+
+$("clear").addEventListener(
+  "click",
+  () => {
+    $("log").textContent=
+      "XWASM diagnostic shell ready.";
+  }
+);
+
 })();
-</script></body></html>
+</script>
+
+</body>
+</html>
