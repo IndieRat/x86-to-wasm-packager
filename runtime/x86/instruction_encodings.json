@@ -2395,6 +2395,38 @@
       ]
     },
     {
+      "id": "PUSH_IMM32",
+      "instruction": "PUSH",
+      "opcode": [
+        "68"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "PUSH_IMM8",
+      "instruction": "PUSH",
+      "opcode": [
+        "6A"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
       "id": "POP_R32",
       "instruction": "POP",
       "opcode": [
