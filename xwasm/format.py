@@ -8,6 +8,22 @@ FORMAT_VERSION = 1
 ABI = "xwasm.host/1"
 META_SECTION = "xwasm.meta"
 
+XWASM_EXTENSION = ".xwasm"
+XWASM_MANIFEST = "manifest.xwasm.json"
+
+XPAK_FORMAT = "xpak"
+XPAK_VERSION = 1
+XPAK_MANIFEST = "manifest.xpak.json"
+XPAK_EXTENSION = ".xpak"
+
+
+def is_xwasm_path(path: str | Path) -> bool:
+    return Path(path).suffix.lower() == XWASM_EXTENSION
+
+
+def is_xpak_path(path: str | Path) -> bool:
+    return Path(path).suffix.lower() == XPAK_EXTENSION
+
 
 def make_manifest(name: str, module: str = "game.wasm", resource_root: str = "resources/") -> dict:
     return {
@@ -20,6 +36,15 @@ def make_manifest(name: str, module: str = "game.wasm", resource_root: str = "re
         "resource_root": resource_root,
         "abi": ABI,
         "entry": {"init": "xwasm_init", "tick": "xwasm_tick", "shutdown": "xwasm_shutdown"},
+    }
+
+
+def make_xpak_manifest(name: str, kind: str = "data") -> dict:
+    return {
+        "format": XPAK_FORMAT,
+        "format_version": XPAK_VERSION,
+        "name": name,
+        "kind": kind,
     }
 
 
@@ -65,6 +90,21 @@ def validate_manifest(manifest: dict) -> list[str]:
         for key in ("init", "tick", "shutdown"):
             if entry.get(key) is not None and not isinstance(entry.get(key), str):
                 errors.append(f"entry.{key} must be a string or null")
+    return errors
+
+
+def validate_xpak_manifest(manifest: dict) -> list[str]:
+    errors = []
+    if not isinstance(manifest, dict):
+        return ["XPAK manifest is not an object"]
+    if manifest.get("format") != XPAK_FORMAT:
+        errors.append(f"XPAK format must be {XPAK_FORMAT!r}")
+    if manifest.get("format_version") != XPAK_VERSION:
+        errors.append(f"unsupported XPAK version: {manifest.get('format_version')!r}")
+    if not isinstance(manifest.get("name"), str) or not manifest["name"]:
+        errors.append("XPAK name must be a non-empty string")
+    if not isinstance(manifest.get("kind"), str) or not manifest["kind"]:
+        errors.append("XPAK kind must be a non-empty string")
     return errors
 
 
