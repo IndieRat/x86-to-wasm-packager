@@ -16,11 +16,11 @@ small{color:#aaa}
 <body>
 <h1>XWASM CPU + Guest Memory Stress Test</h1>
 <div class="card">
-  <p>This replaces the old CPU-only stress test with a combined PE32/CPU/guest-memory gate.</p>
-  <label>runtime.wasm <input id="runtime" type="file" accept=".wasm"></label><br>
-  <label>payload.exe <input id="payload" type="file" accept=".exe,.bin"></label><br>
+  <p>This is the combined PE32/CPU/guest-memory gate for the XWASM v0.9 foundation.</p>
+  <label>runtime.xwasm <input id="runtime" type="file" accept=".xwasm,.bin"></label><br>
+  <label>payload.xpl <input id="payload" type="file" accept=".xpl,.bin"></label><br>
   <button id="run">Run stress test</button>
-  <p><small>Works from file:// because the WASM and PE are loaded through file inputs.</small></p>
+  <p><small>Works from file:// because the XWASM containers and payload are loaded through file inputs.</small></p>
 </div>
 <div class="card"><div id="log">Ready.</div></div>
 <script src="xwasm_cpu_stress_runner.js"></script>
