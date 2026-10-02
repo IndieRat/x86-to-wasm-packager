@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Build a deterministic XWASM x86 runtime test package.
 
-The package contains the real x86 runtime.wasm plus a tiny synthetic PE32
-payload. It is deliberately not a Windows game; it exercises packaging,
-manifest validation, PE loading, and the browser runner's staging path.
+The package contains the XWASM runtime container plus an XPL-wrapped
+synthetic PE32 payload. The browser stress runner unwraps both containers
+before loading them, so this test never requires a raw runtime.wasm artifact.
 """
 from __future__ import annotations
 
@@ -60,46 +60,40 @@ def make_test_pe() -> bytes:
     b[sh + 16:sh + 20] = u32(text_raw_size)
     b[sh + 20:sh + 24] = u32(headers)
 
-    # Deterministic CPU program. Keep the CALL displacement derived from
-    # the actual instruction and target positions so this fixture cannot
-    # silently break when instructions are added or removed.
     code = bytearray((
-        # C0: cdecl-style stack argument + frame + direct/indirect callbacks.
-        0x6A, 0x2A,                                # PUSH 42 (cdecl argument)
-        0x55,                                      # PUSH EBP
-        0x89, 0xE5,                                # MOV EBP,ESP
-        0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL helper (patched below)
-        0x83, 0xC4, 0x04,                          # ADD ESP,4 (caller cleanup)
-        0x6A, 0x2A,                                # PUSH 42 (second cdecl callback argument)
-        0xB8, 0x00, 0x00, 0x40, 0x00,             # MOV EAX,helper address (patched below)
-        0xFF, 0xD0,                                # CALL EAX (indirect callback)
-        0x83, 0xC4, 0x04,                          # ADD ESP,4 (caller cleanup)
-        0x89, 0xC6,                                # MOV ESI,EAX (preserve C0 result)
-        0xC9,                                      # LEAVE
-        0xB8, 0x05, 0x00, 0x00, 0x00,             # MOV EAX,5
-        0xBB, 0x00, 0x08, 0x40, 0x00,             # MOV EBX,0x00400800
-        0x89, 0x03,                                # MOV [EBX],EAX
-        0x8B, 0x0B,                                # MOV ECX,[EBX]
-        0x8B, 0xC1,                                # MOV EAX,ECX
-        0x3D, 0x05, 0x00, 0x00, 0x00,             # CMP EAX,5
-        0x74, 0x05,                                # JE skip next MOV
-        0xBB, 0xEF, 0xBE, 0xAD, 0xDE,             # MOV EBX,0xDEADBEEF
-        0xE8, 0x00, 0x00, 0x00, 0x00,             # CALL target (patched below)
-        0x6A, 0x04,                                # PUSH PAGE_READWRITE
-        0x68, 0x00, 0x30, 0x00, 0x00,             # PUSH MEM_COMMIT|MEM_RESERVE
-        0x68, 0x00, 0x10, 0x00, 0x00,             # PUSH dwSize=0x1000
-        0x6A, 0x00,                                # PUSH lpAddress=NULL
-        0xFF, 0x15, 0x64, 0x11, 0x40, 0x00,       # CALL [0x00401164] -> KERNEL32!VirtualAlloc
-        0x89, 0xC3,                                # MOV EBX,EAX (retain allocation)
-        0xB9, 0x00, 0x10, 0x40, 0x00,             # MOV ECX, hello-string address (patched below)
-        0xBA, 0x12, 0x00, 0x00, 0x00,             # MOV EDX, 18
-        0xFF, 0x15, 0x60, 0x11, 0x40, 0x00,       # CALL [0x00401160] -> XWASMHOST!xwasm_log
-        0x53,                                      # PUSH EBX (lpAddress)
-        0x6A, 0x00,                                # PUSH dwSize=0 for MEM_RELEASE
-        0x68, 0x00, 0x80, 0x00, 0x00,             # PUSH MEM_RELEASE
-        0xFF, 0x15, 0x68, 0x11, 0x40, 0x00,       # CALL [0x00401168] -> KERNEL32!VirtualFree
-        0xFF, 0x15, 0x6C, 0x11, 0x40, 0x00,       # CALL [0x0040116C] -> KERNEL32!GetTickCount
-        0xF4,                                      # HLT
+        0x6A, 0x2A, 0x55, 0x89, 0xE5,
+        0xE8, 0x00, 0x00, 0x00, 0x00,
+        0x83, 0xC4, 0x04,
+        0x6A, 0x2A,
+        0xB8, 0x00, 0x00, 0x40, 0x00,
+        0xFF, 0xD0,
+        0x83, 0xC4, 0x04,
+        0x89, 0xC6,
+        0xC9,
+        0xB8, 0x05, 0x00, 0x00, 0x00,
+        0xBB, 0x00, 0x08, 0x40, 0x00,
+        0x89, 0x03,
+        0x8B, 0x0B,
+        0x8B, 0xC1,
+        0x3D, 0x05, 0x00, 0x00, 0x00,
+        0x74, 0x05,
+        0xBB, 0xEF, 0xBE, 0xAD, 0xDE,
+        0xE8, 0x00, 0x00, 0x00, 0x00,
+        0x6A, 0x04,
+        0x68, 0x00, 0x30, 0x00, 0x00,
+        0x68, 0x00, 0x10, 0x00, 0x00,
+        0x6A, 0x00,
+        0xFF, 0x15, 0x64, 0x11, 0x40, 0x00,
+        0x89, 0xC3,
+        0xB9, 0x00, 0x10, 0x40, 0x00,
+        0xBA, 0x12, 0x00, 0x00, 0x00,
+        0xFF, 0x15, 0x60, 0x11, 0x40, 0x00,
+        0x53,
+        0x6A, 0x00,
+        0x68, 0x00, 0x80, 0x00, 0x00,
+        0xFF, 0x15, 0x68, 0x11, 0x40, 0x00,
+        0xFF, 0x15, 0x6C, 0x11, 0x40, 0x00,
+        0xF4,
     ))
     call_placeholders = []
     search_from = 0
@@ -112,13 +106,10 @@ def make_test_pe() -> bytes:
         search_from = found + len(marker)
     if not call_placeholders:
         raise AssertionError("synthetic PE CALL placeholder is missing")
+
     code.extend(b"\x00" * 16)
     call_target_file_offset = len(code)
-    code.extend((0x55,                             # PUSH EBP
-                 0x89, 0xE5,                       # MOV EBP,ESP
-                 0x8B, 0x45, 0x08,                 # MOV EAX,[EBP+8] (argument)
-                 0xC9,                             # LEAVE
-                 0xC3))                            # RET
+    code.extend((0x55, 0x89, 0xE5, 0x8B, 0x45, 0x08, 0xC9, 0xC3))
 
     hello_string_file_offset = len(code)
     code.extend(b"VirtualAlloc PASS!")
@@ -140,31 +131,13 @@ def make_test_pe() -> bytes:
     struct.pack_into("<I", code, helper_mov + 1, helper_address)
 
     call_instruction_file_offset = call_placeholders[0]
-    decoded_rel = int.from_bytes(
-        code[call_instruction_file_offset + 1:call_instruction_file_offset + 5],
-        "little",
-        signed=True,
-    )
+    decoded_rel = int.from_bytes(code[call_instruction_file_offset + 1:call_instruction_file_offset + 5], "little", signed=True)
     decoded_target = call_instruction_file_offset + 5 + decoded_rel
-    assert decoded_target == call_target_file_offset, (
-        f"CALL generated wrong target: expected 0x{call_target_file_offset:X}, "
-        f"got 0x{decoded_target:X}"
-    )
-    assert code[decoded_target:decoded_target + 3] == b"\x55\x89\xE5", (
-        f"CALL target does not begin with PUSH EBP; MOV EBP,ESP: "
-        f"target=0x{decoded_target:X}, bytes={code[decoded_target:decoded_target + 3].hex()}"
-    )
-    assert code[decoded_target + 3:decoded_target + 6] == b"\x8B\x45\x08", (
-        f"CALL target does not load [EBP+8]: "
-        f"target=0x{decoded_target:X}, bytes={code[decoded_target + 3:decoded_target + 6].hex()}"
-    )
-    assert code[decoded_target + 6:decoded_target + 8] == b"\xC9\xC3", (
-        f"CALL target does not end with LEAVE; RET: "
-        f"target=0x{decoded_target:X}, bytes={code[decoded_target + 6:decoded_target + 8].hex()}"
-    )
-    # Minimal PE import directory for KERNEL32.dll!GetTickCount.
-    # The runtime resolves this through its builtin Win32 seed table and
-    # patches the IAT with an emulated API address.
+    assert decoded_target == call_target_file_offset
+    assert code[decoded_target:decoded_target + 3] == b"\x55\x89\xE5"
+    assert code[decoded_target + 3:decoded_target + 6] == b"\x8B\x45\x08"
+    assert code[decoded_target + 6:decoded_target + 8] == b"\xC9\xC3"
+
     import_rva = 0x1100
     oft_rva = 0x1140
     iat_rva = 0x1160
@@ -174,10 +147,7 @@ def make_test_pe() -> bytes:
     name2_rva = 0x11B0
     name3_rva = 0x11C0
     name4_rva = 0x11D0
-    name5_rva = 0x11E0
-    # XWASMHOST.dll!xwasm_log
     struct.pack_into("<IIIII", b, headers + 0x100, oft_rva, 0, 0, dll1_rva, iat_rva)
-    # KERNEL32.dll!VirtualAlloc, VirtualFree, GetTickCount
     struct.pack_into("<IIIII", b, headers + 0x114, oft_rva + 8, 0, 0, dll2_rva, iat_rva + 4)
     struct.pack_into("<IIIII", b, headers + 0x128, 0, 0, 0, 0, 0)
     struct.pack_into("<II", b, headers + 0x140, name1_rva, 0)
@@ -193,16 +163,11 @@ def make_test_pe() -> bytes:
     b[headers + 0x1C2:headers + 0x1C2 + len(b"VirtualFree\0")] = b"VirtualFree\0"
     b[headers + 0x1D0:headers + 0x1D0 + 2] = b"\0\0"
     b[headers + 0x1D2:headers + 0x1D2 + len(b"GetTickCount\0")] = b"GetTickCount\0"
-
-    # Import directory RVA/size.
     struct.pack_into("<II", b, oh + 96 + 8, import_rva, 0x3C)
 
     b[headers:headers + len(code)] = code
-
     payload = bytes(b)
 
-    # Keep the synthetic fixture self-checking. If this ever changes, fail
-    # before packaging so the browser cannot silently test a stale/bad PE.
     if payload[:2] != b"MZ":
         raise AssertionError("synthetic PE missing MZ signature")
     if struct.unpack_from("<I", payload, pe_off)[0] != 0x4550:
@@ -213,7 +178,6 @@ def make_test_pe() -> bytes:
         raise AssertionError("synthetic PE optional header is not PE32")
     if struct.unpack_from("<H", payload, pe_off + 20)[0] != 0xE0:
         raise AssertionError("synthetic PE optional header size is not 0xE0")
-
     return payload
 
 
@@ -232,7 +196,7 @@ def main() -> int:
         game.mkdir()
         (game / "Test.exe").write_bytes(make_test_pe())
 
-        runtime = Path(td) / "runtime.wasm"
+        runtime = Path(td) / "runtime.xwasm"
         build = root / "tool" / "xwasm_build_x86_runtime.py"
         cmd = ["python", str(build), "--output", str(runtime)]
         if args.clang:
@@ -250,61 +214,48 @@ def main() -> int:
     manifest = json.loads((out / "manifest.xwasm.json").read_text(encoding="utf-8"))
     if manifest.get("architecture") != "x86":
         raise SystemExit("test package manifest is not architecture=x86")
-    if manifest.get("runtime") != "runtime.wasm":
-        raise SystemExit("test package did not bundle runtime.wasm")
-    if manifest.get("payload") != "resources/__x86__/payload.exe":
-        raise SystemExit("test package payload path is incorrect")
+    if manifest.get("runtime") != "runtime.xwasm":
+        raise SystemExit("test package did not bundle runtime.xwasm")
+    if manifest.get("payload") != "payload.xpl":
+        raise SystemExit("test package did not bundle payload.xpl")
+    if manifest.get("payload_format") != "XPL":
+        raise SystemExit("test package payload format is not XPL")
 
-    payload = (out / "resources" / "__x86__" / "payload.exe").read_bytes()
-    if struct.unpack_from("<H", payload, 0x80 + 24)[0] != 0x10B:
-        raise SystemExit("packaged synthetic payload is not PE32; rebuild the package")
-    if payload[:2] != b"MZ":
-        raise SystemExit("packaged synthetic payload is not MZ")
+    runtime_path = out / "runtime.xwasm"
+    payload_path = out / "payload.xpl"
+    if not runtime_path.is_file():
+        raise SystemExit("test package runtime.xwasm is missing")
+    if not payload_path.is_file():
+        raise SystemExit("test package payload.xpl is missing")
+    if (out / "runtime.wasm").exists():
+        raise SystemExit("test package leaked legacy runtime.wasm")
+    if (out / "resources" / "__x86__" / "payload.exe").exists():
+        raise SystemExit("test package leaked legacy payload.exe")
+
+    payload = payload_path.read_bytes()
+    # XPL has the XWSC01 envelope. The original PE is validated indirectly
+    # by unpacking it with the repository container implementation.
+    from xwasm.container import unpack_file
+    unpacked = Path(tempfile.mkdtemp(prefix="xwasm-xpl-check-")) / "payload.exe"
+    try:
+        unpack_file(payload_path, unpacked, expected_kind="xpl")
+        raw = unpacked.read_bytes()
+    finally:
+        unpacked.parent.rmdir()
+
+    if raw[:2] != b"MZ":
+        raise SystemExit("unpacked XPL payload is not MZ")
+    pe_off = struct.unpack_from("<I", raw, 0x3C)[0]
+    if struct.unpack_from("<H", raw, pe_off + 4)[0] != 0x14C:
+        raise SystemExit("unpacked XPL payload is not i386")
+    if struct.unpack_from("<H", raw, pe_off + 24)[0] != 0x10B:
+        raise SystemExit("unpacked XPL payload is not PE32")
 
     print(f"Created deterministic XWASM x86 test package: {out}")
-
-    # Re-read the packaged fixture so the diagnostic describes the exact
-    # bytes that were actually written to payload.exe.
-    pe_off = struct.unpack_from("<I", payload, 0x3C)[0]
-    optional_size = struct.unpack_from("<H", payload, pe_off + 20)[0]
-    section = pe_off + 24 + optional_size
-    headers = struct.unpack_from("<I", payload, section + 20)[0]
-    raw_size = struct.unpack_from("<I", payload, section + 16)[0]
-    code = payload[headers:headers + raw_size]
-
-    call_instruction_file_offset = code.find(b"\xE8")
-    if call_instruction_file_offset < 0:
-        raise SystemExit("packaged synthetic payload has no CALL rel32 instruction")
-    decoded_rel = int.from_bytes(
-        code[call_instruction_file_offset + 1:call_instruction_file_offset + 5],
-        "little",
-        signed=True,
-    )
-    decoded_target = call_instruction_file_offset + 5 + decoded_rel
-    if not (0 <= decoded_target < len(code)):
-        raise SystemExit("packaged synthetic CALL target is outside the section")
-    if code[decoded_target:decoded_target + 3] != b"\x55\x89\xE5":
-        raise SystemExit(
-            f"packaged synthetic CALL target does not begin with PUSH EBP; MOV EBP,ESP: "
-            f"target=0x{decoded_target:X} bytes={code[decoded_target:decoded_target + 3].hex()}"
-        )
-    if code[decoded_target + 3:decoded_target + 6] != b"\x8B\x45\x08":
-        raise SystemExit(
-            f"packaged synthetic CALL target does not load [EBP+8]: "
-            f"target=0x{decoded_target:X} bytes={code[decoded_target + 3:decoded_target + 6].hex()}"
-        )
-    if code[decoded_target + 6:decoded_target + 8] != b"\xC9\xC3":
-        raise SystemExit(
-            f"packaged synthetic CALL target does not end with LEAVE; RET: "
-            f"target=0x{decoded_target:X} bytes={code[decoded_target + 6:decoded_target + 8].hex()}"
-        )
-
-    print(
-        f"Fixture CALL: from=0x{call_instruction_file_offset:X} "
-        f"rel={decoded_rel:+d} target=0x{decoded_target:X} "
-        f"opcode=0x{code[decoded_target]:02X}"
-    )
-    print("Synthetic PE32 checks: MZ=OK PE=i386 PE32=OK ModRM=OK imports=XWASMHOST!xwasm_log,KERNEL32!VirtualAlloc/VirtualFree/GetTickCount")
+    print("Runtime: runtime.xwasm")
+    print("Payload: payload.xpl")
+    print("Legacy raw runtime.wasm: not emitted")
+    print("Legacy payload.exe: not emitted")
     return 0
 
 
