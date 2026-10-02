@@ -147,6 +147,15 @@ enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_
 #define API_USER32_SHOWCURSOR (API_BASE+0x0000901Cu)
 #define API_USER32_SETCAPTURE (API_BASE+0x00009020u)
 #define API_USER32_RELEASECAPTURE (API_BASE+0x00009024u)
+#define API_KERNEL32_GETACP (API_BASE+0x0000805Cu)
+#define API_KERNEL32_GETOEMCP (API_BASE+0x00008060u)
+#define API_KERNEL32_MULTIBYTETOWIDECHAR (API_BASE+0x00008064u)
+#define API_KERNEL32_WIDECHARTOMULTIBYTE (API_BASE+0x00008068u)
+#define API_GDI32_CREATESOLIDBRUSH (API_BASE+0x0000A000u)
+#define API_GDI32_DELETEOBJECT (API_BASE+0x0000A004u)
+#define API_GDI32_SELECTOBJECT (API_BASE+0x0000A008u)
+#define API_GDI32_FILLRECT (API_BASE+0x0000A00Cu)
+#define API_GDI32_BITBLT (API_BASE+0x0000A010u)
 #define API_C5_MALLOC (API_BASE+0x00010000u)
 #define API_C5_FREE (API_BASE+0x00010004u)
 #define API_C5_STRLEN (API_BASE+0x00010008u)
@@ -713,6 +722,7 @@ static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t import_resolved=0,import_failed=0;
 static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0,mouse_right_clicks=0,mouse_middle_clicks=0,mouse_moves=0;
 static uint32_t surface_width=640,surface_height=360;
+static uint32_t gdi_brush_color=0x00FFFFFFu;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 static uint32_t last_failed_import_dll=0,last_failed_import_func=0;
 
@@ -749,6 +759,11 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
  if(streq_ascii(dll,"GDI32.dll")||streq_ascii(dll,"gdi32.dll")){
   if(streq_ascii(name,"SetPixel"))return API_GDI32_SETPIXEL;
   if(streq_ascii(name,"Rectangle"))return API_GDI32_RECTANGLE;
+  if(streq_ascii(name,"CreateSolidBrush"))return API_GDI32_CREATESOLIDBRUSH;
+  if(streq_ascii(name,"DeleteObject"))return API_GDI32_DELETEOBJECT;
+  if(streq_ascii(name,"SelectObject"))return API_GDI32_SELECTOBJECT;
+  if(streq_ascii(name,"FillRect"))return API_GDI32_FILLRECT;
+  if(streq_ascii(name,"BitBlt"))return API_GDI32_BITBLT;
  }
  if(streq_ascii(dll,"USER32.dll")||streq_ascii(dll,"user32.dll")){
   if(streq_ascii(name,"GetMessageA"))return API_USER32_GETMESSAGEA;
@@ -798,6 +813,10 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"HeapFree"))return API_KERNEL32_HEAPFREE;
   if(streq_ascii(name,"HeapReAlloc"))return API_KERNEL32_HEAPREALLOC;
   if(streq_ascii(name,"VirtualProtect"))return API_KERNEL32_VIRTUALPROTECT;
+  if(streq_ascii(name,"GetACP"))return API_KERNEL32_GETACP;
+  if(streq_ascii(name,"GetOEMCP"))return API_KERNEL32_GETOEMCP;
+  if(streq_ascii(name,"MultiByteToWideChar"))return API_KERNEL32_MULTIBYTETOWIDECHAR;
+  if(streq_ascii(name,"WideCharToMultiByte"))return API_KERNEL32_WIDECHARTOMULTIBYTE;
  }
  if(streq_ascii(dll,"XWASMCRT.dll")||streq_ascii(dll,"xwasmcrt.dll"))return 0; /* C5 uses direct cdecl API addresses. */
  if(streq_ascii(dll,"ADVAPI32.dll")||streq_ascii(dll,"advapi32.dll")){
@@ -917,6 +936,46 @@ static uint32_t call_builtin(uint32_t target){
  if(target==API_USER32_SHOWCURSOR){uint32_t sp=regs[R_ESP];regs[R_EAX]=1u;regs[R_ESP]+=4u;return 1;}
  if(target==API_USER32_SETCAPTURE){uint32_t sp=regs[R_ESP];regs[R_EAX]=rd32(sp+4u);regs[R_ESP]+=4u;return 1;}
  if(target==API_USER32_RELEASECAPTURE){regs[R_EAX]=1u;return 1;}
+ if(target==API_KERNEL32_GETACP){regs[R_EAX]=1252u;return 1;}
+ if(target==API_KERNEL32_GETOEMCP){regs[R_EAX]=437u;return 1;}
+ if(target==API_KERNEL32_MULTIBYTETOWIDECHAR){
+  uint32_t sp=regs[R_ESP],src=rd32(sp+16u),src_n=rd32(sp+20u),dst=rd32(sp+24u),dst_n=rd32(sp+28u);
+  uint32_t count=0;
+  if(!src){regs[R_EAX]=0;regs[R_ESP]+=24u;return 1;}
+  uint32_t limit=src_n==0xFFFFFFFFu?0x10000u:src_n;
+  for(uint32_t i=0;i<limit&&count<dst_n;i++){
+   uint8_t ch=MEM8(src+i); if(!dst)break; wr32(dst+count*2u,(uint16_t)ch); /* low 16-bit store */
+   /* Correct the high half left by wr32 so UTF-16LE remains two bytes. */
+   if(x86_mem_region_find(dst+count*2u,2u,X86_MEM_WRITE)){wr8(dst+count*2u,(uint8_t)ch);wr8(dst+count*2u+1u,0);}
+   count++; if(src_n==0xFFFFFFFFu&&ch==0)break;
+  }
+  regs[R_EAX]=count; regs[R_ESP]+=24u; return 1;
+ }
+ if(target==API_KERNEL32_WIDECHARTOMULTIBYTE){
+  uint32_t sp=regs[R_ESP],src=rd32(sp+12u),src_n=rd32(sp+16u),dst=rd32(sp+20u),dst_n=rd32(sp+24u),used=rd32(sp+28u);
+  uint32_t count=0;
+  if(src&&dst){
+   for(uint32_t i=0;i<src_n&&count<dst_n;i++){uint32_t wc=rd32(src+i*2u)&0xFFFFu;wr8(dst+count++,(uint8_t)(wc<=0xFFu?wc:'?'));}
+  }
+  if(used&&x86_mem_region_find(used,4u,X86_MEM_WRITE))wr32(used,count);
+  regs[R_EAX]=count; regs[R_ESP]+=32u; return 1;
+ }
+ if(target==API_GDI32_CREATESOLIDBRUSH){
+  uint32_t sp=regs[R_ESP];gdi_brush_color=rd32(sp+4u)&0x00FFFFFFu;regs[R_EAX]=0x2001u;regs[R_ESP]+=4u;return 1;
+ }
+ if(target==API_GDI32_DELETEOBJECT){uint32_t sp=regs[R_ESP];regs[R_EAX]=rd32(sp+4u)==0x2001u?1u:0u;regs[R_ESP]+=4u;return 1;}
+ if(target==API_GDI32_SELECTOBJECT){uint32_t sp=regs[R_ESP];regs[R_EAX]=0u;regs[R_ESP]+=8u;return 1;}
+ if(target==API_GDI32_FILLRECT){
+  uint32_t sp=regs[R_ESP],rect=rd32(sp+8u),brush=rd32(sp+12u);
+  if(rect&&x86_mem_region_find(rect,16u,X86_MEM_READ)){
+   int32_t l=(int32_t)rd32(rect),t=(int32_t)rd32(rect+4u),r=(int32_t)rd32(rect+8u),b=(int32_t)rd32(rect+12u);
+   uint32_t color=brush==0x2001u?gdi_brush_color:0x00FFFFFFu;
+   xwasm_gfx_rect(l,t,r,b,(int32_t)color);xwasm_gfx_present();regs[R_EAX]=1u;
+  } else regs[R_EAX]=0u;
+  regs[R_ESP]+=12u;return 1;
+ }
+ if(target==API_GDI32_BITBLT){uint32_t sp=regs[R_ESP];(void)sp;xwasm_gfx_present();regs[R_EAX]=1u;regs[R_ESP]+=36u;return 1;
+ }
  if(target==API_USER32_CREATEWINDOWEXA){
   /* Win32 stdcall: 12 arguments, width/height are args 6/7. */
   uint32_t sp=regs[R_ESP];
@@ -998,120 +1057,3 @@ static uint32_t call_builtin(uint32_t target){
   uint32_t sp=regs[R_ESP],path=rd32(sp+4u),access=rd32(sp+8u),creation=rd32(sp+20u);char raw[X86_FS_MAX_PATH];
   if(!x86_fs_guest_string(path,raw,sizeof(raw))){regs[R_EAX]=0xFFFFFFFFu;regs[R_ESP]+=28u;return 1;}
   uint32_t a=(access&0x40000000u)?X86_FS_ACCESS_WRITE:X86_FS_ACCESS_READ;
-  if((access&0xC0000000u)==0xC0000000u)a=X86_FS_ACCESS_READ|X86_FS_ACCESS_WRITE;
-  uint32_t flags=(creation==2u||creation==3u)?X86_FS_OPEN_CREATE:0u;if(creation==2u||creation==4u)flags|=X86_FS_OPEN_TRUNCATE;
-  regs[R_EAX]=x86_fs_open_impl(raw,a,flags);if(!regs[R_EAX])regs[R_EAX]=0xFFFFFFFFu;regs[R_ESP]+=28u;return 1;
- }
- if(target==API_KERNEL32_READFILE){
-  uint32_t sp=regs[R_ESP],h=rd32(sp+4u),dst=rd32(sp+8u),size=rd32(sp+12u),out=rd32(sp+16u),n=0;
-  regs[R_EAX]=x86_fs_read_impl(h,dst,size,&n);if(out&&x86_mem_region_find(out,4u,X86_MEM_WRITE))wr32(out,n);regs[R_ESP]+=20u;return 1;
- }
- if(target==API_KERNEL32_WRITEFILE){
-  uint32_t sp=regs[R_ESP],h=rd32(sp+4u),src=rd32(sp+8u),size=rd32(sp+12u),out=rd32(sp+16u),n=0;
-  regs[R_EAX]=x86_fs_write_impl(h,src,size,&n);if(out&&x86_mem_region_find(out,4u,X86_MEM_WRITE))wr32(out,n);regs[R_ESP]+=20u;return 1;
- }
- if(target==API_KERNEL32_CLOSEHANDLE){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_fs_close_impl(rd32(sp+4u));regs[R_ESP]+=4u;return 1;}
- if(target==API_KERNEL32_SETFILEPOINTER){uint32_t sp=regs[R_ESP],h=rd32(sp+4u),distance=rd32(sp+8u),origin=rd32(sp+16u);regs[R_EAX]=x86_fs_seek_impl(h,(int32_t)distance,origin);regs[R_ESP]+=16u;return 1;}
- if(target==API_KERNEL32_GETFILESIZE){uint32_t sp=regs[R_ESP],h=rd32(sp+4u),high=rd32(sp+8u),size=x86_fs_size_impl(h);if(high&&x86_mem_region_find(high,4u,X86_MEM_WRITE))wr32(high,0);regs[R_EAX]=size;regs[R_ESP]+=8u;return 1;}
- if(target==API_KERNEL32_REGOPENKEYEXA){
-  uint32_t sp=regs[R_ESP],parent=rd32(sp+4u),sub=rd32(sp+8u),out=rd32(sp+20u);char raw[X86_REG_MAX_PATH];uint32_t handle=0,result=0;
-  if(sub&&!x86_fs_guest_string(sub,raw,sizeof(raw)))result=X86_REG_ERROR_INVALID_PARAMETER;else result=x86_reg_open_impl(parent,sub?raw:"",&handle);
-  if(result==X86_REG_ERROR_SUCCESS&&(!out||!x86_mem_region_find(out,4u,X86_MEM_WRITE)))result=X86_REG_ERROR_INVALID_PARAMETER;
-  if(result==X86_REG_ERROR_SUCCESS)wr32(out,handle);
-  regs[R_EAX]=result;regs[R_ESP]+=20u;return 1;
- }
- if(target==API_KERNEL32_REGCREATEKEYEXA){
-  uint32_t sp=regs[R_ESP],parent=rd32(sp+4u),sub=rd32(sp+8u),out=rd32(sp+32u),disp_ptr=rd32(sp+36u);char raw[X86_REG_MAX_PATH];uint32_t handle=0,disp=0,result=0;
-  if(sub&&!x86_fs_guest_string(sub,raw,sizeof(raw)))result=X86_REG_ERROR_INVALID_PARAMETER;
-  else result=x86_reg_create_impl(parent,sub?raw:"",&handle,&disp);
-  if(result==X86_REG_ERROR_SUCCESS&&out&&x86_mem_region_find(out,4u,X86_MEM_WRITE))wr32(out,handle);
-  if(result==X86_REG_ERROR_SUCCESS&&disp_ptr&&x86_mem_region_find(disp_ptr,4u,X86_MEM_WRITE))wr32(disp_ptr,disp);
-  regs[R_EAX]=result;regs[R_ESP]+=36u;return 1;
- }
- if(target==API_KERNEL32_REGQUERYVALUEEXA){
-  uint32_t sp=regs[R_ESP],handle=rd32(sp+4u),name=rd32(sp+8u),type_ptr=rd32(sp+16u),data=rd32(sp+20u),size_ptr=rd32(sp+24u);char raw[X86_REG_MAX_VALUE_NAME];uint32_t type=0,size=0,result;
-  if(name&&!x86_fs_guest_string(name,raw,sizeof(raw))){result=X86_REG_ERROR_INVALID_PARAMETER;regs[R_EAX]=result;regs[R_ESP]+=24u;return 1;}
-  if(size_ptr&&!x86_mem_region_find(size_ptr,4u,X86_MEM_READ|X86_MEM_WRITE)){result=X86_REG_ERROR_INVALID_PARAMETER;regs[R_EAX]=result;regs[R_ESP]+=24u;return 1;}
-  if(size_ptr)size=rd32(size_ptr);
-  result=x86_reg_query_value_impl(handle,name?raw:"",&type,data?((uint8_t*)(uintptr_t)data):0,&size);
-  if(type_ptr&&x86_mem_region_find(type_ptr,4u,X86_MEM_WRITE))wr32(type_ptr,type);
-  if(size_ptr&&x86_mem_region_find(size_ptr,4u,X86_MEM_WRITE))wr32(size_ptr,size);
-  regs[R_EAX]=result;regs[R_ESP]+=24u;return 1;
- }
- if(target==API_KERNEL32_REGSETVALUEEXA){
-  uint32_t sp=regs[R_ESP],handle=rd32(sp+4u),name=rd32(sp+8u),type=rd32(sp+16u),data=rd32(sp+20u),size=rd32(sp+24u);char raw[X86_REG_MAX_VALUE_NAME];
-  if(name&&!x86_fs_guest_string(name,raw,sizeof(raw))){regs[R_EAX]=X86_REG_ERROR_INVALID_PARAMETER;regs[R_ESP]+=24u;return 1;}
-  if(size&&!x86_mem_region_find(data,size,X86_MEM_READ)){regs[R_EAX]=X86_REG_ERROR_INVALID_PARAMETER;regs[R_ESP]+=24u;return 1;}
-  uint8_t tmp[X86_REG_MAX_VALUE_DATA];if(size>sizeof(tmp)){regs[R_EAX]=X86_REG_ERROR_INVALID_PARAMETER;regs[R_ESP]+=24u;return 1;}for(uint32_t i=0;i<size;i++)tmp[i]=MEM8(data+i);
-  uint32_t result=x86_reg_set_value_impl(handle,name?raw:"",type,tmp,size);regs[R_EAX]=result;regs[R_ESP]+=24u;return 1;
- }
- if(target==API_KERNEL32_REGCLOSEKEY){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_reg_close_impl(rd32(sp+4u));regs[R_ESP]+=4u;return 1;}
- if(target==API_KERNEL32_REGDELETEVALUEA){
-  uint32_t sp=regs[R_ESP],handle=rd32(sp+4u),name=rd32(sp+8u);char raw[X86_REG_MAX_VALUE_NAME];
-  if(name&&!x86_fs_guest_string(name,raw,sizeof(raw))){regs[R_EAX]=X86_REG_ERROR_INVALID_PARAMETER;regs[R_ESP]+=8u;return 1;}
-  regs[R_EAX]=x86_reg_delete_value_impl(handle,name?raw:"");regs[R_ESP]+=8u;return 1;
- }
- if(target==API_KERNEL32_GETLASTERROR){regs[R_EAX]=crt_last_error;return 1;}
- if(target==API_KERNEL32_SETLASTERROR){uint32_t sp=regs[R_ESP];crt_last_error=rd32(sp+4u);regs[R_ESP]+=4u;return 1;}
- if(target==API_KERNEL32_BEEP){
-  uint32_t sp=regs[R_ESP],freq=rd32(sp+4u),duration=rd32(sp+8u);
-  xwasm_audio_beep((int32_t)freq,(int32_t)duration);
-  regs[R_EAX]=1u; regs[R_ESP]+=8u; return 1;
- }
- if(target==API_VIRTUALFREE){
-  /* Win32 stdcall: lpAddress, dwSize, dwFreeType. */
-  uint32_t sp=regs[R_ESP];
-  uint32_t address=rd32(sp+4u),size=rd32(sp+8u),free_type=rd32(sp+12u);
-  (void)size;
-  (void)free_type;
-  regs[R_EAX]=(address!=0)?1u:0u;
-  if(address!=0)x86_mem_free_region(address);
-  regs[R_ESP]+=12u;
-  return 1;
- }
- return 0;
-}
-
-static uint16_t rd16(uint32_t p){return (uint16_t)MEM8(p)|((uint16_t)MEM8(p+1)<<8);}
-static uint32_t rd32(uint32_t p){return (uint32_t)MEM8(p)|((uint32_t)MEM8(p+1)<<8)|((uint32_t)MEM8(p+2)<<16)|((uint32_t)MEM8(p+3)<<24);}
-static void wr32(uint32_t p,uint32_t v){MEM8(p)=(uint8_t)v;MEM8(p+1)=(uint8_t)(v>>8);MEM8(p+2)=(uint8_t)(v>>16);MEM8(p+3)=(uint8_t)(v>>24);}
-static void wr16(uint32_t p,uint16_t v){MEM8(p)=(uint8_t)v;MEM8(p+1)=(uint8_t)(v>>8);}
-static void wr8(uint32_t p,uint8_t v){MEM8(p)=v;}
-static void copy_bytes(uint32_t d,uint32_t s,uint32_t n){for(uint32_t i=0;i<n;i++)wr8(d+i,MEM8(s+i));}
-static void loglit(const char*s){uint32_t p=heap;while(*s)wr8(p++,(uint8_t)*s++);xwasm_log(1,(int32_t)heap,(int32_t)(p-heap));heap=al4(p+1);}
-static void loghex(const char*s,uint32_t v){uint32_t p=heap;while(*s)wr8(p++,(uint8_t)*s++);wr8(p++,'0');wr8(p++,'x');for(int i=7;i>=0;i--){uint8_t x=(v>>(i*4))&15u;wr8(p++,(uint8_t)(x<10?'0'+x:'A'+x-10));}xwasm_log(1,(int32_t)heap,(int32_t)(p-heap));heap=al4(p+1);}
-
-static void set_logic_flags(uint32_t v){
- uint32_t p=v; p^=p>>4; p^=p>>2; p^=p>>1;
- eflags=(eflags&~(CF|PF|AF|ZF|SF|OF))|((p&1u)==0?PF:0)|(v==0?ZF:0)|((v&0x80000000u)?SF:0);
-}
-static uint32_t parity_even8(uint32_t v){v&=0xFFu;v^=v>>4;v^=v>>2;v^=v>>1;return (v&1u)==0u;}
-static void set_logic_flags_width(uint32_t v,uint32_t bits){uint32_t mask=bits==8?0xFFu:(bits==16?0xFFFFu:0xFFFFFFFFu),sign=1u<<(bits-1u);v&=mask;uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);if(parity_even8(v))f|=PF;if(v==0)f|=ZF;if(v&sign)f|=SF;eflags=f;}
-static void set_add_flags_width(uint32_t a,uint32_t b,uint32_t r,uint32_t bits){uint32_t mask=bits==8?0xFFu:(bits==16?0xFFFFu:0xFFFFFFFFu),sign=1u<<(bits-1u);a&=mask;b&=mask;r&=mask;uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);if((uint64_t)a+(uint64_t)b>mask)f|=CF;if(((a&0xFu)+(b&0xFu))>0xFu)f|=AF;if(parity_even8(r))f|=PF;if(!r)f|=ZF;if(r&sign)f|=SF;if(((~(a^b))&(a^r)&sign)!=0)f|=OF;eflags=f;}
-static void set_adc_flags_width(uint32_t a,uint32_t b,uint32_t cin,uint32_t r,uint32_t bits){uint32_t mask=bits==8?0xFFu:(bits==16?0xFFFFu:0xFFFFFFFFu),sign=1u<<(bits-1u);a&=mask;b&=mask;r&=mask;uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);if((uint64_t)a+(uint64_t)b+cin>mask)f|=CF;if(((a&0xFu)+(b&0xFu)+cin)>0xFu)f|=AF;if(parity_even8(r))f|=PF;if(!r)f|=ZF;if(r&sign)f|=SF;uint32_t bb=(b+cin)&mask;if(((~(a^bb))&(a^r)&sign)!=0)f|=OF;eflags=f;}
-static void set_sbb_flags_width(uint32_t a,uint32_t b,uint32_t bin,uint32_t r,uint32_t bits){uint32_t mask=bits==8?0xFFu:(bits==16?0xFFFFu:0xFFFFFFFFu),sign=1u<<(bits-1u);a&=mask;b&=mask;r&=mask;uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);uint32_t bb=b+bin;if((uint64_t)a<(uint64_t)bb)f|=CF;if((a&0xFu)<((b&0xFu)+bin))f|=AF;if(parity_even8(r))f|=PF;if(!r)f|=ZF;if(r&sign)f|=SF;bb&=mask;if(((a^bb)&(a^r)&sign)!=0)f|=OF;eflags=f;}
-static void set_add_flags(uint32_t a,uint32_t b,uint32_t r){
- uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);
- if(r<a)f|=CF;
- if(((a&0xFu)+(b&0xFu))>0xFu)f|=AF;
- if(parity_even8(r))f|=PF;
- if(r==0)f|=ZF;
- if(r&0x80000000u)f|=SF;
- if(((~(a^b))&(a^r)&0x80000000u)!=0)f|=OF;
- eflags=f;
-}
-static void set_sub_flags(uint32_t a,uint32_t b,uint32_t r){
- uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);
- if(a<b)f|=CF;
- if((a&0xFu)<(b&0xFu))f|=AF;
- if(parity_even8(r))f|=PF;
- if(r==0)f|=ZF;
- if(r&0x80000000u)f|=SF;
- if(((a^b)&(a^r)&0x80000000u)!=0)f|=OF;
- eflags=f;
-}
-static void set_adc_flags(uint32_t a,uint32_t b,uint32_t cin,uint32_t r){
- uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF),bb=b+cin;
- if(r<a || (cin && r==a))f|=CF;
- if(((a&0xFu)+(b&0xFu)+cin)>0xFu)f|=AF;
- if(parity_even8(r))f|=PF;
