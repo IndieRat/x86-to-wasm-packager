@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Build the standalone XWASM CPU + guest-memory stress-test package."""
-
 from __future__ import annotations
 
 import argparse
@@ -20,7 +19,7 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     build_test = root / "tool" / "xwasm_build_x86_test.py"
-    cmd = ["python3", str(build_test), "--output", str(out)]
+    cmd = ["python", str(build_test), "--output", str(out)]
     if args.clang:
         cmd += ["--clang", args.clang]
     subprocess.run(cmd, check=True)
@@ -29,17 +28,21 @@ def main() -> int:
     shutil.copy2(tests / "xwasm_cpu_stress.html", out / "index.html")
     shutil.copy2(tests / "xwasm_cpu_stress_runner.js", out / "xwasm_cpu_stress_runner.js")
 
-    payload = out / "resources" / "__x86__" / "payload.exe"
-    runtime = out / "runtime.wasm"
-    if not payload.is_file():
-        raise SystemExit(f"stress package payload missing: {payload}")
+    runtime = out / "runtime.xwasm"
+    payload = out / "payload.xpl"
     if not runtime.is_file():
         raise SystemExit(f"stress package runtime missing: {runtime}")
+    if not payload.is_file():
+        raise SystemExit(f"stress package payload missing: {payload}")
+    if (out / "runtime.wasm").exists():
+        raise SystemExit("stress package leaked legacy runtime.wasm")
+    if (out / "payload.exe").exists() or (out / "resources" / "__x86__" / "payload.exe").exists():
+        raise SystemExit("stress package leaked legacy payload.exe")
 
     print(f"Created XWASM CPU + guest-memory stress package: {out}")
-    print(f"Open {out / 'index.html'} and select:")
+    print("Open index.html and select:")
     print(f"  runtime: {runtime.name}")
-    print(f"  payload: {payload}")
+    print(f"  payload: {payload.name}")
     return 0
 
 
