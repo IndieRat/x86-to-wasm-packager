@@ -128,6 +128,25 @@ enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_
 #define API_KERNEL32_REGDELETEVALUEA (API_BASE+0x0000802Cu)
 #define API_KERNEL32_GETLASTERROR (API_BASE+0x00008030u)
 #define API_KERNEL32_SETLASTERROR (API_BASE+0x00008034u)
+#define API_KERNEL32_SLEEP (API_BASE+0x00008038u)
+#define API_KERNEL32_GETMODULEHANDLEA (API_BASE+0x0000803Cu)
+#define API_KERNEL32_GETPROCADDRESS (API_BASE+0x00008040u)
+#define API_KERNEL32_GETCURRENTPROCESS (API_BASE+0x00008044u)
+#define API_KERNEL32_GETCURRENTTHREADID (API_BASE+0x00008048u)
+#define API_KERNEL32_HEAPALLOC (API_BASE+0x0000804Cu)
+#define API_KERNEL32_HEAPFREE (API_BASE+0x00008050u)
+#define API_KERNEL32_HEAPREALLOC (API_BASE+0x00008054u)
+#define API_KERNEL32_VIRTUALPROTECT (API_BASE+0x00008058u)
+#define API_USER32_REGISTERCLASSEXA (API_BASE+0x00009000u)
+#define API_USER32_DESTROYWINDOW (API_BASE+0x00009004u)
+#define API_USER32_SETWINDOWPOS (API_BASE+0x00009008u)
+#define API_USER32_GETWINDOWRECT (API_BASE+0x0000900Cu)
+#define API_USER32_POSTMESSAGEA (API_BASE+0x00009010u)
+#define API_USER32_SETFOCUS (API_BASE+0x00009014u)
+#define API_USER32_GETCURSORPOS (API_BASE+0x00009018u)
+#define API_USER32_SHOWCURSOR (API_BASE+0x0000901Cu)
+#define API_USER32_SETCAPTURE (API_BASE+0x00009020u)
+#define API_USER32_RELEASECAPTURE (API_BASE+0x00009024u)
 #define API_C5_MALLOC (API_BASE+0x00010000u)
 #define API_C5_FREE (API_BASE+0x00010004u)
 #define API_C5_STRLEN (API_BASE+0x00010008u)
@@ -741,6 +760,16 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"GetClientRect"))return API_USER32_GETCLIENTRECT;
   if(streq_ascii(name,"InvalidateRect"))return API_USER32_INVALIDATERECT;
   if(streq_ascii(name,"UpdateWindow"))return API_USER32_UPDATEWINDOW;
+  if(streq_ascii(name,"RegisterClassExA"))return API_USER32_REGISTERCLASSEXA;
+  if(streq_ascii(name,"DestroyWindow"))return API_USER32_DESTROYWINDOW;
+  if(streq_ascii(name,"SetWindowPos"))return API_USER32_SETWINDOWPOS;
+  if(streq_ascii(name,"GetWindowRect"))return API_USER32_GETWINDOWRECT;
+  if(streq_ascii(name,"PostMessageA"))return API_USER32_POSTMESSAGEA;
+  if(streq_ascii(name,"SetFocus"))return API_USER32_SETFOCUS;
+  if(streq_ascii(name,"GetCursorPos"))return API_USER32_GETCURSORPOS;
+  if(streq_ascii(name,"ShowCursor"))return API_USER32_SHOWCURSOR;
+  if(streq_ascii(name,"SetCapture"))return API_USER32_SETCAPTURE;
+  if(streq_ascii(name,"ReleaseCapture"))return API_USER32_RELEASECAPTURE;
  }
  if(streq_ascii(dll,"KERNEL32.dll")||streq_ascii(dll,"kernel32.dll")){
   if(streq_ascii(name,"Beep"))return API_KERNEL32_BEEP;
@@ -760,6 +789,15 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"RegDeleteValueA"))return API_KERNEL32_REGDELETEVALUEA;
   if(streq_ascii(name,"GetLastError"))return API_KERNEL32_GETLASTERROR;
   if(streq_ascii(name,"SetLastError"))return API_KERNEL32_SETLASTERROR;
+  if(streq_ascii(name,"Sleep"))return API_KERNEL32_SLEEP;
+  if(streq_ascii(name,"GetModuleHandleA"))return API_KERNEL32_GETMODULEHANDLEA;
+  if(streq_ascii(name,"GetProcAddress"))return API_KERNEL32_GETPROCADDRESS;
+  if(streq_ascii(name,"GetCurrentProcess"))return API_KERNEL32_GETCURRENTPROCESS;
+  if(streq_ascii(name,"GetCurrentThreadId"))return API_KERNEL32_GETCURRENTTHREADID;
+  if(streq_ascii(name,"HeapAlloc"))return API_KERNEL32_HEAPALLOC;
+  if(streq_ascii(name,"HeapFree"))return API_KERNEL32_HEAPFREE;
+  if(streq_ascii(name,"HeapReAlloc"))return API_KERNEL32_HEAPREALLOC;
+  if(streq_ascii(name,"VirtualProtect"))return API_KERNEL32_VIRTUALPROTECT;
  }
  if(streq_ascii(dll,"XWASMCRT.dll")||streq_ascii(dll,"xwasmcrt.dll"))return 0; /* C5 uses direct cdecl API addresses. */
  if(streq_ascii(dll,"ADVAPI32.dll")||streq_ascii(dll,"advapi32.dll")){
@@ -800,6 +838,85 @@ static uint32_t call_builtin(uint32_t target){
   regs[R_ESP]+=16u;
   return 1;
  }
+ if(target==API_KERNEL32_SLEEP){
+  uint32_t sp=regs[R_ESP]; (void)rd32(sp+4u); regs[R_EAX]=0u; regs[R_ESP]+=4u; return 1;
+ }
+ if(target==API_KERNEL32_GETMODULEHANDLEA){
+  uint32_t sp=regs[R_ESP],name=rd32(sp+4u);
+  if(name&&!streq_ascii(name,"xwasm.exe")&&!streq_ascii(name,"XWASM.exe")&&
+     !streq_ascii(name,"kernel32.dll")&&!streq_ascii(name,"KERNEL32.dll")){
+   regs[R_EAX]=0u;
+  } else regs[R_EAX]=image_base?image_base:IMAGE_BASE;
+  regs[R_ESP]+=4u; return 1;
+ }
+ if(target==API_KERNEL32_GETPROCADDRESS){
+  uint32_t sp=regs[R_ESP],name=rd32(sp+8u),target_api=0;
+  if(name){
+   if(streq_ascii(name,"GetTickCount"))target_api=API_GETTICKCOUNT;
+   else if(streq_ascii(name,"VirtualAlloc"))target_api=API_VIRTUALALLOC;
+   else if(streq_ascii(name,"VirtualFree"))target_api=API_VIRTUALFREE;
+   else if(streq_ascii(name,"Sleep"))target_api=API_KERNEL32_SLEEP;
+   else if(streq_ascii(name,"HeapAlloc"))target_api=API_KERNEL32_HEAPALLOC;
+   else if(streq_ascii(name,"HeapFree"))target_api=API_KERNEL32_HEAPFREE;
+   else if(streq_ascii(name,"HeapReAlloc"))target_api=API_KERNEL32_HEAPREALLOC;
+   else if(streq_ascii(name,"VirtualProtect"))target_api=API_KERNEL32_VIRTUALPROTECT;
+   else if(streq_ascii(name,"GetLastError"))target_api=API_KERNEL32_GETLASTERROR;
+   else if(streq_ascii(name,"SetLastError"))target_api=API_KERNEL32_SETLASTERROR;
+  }
+  regs[R_EAX]=target_api; regs[R_ESP]+=8u; return 1;
+ }
+ if(target==API_KERNEL32_GETCURRENTPROCESS){regs[R_EAX]=0xFFFFFFFFu;return 1;}
+ if(target==API_KERNEL32_GETCURRENTTHREADID){regs[R_EAX]=1u;return 1;}
+ if(target==API_KERNEL32_HEAPALLOC){
+  uint32_t sp=regs[R_ESP],size=rd32(sp+12u);
+  regs[R_EAX]=size?x86_crt_malloc_impl(size):0u; regs[R_ESP]+=12u; return 1;
+ }
+ if(target==API_KERNEL32_HEAPFREE){
+  uint32_t sp=regs[R_ESP],p=rd32(sp+12u);
+  regs[R_EAX]=x86_crt_free_impl(p); regs[R_ESP]+=12u; return 1;
+ }
+ if(target==API_KERNEL32_HEAPREALLOC){
+  uint32_t sp=regs[R_ESP],p=rd32(sp+12u),size=rd32(sp+16u);
+  regs[R_EAX]=x86_crt_realloc_impl(p,size); regs[R_ESP]+=16u; return 1;
+ }
+ if(target==API_KERNEL32_VIRTUALPROTECT){
+  uint32_t sp=regs[R_ESP],addr=rd32(sp+4u),size=rd32(sp+8u),old=rd32(sp+16u);
+  uint32_t ok=(size&&x86_mem_region_find(addr,size,X86_MEM_READ))?1u:0u;
+  if(old&&x86_mem_region_find(old,4u,X86_MEM_WRITE))wr32(old,X86_MEM_READ|X86_MEM_WRITE);
+  regs[R_EAX]=ok; regs[R_ESP]+=16u; return 1;
+ }
+ if(target==API_USER32_REGISTERCLASSEXA){
+  uint32_t sp=regs[R_ESP],cls=rd32(sp+4u);
+  regs[R_EAX]=cls?1u:0u; regs[R_ESP]+=4u; return 1;
+ }
+ if(target==API_USER32_DESTROYWINDOW){
+  uint32_t sp=regs[R_ESP]; (void)rd32(sp+4u); xwasm_gfx_present(); regs[R_EAX]=1u; regs[R_ESP]+=4u; return 1;
+ }
+ if(target==API_USER32_SETWINDOWPOS){
+  uint32_t sp=regs[R_ESP],x=rd32(sp+12u),y=rd32(sp+16u),w=rd32(sp+20u),h=rd32(sp+24u);
+  if(w>=64u&&w<=1920u)surface_width=w; if(h>=64u&&h<=1080u)surface_height=h;
+  (void)x; (void)y; xwasm_gfx_create((int32_t)surface_width,(int32_t)surface_height); xwasm_gfx_present();
+  regs[R_EAX]=1u; regs[R_ESP]+=28u; return 1;
+ }
+ if(target==API_USER32_GETWINDOWRECT){
+  uint32_t sp=regs[R_ESP],rect=rd32(sp+8u);
+  if(rect&&x86_mem_region_find(rect,16u,X86_MEM_WRITE)){wr32(rect,0);wr32(rect+4u,0);wr32(rect+8u,surface_width);wr32(rect+12u,surface_height);regs[R_EAX]=1u;}
+  else regs[R_EAX]=0u;
+  regs[R_ESP]+=8u; return 1;
+ }
+ if(target==API_USER32_POSTMESSAGEA){
+  uint32_t sp=regs[R_ESP],msg=rd32(sp+8u); message_last=msg; message_count++;
+  regs[R_EAX]=1u; regs[R_ESP]+=20u; return 1;
+ }
+ if(target==API_USER32_SETFOCUS){uint32_t sp=regs[R_ESP];regs[R_EAX]=rd32(sp+4u);regs[R_ESP]+=4u;return 1;}
+ if(target==API_USER32_GETCURSORPOS){
+  uint32_t sp=regs[R_ESP],pt=rd32(sp+4u);
+  if(pt&&x86_mem_region_find(pt,8u,X86_MEM_WRITE)){wr32(pt,0);wr32(pt+4u,0);regs[R_EAX]=1u;}else regs[R_EAX]=0u;
+  regs[R_ESP]+=4u; return 1;
+ }
+ if(target==API_USER32_SHOWCURSOR){uint32_t sp=regs[R_ESP];regs[R_EAX]=1u;regs[R_ESP]+=4u;return 1;}
+ if(target==API_USER32_SETCAPTURE){uint32_t sp=regs[R_ESP];regs[R_EAX]=rd32(sp+4u);regs[R_ESP]+=4u;return 1;}
+ if(target==API_USER32_RELEASECAPTURE){regs[R_EAX]=1u;return 1;}
  if(target==API_USER32_CREATEWINDOWEXA){
   /* Win32 stdcall: 12 arguments, width/height are args 6/7. */
   uint32_t sp=regs[R_ESP];
@@ -998,821 +1115,3 @@ static void set_adc_flags(uint32_t a,uint32_t b,uint32_t cin,uint32_t r){
  if(r<a || (cin && r==a))f|=CF;
  if(((a&0xFu)+(b&0xFu)+cin)>0xFu)f|=AF;
  if(parity_even8(r))f|=PF;
- if(r==0)f|=ZF;
- if(r&0x80000000u)f|=SF;
- if(((~(a^bb))&(a^r)&0x80000000u)!=0)f|=OF;
- eflags=f;
-}
-static void set_sbb_flags(uint32_t a,uint32_t b,uint32_t bin,uint32_t r){
- uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF),bb=b+bin;
- if(a<bb || bb<b)f|=CF;
- if((a&0xFu)<((b&0xFu)+bin))f|=AF;
- if(parity_even8(r))f|=PF;
- if(r==0)f|=ZF;
- if(r&0x80000000u)f|=SF;
- if(((a^bb)&(a^r)&0x80000000u)!=0)f|=OF;
- eflags=f;
-}
-static void set_sub_flags_width(uint32_t a,uint32_t b,uint32_t r,uint32_t bits){
- uint32_t mask=bits==8?0xFFu:(bits==16?0xFFFFu:0xFFFFFFFFu),sign=1u<<(bits-1u);
- a&=mask;b&=mask;r&=mask;uint32_t f=eflags&~(CF|PF|AF|ZF|SF|OF);
- if(a<b)f|=CF;if((a&0xFu)<(b&0xFu))f|=AF;if(parity_even8(r))f|=PF;if(r==0)f|=ZF;if(r&sign)f|=SF;if(((a^b)&(a^r)&sign)!=0)f|=OF;eflags=f;
-}
-static uint8_t reg8_read(uint32_t r){uint32_t i=r&7u;return (uint8_t)(i<4u?regs[i]:(regs[i-4u]>>8));}
-static void reg8_write(uint32_t r,uint8_t v){uint32_t i=r&7u;if(i<4u)regs[i]=(regs[i]&~0xFFu)|v;else{uint32_t q=i-4u;regs[q]=(regs[q]&~0xFF00u)|((uint32_t)v<<8);}}
-static uint16_t reg16_read(uint32_t r){return (uint16_t)regs[r&7u];}
-static void reg16_write(uint32_t r,uint16_t v){uint32_t i=r&7u;regs[i]=(regs[i]&~0xFFFFu)|v;}
-static uint8_t modrm_read8(uint8_t m,uint32_t *ip){uint32_t ea=0;if(!modrm_ea(m,ip,&ea))return reg8_read(m&7);return MEM8(ea);}
-static uint16_t modrm_read16(uint8_t m,uint32_t *ip){uint32_t ea=0;if(!modrm_ea(m,ip,&ea))return reg16_read(m&7);return rd16(ea);}
-static void modrm_write16(uint8_t m,uint32_t *ip,uint16_t v){uint32_t ea=0;if(!modrm_ea(m,ip,&ea)){reg16_write(m&7,v);return;}wr32(ea,(rd32(ea)&0xFFFF0000u)|v);}
-static void modrm_write8(uint8_t m,uint32_t *ip,uint8_t v){uint32_t ea=0;if(!modrm_ea(m,ip,&ea)){reg8_write(m&7,v);return;}wr8(ea,v);}
-static void string_step(uint8_t op){
- uint32_t width=(op==0xA4||op==0xA6||op==0xAC||op==0xAE||op==0xAA)?1u:(decoded_operand16?2u:4u),si=regs[R_ESI],di=regs[R_EDI],step=(eflags&DF)?(uint32_t)(-(int32_t)width):width;
- if(op==0xA4||op==0xA5){for(uint32_t i=0;i<width;i++)wr8(di+i,MEM8(si+i));regs[R_ESI]+=step;regs[R_EDI]+=step;}
- else if(op==0xA6||op==0xA7){uint32_t a=width==1?MEM8(si):(width==2?rd16(si):rd32(si)),b=width==1?MEM8(di):(width==2?rd16(di):rd32(di));set_sub_flags_width(a,b,a-b,width*8u);regs[R_ESI]+=step;regs[R_EDI]+=step;}
- else if(op==0xAA||op==0xAB){uint32_t v=width==1?(regs[R_EAX]&0xFFu):(width==2?(regs[R_EAX]&0xFFFFu):regs[R_EAX]);for(uint32_t i=0;i<width;i++)wr8(di+i,(uint8_t)(v>>(8u*i)));regs[R_EDI]+=step;}
- else if(op==0xAC||op==0xAD){uint32_t v=width==1?MEM8(si):(width==2?rd16(si):rd32(si));if(width==1)reg8_write(0,(uint8_t)v);else if(width==2)reg16_write(0,(uint16_t)v);else regs[R_EAX]=v;regs[R_ESI]+=step;}
- else if(op==0xAE||op==0xAF){uint32_t a=width==1?(regs[R_EAX]&0xFFu):(width==2?(regs[R_EAX]&0xFFFFu):regs[R_EAX]),b=width==1?MEM8(di):(width==2?rd16(di):rd32(di));set_sub_flags_width(a,b,a-b,width*8u);regs[R_EDI]+=step;}
-}
-static void string_execute(uint8_t op){uint32_t repeat=(decoded_prefixes&(X86_PREFIX_REP|X86_PREFIX_REPNZ))?1u:0u;if(!repeat){string_step(op);return;}uint32_t count=regs[R_ECX];while(count){string_step(op);count--;regs[R_ECX]=count;if((op==0xA6||op==0xA7||op==0xAE||op==0xAF)){if((decoded_prefixes&X86_PREFIX_REP)&&!(eflags&ZF))break;if((decoded_prefixes&X86_PREFIX_REPNZ)&&(eflags&ZF))break;}}}
-static void set_rotate_flags(uint32_t r,uint32_t cf,uint32_t of_valid,uint32_t of){
- eflags=(eflags&~(CF|OF))|(cf?CF:0u);
- if(of_valid)eflags=(eflags&~OF)|(of?OF:0u);
-}
-static void set_shift_flags(uint32_t v,uint32_t cf,int of_valid,uint32_t of){
- uint32_t keep=eflags&(CF|OF);
- eflags=(eflags&~(CF|PF|ZF|SF|OF))|((v==0)?ZF:0)|((v&0x80000000u)?SF:0);
- uint32_t p=v; p^=p>>4; p^=p>>2; p^=p>>1;
- if((p&1u)==0)eflags|=PF;
- if(cf)eflags|=CF;
- if(of_valid&&of)eflags|=OF;
- else if(of_valid)eflags&=~OF;
- else eflags=(eflags&~OF)|(keep&OF);
-}
-static int cond(uint8_t op){
- switch(op){
-  case 0xD8:case 0xD9:case 0xDC:case 0xDD:case 0xDE:{uint32_t ip=eip;int r=cpu_step_x87(op,&ip);if(r<0)return r;eip=ip;return 0;}
-  case 0x70:return (eflags&OF)!=0; /* JO */
-  case 0x71:return (eflags&OF)==0; /* JNO */
-  case 0x72:return (eflags&CF)!=0; /* JB/JC */
-  case 0x73:return (eflags&CF)==0; /* JAE/JNC */
-  case 0x74:return (eflags&ZF)!=0; /* JE/JZ */
-  case 0x75:return (eflags&ZF)==0; /* JNE/JNZ */
-  case 0x76:return (eflags&CF)!=0||(eflags&ZF)!=0; /* JBE */
-  case 0x77:return (eflags&CF)==0&&(eflags&ZF)==0; /* JA */
-  case 0x78:return (eflags&SF)!=0; /* JS */
-  case 0x79:return (eflags&SF)==0; /* JNS */
-  case 0x7A:return (eflags&PF)!=0; /* JP/JPE */
-  case 0x7B:return (eflags&PF)==0; /* JNP/JPO */
-  case 0x7C:return ((eflags&SF)!=0)!=((eflags&OF)!=0); /* JL */
-  case 0x7D:return ((eflags&SF)!=0)==((eflags&OF)!=0); /* JGE */
-  case 0x7E:return (eflags&ZF)!=0||(((eflags&SF)!=0)!=((eflags&OF)!=0)); /* JLE */
-  case 0x7F:return (eflags&ZF)==0&&(((eflags&SF)!=0)==((eflags&OF)!=0)); /* JG */
-  default:return 0;
- }
-}
-static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea){
- uint8_t mod=m>>6,rm=m&7;
- if(mod==3)return 0;
- uint32_t base=0,index=0,scale=1;
- if(rm==4){
-  uint8_t sib=MEM8((*ip)++);
-  uint8_t ss=sib>>6,si=(sib>>3)&7,sb=sib&7;
-  scale=1u<<ss;
-  if(si!=4)index=regs[si]*scale;
-  if(sb==5&&mod==0)base=rd32(*ip),*ip+=4;
-  else base=regs[sb];
- }else if(rm==5&&mod==0){
-  base=rd32(*ip);*ip+=4;
- }else{
-  base=regs[rm];
- }
- if(mod==1){int8_t d=(int8_t)MEM8((*ip)++);base+=(int32_t)d;}
- else if(mod==2){int32_t d=(int32_t)rd32(*ip);*ip+=4;base+=(uint32_t)d;}
- *ea=base+index; return 1;
-}
-static uint32_t modrm_read32(uint8_t m,uint32_t *ip){
- uint32_t ea=0; if(!modrm_ea(m,ip,&ea))return regs[m&7]; return rd32(ea);
-}
-static void modrm_write32(uint8_t m,uint32_t *ip,uint32_t v){
- uint32_t ea=0; if(!modrm_ea(m,ip,&ea)){regs[m&7]=v;return;} wr32(ea,v);
-}
-
-/* C0 stack/ABI foundation. IA-32 CALL/RET/PUSH/POP must operate on the
- * guest stack region, not merely on raw WASM addresses. */
-static int x86_stack_push32(uint32_t v){
- uint32_t next=regs[R_ESP]-4u;
- if(next>regs[R_ESP]||!x86_mem_region_find(next,4u,X86_MEM_WRITE)){x86_mem_faults++;cpu_error=0xE001u;return 0;}
- regs[R_ESP]=next;wr32(next,v);return 1;
-}
-static int x86_stack_pop32(uint32_t *v){
- uint32_t sp=regs[R_ESP];
- if(!x86_mem_region_find(sp,4u,X86_MEM_READ)){x86_mem_faults++;cpu_error=0xE002u;return 0;}
- *v=rd32(sp);regs[R_ESP]=sp+4u;return 1;
-}
-static int x86_stack_discard(uint32_t n){
- uint32_t sp=regs[R_ESP],next=sp+n;
- if(next<sp||!x86_mem_region_find(sp,n,X86_MEM_READ)){x86_mem_faults++;cpu_error=0xE003u;return 0;}
- regs[R_ESP]=next;return 1;
-}
-
-static uint32_t x87_status=0;
-#define X87_C0 0x0100u
-#define X87_C1 0x0200u
-#define X87_C2 0x0400u
-#define X87_C3 0x4000u
-
-static int x87_is_nan(double v){
- union{uint64_t u;double d;}x;x.d=v;
- return ((x.u>>52)&0x7FFu)==0x7FFu && (x.u&0x000FFFFFFFFFFFFFull)!=0;
-}
-static void x87_set_compare(double a,double b){
- x87_status&=~(X87_C0|X87_C2|X87_C3);
- if(x87_is_nan(a)||x87_is_nan(b)){x87_status|=X87_C0|X87_C2|X87_C3;return;}
- if(a==b)x87_status|=X87_C3;
- else if(a<b)x87_status|=X87_C0;
-}
-static int x87_valid_reg(uint8_t r){if(r>=x87_count){cpu_error=0xD802u;return 0;}return 1;}
-static int x87_fxch(uint8_t r){
- if(!x87_valid_reg(r))return 0;
- double t=x87_stack[0];x87_stack[0]=x87_stack[r];x87_stack[r]=t;return 1;
-}
-static void x87_rotate_top(int direction){
- if(x87_count<2u)return;
- if(direction>0){
-  double t=x87_stack[0];for(uint32_t i=1;i<x87_count;i++)x87_stack[i-1u]=x87_stack[i];x87_stack[x87_count-1u]=t;
- }else{
-  double t=x87_stack[x87_count-1u];for(uint32_t i=x87_count-1u;i>0u;i--)x87_stack[i]=x87_stack[i-1u];x87_stack[0]=t;
- }
-}
-static int cpu_step_x87(uint8_t op,uint32_t *ip){
- uint8_t m=MEM8((*ip)++),mod=(m>>6)&3u,sub=(m>>3)&7u,r=m&7u;uint32_t ea=0;
- if(mod!=3u){if(!x87_modrm_ea(m,ip,&ea))return -60;}
- if(op==0xD9u){
-  if(mod==3u){
-   if(m==0xE8u)return x87_push(1.0)?0:-62; /* FLD1 */
-   if(m==0xEEu)return x87_push(0.0)?0:-62; /* FLDZ */
-   if(m==0xE0u){if(!x87_need_top())return -61;x87_stack[0]=-x87_stack[0];return 0;} /* FCHS */
-   if(m==0xE1u){if(!x87_need_top())return -61;if(x87_stack[0]<0)x87_stack[0]=-x87_stack[0];return 0;} /* FABS */
-   if(m==0xF7u){x87_rotate_top(+1);return 0;} /* FINCSTP */
-   if(m==0xF6u){x87_rotate_top(-1);return 0;} /* FDECSTP */
-   if(m==0xE4u){if(!x87_need_top())return -61;x87_set_compare(x87_stack[0],0.0);return 0;} /* FTST */
-   if((m&0xF8u)==0xC8u)return x87_fxch(r)?0:-61; /* FXCH ST(i) */
-   if((m&0xF8u)==0xC0u){if(!x87_valid_reg(r)||!x87_push(x87_stack[r]))return -62;return 0;} /* FLD ST(i) */
-   if((m&0xF8u)==0xD0u){if(!x87_valid_reg(r)||!x87_need_top()){return -61;}x87_stack[r]=x87_stack[0];return 0;} /* FST ST(i) */
-   if((m&0xF8u)==0xD8u){if(!x87_valid_reg(r)||!x87_need_top()){return -61;}x87_stack[r]=x87_stack[0];return x87_pop()?0:-61;} /* FSTP ST(i) */
-  }else if(sub==0u){double v=(double)x87_load_f32(ea);return x87_push(v)?0:-62;} /* FLD m32 */
-  else if(sub==2u||sub==3u){if(!x87_need_top())return -61;x87_store_f32(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;} /* FST/FSTP m32 */
- }
- if(op==0xDDu){
-  if(mod==3u){
-   if((m&0xF8u)==0xC0u){if(!x87_valid_reg(r)||!x87_push(x87_stack[r]))return -62;return 0;} /* FLD ST(i) */
-   if((m&0xF8u)==0xD0u){if(!x87_valid_reg(r)||!x87_need_top())return -61;x87_stack[r]=x87_stack[0];return 0;} /* FST ST(i) */
-   if((m&0xF8u)==0xD8u){if(!x87_valid_reg(r)||!x87_need_top())return -61;x87_stack[r]=x87_stack[0];return x87_pop()?0:-61;} /* FSTP ST(i) */
-  }else{
-   if(sub==0u)return x87_push(x87_load_f64(ea))?0:-62; /* FLD m64 */
-   if(sub==2u||sub==3u){if(!x87_need_top())return -61;x87_store_f64(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;} /* FST/FSTP m64 */
-  }
- }
- if((op==0xD8u||op==0xDCu) && mod==3u){
-  if(!x87_valid_reg(r)||!x87_need_top())return -61;
-  if(sub==2u||sub==3u){x87_set_compare(op==0xD8u?x87_stack[0]:x87_stack[r],op==0xD8u?x87_stack[r]:x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;}
-  double a=x87_stack[0],b=x87_stack[r];
-  if(op==0xD8u){
-   if(sub==0u)x87_stack[0]=a+b; else if(sub==1u)x87_stack[0]=a*b; else if(sub==4u)x87_stack[0]=a-b; else if(sub==5u)x87_stack[0]=b-a; else if(sub==6u)x87_stack[0]=a/b; else if(sub==7u)x87_stack[0]=b/a; else {cpu_error=0xD800u|sub;return -60;}
-  }else{
-   if(sub==0u)x87_stack[r]=b+a; else if(sub==1u)x87_stack[r]=b*a; else if(sub==4u)x87_stack[r]=a-b; else if(sub==5u)x87_stack[r]=b-a; else if(sub==6u)x87_stack[r]=a/b; else if(sub==7u)x87_stack[r]=b/a; else {cpu_error=0xDC00u|sub;return -60;}
-  }
-  return 0;
- }
- if((op==0xD8u||op==0xDCu) && mod!=3u){
-  if(!x87_need_top())return -61;
-  double v=(op==0xD8u)?(double)x87_load_f32(ea):x87_load_f64(ea);
-  if(sub==0u)x87_stack[0]+=v; else if(sub==1u)x87_stack[0]*=v; else if(sub==2u){x87_set_compare(x87_stack[0],v);} else if(sub==3u){x87_set_compare(x87_stack[0],v);if(!x87_pop())return -61;} else if(sub==4u)x87_stack[0]-=v; else if(sub==5u)x87_stack[0]=v-x87_stack[0]; else if(sub==6u)x87_stack[0]/=v; else if(sub==7u)x87_stack[0]=v/x87_stack[0]; else {cpu_error=0xD800u|sub;return -60;}
-  return 0;
- }
- if(op==0xDEu && mod==3u){
-  if(m==0xD9u){if(x87_count<2u){cpu_error=0xD802u;return -61;}x87_set_compare(x87_stack[0],x87_stack[1]);if(!x87_pop())return -61;if(!x87_pop())return -61;return 0;} /* FCOMPP */
-  if(!x87_valid_reg(r)||!x87_need_top())return -61;
-  double a=x87_stack[0],b=x87_stack[r];
-  if(sub==0u)x87_stack[r]=b+a; else if(sub==1u)x87_stack[r]=b*a; else if(sub==4u)x87_stack[r]=a-b; else if(sub==5u)x87_stack[r]=b-a; else if(sub==6u)x87_stack[r]=a/b; else if(sub==7u)x87_stack[r]=b/a; else {cpu_error=0xDE00u|sub;return -60;}
-  if(!x87_pop())return -61;
-  return 0;
- }
- if(op==0xD9u&&mod==3u&&m==0xE4u){if(!x87_need_top())return -61;x87_set_compare(x87_stack[0],0.0);return 0;} /* FTST */
- cpu_error=0xD800u|op;return -60;
-}
-
-static int cpu_step_legacy(void){
- uint32_t ip=eip; uint8_t op=MEM8(ip++); steps++;
- switch(op){
-  case 0xFC:eflags&=~DF;eip=ip;return 0;
-  case 0xFD:eflags|=DF;eip=ip;return 0;
-  case 0xA4:case 0xA5:case 0xA6:case 0xA7:case 0xAA:case 0xAB:case 0xAC:case 0xAD:case 0xAE:case 0xAF:string_execute(op);eip=ip;return 0;
-  case 0x88:{uint8_t m=MEM8(ip++),v=reg8_read((m>>3)&7);modrm_write8(m,&ip,v);eip=ip;return 0;}
-  case 0x8A:{uint8_t m=MEM8(ip++);reg8_write((m>>3)&7,modrm_read8(m,&ip));eip=ip;return 0;}
-  case 0x90: eip=ip; return 0; /* NOP */
-  case 0xF4: eip=ip; halted=1; return 1; /* HLT */
-  case 0x31: { /* XOR r/m32,r32; v0.2 supports register form */
-   uint8_t m=MEM8(ip++);
-   if((m>>6)!=3){cpu_error=2;return -2;}
-   uint32_t *dst=&regs[m&7]; uint32_t src=regs[(m>>3)&7];
-   *dst^=src; set_logic_flags(*dst); eip=ip; return 0;
-  }
-  case 0x33: { /* XOR r32,r/m32 register form */
-   uint8_t m=MEM8(ip++);
-   if((m>>6)!=3){cpu_error=3;return -3;}
-   uint32_t *dst=&regs[(m>>3)&7]; *dst^=regs[m&7]; set_logic_flags(*dst); eip=ip; return 0;
-  }
-  case 0xB8:case 0xB9:case 0xBA:case 0xBB:case 0xBC:case 0xBD:case 0xBE:case 0xBF:
-   regs[op-0xB8]=rd32(ip); eip=ip+4; return 0; /* MOV r32,imm32 */
-  case 0x8B: { /* MOV r32/r16,r/m */
-   uint8_t m=MEM8(ip++); if(decoded_operand16){reg16_write((m>>3)&7,modrm_read16(m,&ip));}else{regs[(m>>3)&7]=modrm_read32(m,&ip);} eip=ip; return 0;
-  }
-  case 0x89: { /* MOV r/m32/r16,r32/r16 */
-   uint8_t m=MEM8(ip++); if(decoded_operand16)modrm_write16(m,&ip,reg16_read((m>>3)&7));else modrm_write32(m,&ip,regs[(m>>3)&7]); eip=ip; return 0;
-  }
-  case 0x8D: { /* LEA r32,m */
-   uint8_t m=MEM8(ip++); uint32_t ea=0; if(!modrm_ea(m,&ip,&ea)){cpu_error=0x8D;return -11;} regs[(m>>3)&7]=ea; eip=ip; return 0;
-  }
-  case 0x00:case 0x02:case 0x08:case 0x0A:case 0x10:case 0x12:case 0x18:case 0x1A:case 0x20:case 0x22:case 0x28:case 0x2A:case 0x30:case 0x32:case 0x38:case 0x3A:case 0x84:{
-   uint8_t m=MEM8(ip++),d=(m>>3)&7;uint8_t a,b,r;uint32_t ea=0;
-   if((m>>6)==3)a=reg8_read(m&7);else{modrm_ea(m,&ip,&ea);a=MEM8(ea);}
-   b=reg8_read(d);
-   switch(op&0xF8u){case 0x00:r=(uint8_t)(a+b);set_add_flags_width(a,b,r,8);break;case 0x08:r=(uint8_t)(a|b);set_logic_flags_width(r,8);break;case 0x10:{uint32_t c=(eflags&CF)?1u:0u;r=(uint8_t)(a+b+c);set_adc_flags_width(a,b,c,r,8);break;}case 0x18:{uint32_t c=(eflags&CF)?1u:0u;r=(uint8_t)(a-b-c);set_sbb_flags_width(a,b,c,r,8);break;}case 0x20:r=(uint8_t)(a&b);set_logic_flags_width(r,8);break;case 0x28:r=(uint8_t)(a-b);set_sub_flags_width(a,b,r,8);break;case 0x30:r=(uint8_t)(a^b);set_logic_flags_width(r,8);break;default:set_sub_flags_width(a,b,(uint8_t)(a-b),8);eip=ip;return 0;}
-   if(op==0x02||op==0x0A||op==0x12||op==0x1A||op==0x22||op==0x2A||op==0x32||op==0x3A)reg8_write(d,r);else if(op==0x84){set_logic_flags_width((uint8_t)(a&b),8);eip=ip;return 0;}else if((m>>6)==3)reg8_write(m&7,r);else wr8(ea,r);
-   eip=ip;return 0;
-  }
-  case 0x04:case 0x0C:case 0x14:case 0x1C:case 0x24:case 0x2C:case 0x34:case 0x3C:{
-   uint8_t b=MEM8(ip++),a=reg8_read(0),r;switch(op){case 0x04:r=a+b;set_add_flags_width(a,b,r,8);break;case 0x0C:r=a|b;set_logic_flags_width(r,8);break;case 0x14:{uint32_t c=(eflags&CF)?1u:0u;r=a+b+c;set_adc_flags_width(a,b,c,r,8);break;}case 0x1C:{uint32_t c=(eflags&CF)?1u:0u;r=a-b-c;set_sbb_flags_width(a,b,c,r,8);break;}case 0x24:r=a&b;set_logic_flags_width(r,8);break;case 0x2C:r=a-b;set_sub_flags_width(a,b,r,8);break;case 0x34:r=a^b;set_logic_flags_width(r,8);break;default:set_sub_flags_width(a,b,(uint8_t)(a-b),8);eip=ip;return 0;}reg8_write(0,r);eip=ip;return 0;
-  }
-  case 0x80:{
-   uint8_t m=MEM8(ip++),sub=(m>>3)&7;uint32_t ea=0;uint8_t a=(m>>6)==3?reg8_read(m&7):(modrm_ea(m,&ip,&ea),MEM8(ea)),b=MEM8(ip++),r;
-   if(sub==0){r=a+b;set_add_flags_width(a,b,r,8);}else if(sub==2){uint32_t c=(eflags&CF)?1u:0u;r=a+b+c;set_adc_flags(a,b,c,r);}else if(sub==3){uint32_t c=(eflags&CF)?1u:0u;r=a-b-c;set_sbb_flags(a,b,c,r);}else if(sub==4){r=a&b;set_logic_flags_width(r,8);}else if(sub==5){r=a-b;set_sub_flags_width(a,b,r,8);}else if(sub==6){r=a^b;set_logic_flags_width(r,8);}else if(sub==7){set_sub_flags_width(a,b,(uint8_t)(a-b),8);eip=ip;return 0;}else{cpu_error=0x8000u|sub;return -40;}if(sub!=7){if((m>>6)==3)reg8_write(m&7,r);else wr8(ea,r);}eip=ip;return 0;
-  }
-  case 0x01: { /* ADD r/m32,r32 */
-   uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7]; uint32_t a;
-   if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
-   uint32_t r=a+b; set_add_flags(a,b,r);
-   if((m>>6)==3)regs[m&7]=r; else wr32(ea,r);
-   eip=ip; return 0;
-  }
-  case 0x29: { /* SUB r/m32,r32 */
-   uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7]; uint32_t a;
-   if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
-   uint32_t r=a-b; set_sub_flags(a,b,r);
-   if((m>>6)==3)regs[m&7]=r; else wr32(ea,r);
-   eip=ip; return 0;
-  }
-  case 0x09: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t ea=0,v=regs[d]; if((m>>6)==3){v|=regs[m&7];regs[m&7]=v;}else{modrm_ea(m,&ip,&ea);v=rd32(ea)|v;wr32(ea,v);} set_logic_flags(v);eip=ip;return 0; } /* OR r/m32,r32 */
-  case 0x0B: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t v=regs[d]|modrm_read32(m,&ip);regs[d]=v;set_logic_flags(v);eip=ip;return 0; } /* OR r32,r/m32 */
-  case 0x21: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t ea=0,v=regs[d]; if((m>>6)==3){v&=regs[m&7];regs[m&7]=v;}else{modrm_ea(m,&ip,&ea);v=rd32(ea)&v;wr32(ea,v);}set_logic_flags(v);eip=ip;return 0; } /* AND r/m32,r32 */
-  case 0x23: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t v=regs[d]&modrm_read32(m,&ip);regs[d]=v;set_logic_flags(v);eip=ip;return 0; } /* AND r32,r/m32 */
-  case 0x2B: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t a=regs[d],b=modrm_read32(m,&ip),v=a-b;set_sub_flags(a,b,v);regs[d]=v;eip=ip;return 0; } /* SUB r32,r/m32 */
-  case 0x03: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t a=regs[d],b=modrm_read32(m,&ip),v=a+b;set_add_flags(a,b,v);regs[d]=v;eip=ip;return 0; } /* ADD r32,r/m32 */
-  case 0x3B: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t a=regs[d],b=modrm_read32(m,&ip);set_sub_flags(a,b,a-b);eip=ip;return 0; } /* CMP r32,r/m32 */
-  case 0x81: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,a; if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);} uint32_t b=rd32(ip);ip+=4; uint32_t v;
-   if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==2){uint32_t c=(eflags&CF)?1u:0u;v=a+b+c;set_adc_flags(a,b,c,v);}else if(sub==3){uint32_t c=(eflags&CF)?1u:0u;v=a-b-c;set_sbb_flags(a,b,c,v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==6){v=a^b;set_logic_flags(v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8100u|sub;return -13;}
-   if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);eip=ip;return 0; } /* ADD/SUB/CMP r/m32,imm32 */
-  case 0x83: { uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,a; if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);} int32_t sb=(int8_t)MEM8(ip++);uint32_t b=(uint32_t)sb,v;
-   if(sub==0){v=a+b;set_add_flags(a,b,v);}else if(sub==2){uint32_t c=(eflags&CF)?1u:0u;v=a+b+c;set_adc_flags(a,b,c,v);}else if(sub==3){uint32_t c=(eflags&CF)?1u:0u;v=a-b-c;set_sbb_flags(a,b,c,v);}else if(sub==4){v=a&b;set_logic_flags(v);}else if(sub==5){v=a-b;set_sub_flags(a,b,v);}else if(sub==7){set_sub_flags(a,b,a-b);eip=ip;return 0;}else{cpu_error=0x8300u|sub;return -14;}
-   if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);eip=ip;return 0; } /* ADD/SUB/CMP r/m32,imm8 */
-  case 0x39: { /* CMP r/m32,r32 */
-   uint8_t m=MEM8(ip++); uint32_t ea=0,b=regs[(m>>3)&7],a;
-   if((m>>6)==3)a=regs[m&7]; else {modrm_ea(m,&ip,&ea);a=rd32(ea);}
-   uint32_t r=a-b; set_sub_flags(a,b,r); eip=ip; return 0;
-  }
-  case 0x85: { /* TEST r/m32,r32 */
-   uint8_t m=MEM8(ip++); uint32_t v=modrm_read32(m,&ip)&regs[(m>>3)&7]; set_logic_flags(v); eip=ip; return 0;
-  }
-  case 0x11: {uint8_t m=MEM8(ip++);uint32_t ea=0,a,b=regs[(m>>3)&7],cin=(eflags&CF)?1u:0u;if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);}uint32_t r=a+b+cin;set_adc_flags(a,b,cin,r);if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);eip=ip;return 0;}
-  case 0x13: {uint8_t m=MEM8(ip++),d=(m>>3)&7,cin=(eflags&CF)?1u:0u,a=regs[d],b=modrm_read32(m,&ip),r=a+b+cin;set_adc_flags(a,b,cin,r);regs[d]=r;eip=ip;return 0;}
-  case 0x15: {uint32_t b=rd32(ip),cin=(eflags&CF)?1u:0u,a=regs[R_EAX],r=a+b+cin;set_adc_flags(a,b,cin,r);regs[R_EAX]=r;eip=ip+4;return 0;}
-  case 0x19: {uint8_t m=MEM8(ip++);uint32_t ea=0,a,b=regs[(m>>3)&7],bin=(eflags&CF)?1u:0u;if((m>>6)==3)a=regs[m&7];else{modrm_ea(m,&ip,&ea);a=rd32(ea);}uint32_t r=a-b-bin;set_sbb_flags(a,b,bin,r);if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);eip=ip;return 0;}
-  case 0x1B: {uint8_t m=MEM8(ip++),d=(m>>3)&7,bin=(eflags&CF)?1u:0u,a=regs[d],b=modrm_read32(m,&ip),r=a-b-bin;set_sbb_flags(a,b,bin,r);regs[d]=r;eip=ip;return 0;}
-  case 0x1D: {uint32_t b=rd32(ip),bin=(eflags&CF)?1u:0u,a=regs[R_EAX],r=a-b-bin;set_sbb_flags(a,b,bin,r);regs[R_EAX]=r;eip=ip+4;return 0;}
-  case 0x05: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]+b;set_add_flags(regs[R_EAX],b,r);regs[R_EAX]=r;eip=ip+4;return 0;}
-  case 0x2D: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]-b;set_sub_flags(regs[R_EAX],b,r);regs[R_EAX]=r;eip=ip+4;return 0;}
-  case 0x3D: {uint32_t b=rd32(ip);uint32_t r=regs[R_EAX]-b;set_sub_flags(regs[R_EAX],b,r);eip=ip+4;return 0;} /* CMP EAX,imm32 */
-  case 0xC0: case 0xC1: case 0xD0: case 0xD1: case 0xD2: case 0xD3: {
-   /* Group 2: 8/16/32-bit shifts and rotates. */
-   uint8_t m=MEM8(ip++),sub=(m>>3)&7;
-   uint32_t bits=(op==0xC0||op==0xD0||op==0xD2)?8u:(decoded_operand16?16u:32u);
-   uint32_t mask=bits==8?0xFFu:(bits==16?0xFFFFu:0xFFFFFFFFu);
-   uint32_t sign=1u<<(bits-1u);
-   uint32_t ea=0,v;
-   if((m>>6)==3) v=bits==8?reg8_read(m&7):bits==16?reg16_read(m&7):regs[m&7];
-   else {modrm_ea(m,&ip,&ea);v=bits==8?MEM8(ea):bits==16?rd16(ea):rd32(ea);}
-   v&=mask;
-   uint32_t count=(op==0xC0||op==0xC1)?MEM8(ip++):((op==0xD2||op==0xD3)?(regs[R_ECX]&31u):1u);
-   uint32_t cf=(eflags&CF)?1u:0u,of=0,of_valid=0,r=v;
-   if(sub>=4){
-    count&=31u;if(!count){eip=ip;return 0;}
-    if(sub==4){r=(v<<count)&mask;cf=(v>>(bits-count))&1u;of_valid=count==1;of=((r&sign)?1u:0u)^cf;}
-    else if(sub==5){r=v>>count;cf=(v>>(count-1u))&1u;of_valid=count==1;of=(v&sign)?1u:0u;}
-    else if(sub==7){r=(uint32_t)(((int32_t)(v|((v&sign)?~mask:0u)))>>count)&mask;cf=(v>>(count-1u))&1u;of_valid=0;}
-    else {cpu_error=0xC000u|sub;return -35;}
-    set_shift_flags(r,cf,of_valid,of);
-   }else{
-    uint32_t modulus=bits==8?9u:(bits==16?17u:33u);
-    count&=31u;count%=modulus;if(!count){eip=ip;return 0;}
-    uint64_t x=((uint64_t)cf<<bits)|v;
-    uint64_t fullmask=(1ull<<(bits+1u))-1ull;
-    if(sub==0){
-     r=(uint32_t)(((uint64_t)v<<count)|(v>>(bits-count)))&mask;
-     cf=r&1u;of_valid=count==1;of=((r&sign)?1u:0u)^cf;
-    }else if(sub==1){
-     r=(v>>count)|(v<<(bits-count));r&=mask;
-     cf=(r&sign)?1u:0u;of_valid=count==1;of=((r&sign)?1u:0u)^((r>>(bits-2u))&1u);
-    }else if(sub==2){
-     x=((x<<count)|(x>>(bits+1u-count)))&fullmask;r=(uint32_t)x&mask;cf=(uint32_t)((x>>bits)&1u);
-     of_valid=count==1;of=((r&sign)?1u:0u)^cf;
-    }else{
-     x=((x>>count)|(x<<(bits+1u-count)))&fullmask;r=(uint32_t)x&mask;cf=(uint32_t)((x>>bits)&1u);
-     of_valid=count==1;of=((r&sign)?1u:0u)^((r>>(bits-2u))&1u);
-    }
-    set_rotate_flags(r,cf,of_valid,of);
-   }
-   if((m>>6)==3){
-    if(bits==8)reg8_write(m&7,(uint8_t)r);
-    else if(bits==16)reg16_write(m&7,(uint16_t)r);
-    else regs[m&7]=r;
-   }else{
-    if(bits==8)wr8(ea,(uint8_t)r);
-    else if(bits==16)modrm_write16(m,&(uint32_t){ip},(uint16_t)r);
-    else wr32(ea,r);
-   }
-   eip=ip;return 0;
-  }
-  case 0x69: {uint8_t m=MEM8(ip++);uint32_t a=modrm_read32(m,&ip),imm=rd32(ip);ip+=4;int64_t p=(int64_t)(int32_t)a*(int64_t)(int32_t)imm;uint32_t r=(uint32_t)p;uint32_t sx=(uint32_t)(int32_t)r;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);regs[(m>>3)&7]=r;eip=ip;return 0;}
-  case 0x6B: {uint8_t m=MEM8(ip++);uint32_t a=modrm_read32(m,&ip);int32_t imm=(int8_t)MEM8(ip++);int64_t p=(int64_t)(int32_t)a*(int64_t)imm;uint32_t r=(uint32_t)p;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);regs[(m>>3)&7]=r;eip=ip;return 0;}
-  case 0xF7: { /* NOT/NEG/MUL/IMUL/DIV/IDIV r/m32 */
-   uint8_t m=MEM8(ip++),sub=(m>>3)&7; uint32_t ea=0,v=(m>>6)==3?regs[m&7]:(modrm_ea(m,&ip,&ea),rd32(ea));
-   if(sub==2){v=~v;if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);eip=ip;return 0;}
-   if(sub==3){uint32_t r=0u-v;set_sub_flags(0u,v,r);if(v)eflags|=CF;else eflags&=~CF;if(v==0x80000000u)eflags|=OF;else eflags&=~OF;if((m>>6)==3)regs[m&7]=r;else wr32(ea,r);eip=ip;return 0;}
-   if(sub==4){uint64_t p=(uint64_t)regs[R_EAX]*(uint64_t)v;regs[R_EAX]=(uint32_t)p;regs[R_EDX]=(uint32_t)(p>>32);eflags=(eflags&~(CF|OF))|(((p>>32)!=0)?(CF|OF):0);eip=ip;return 0;}
-   if(sub==5){int64_t p=(int64_t)(int32_t)regs[R_EAX]*(int64_t)(int32_t)v;uint32_t lo=(uint32_t)p,hi=(uint32_t)((uint64_t)p>>32);regs[R_EAX]=lo;regs[R_EDX]=hi;int64_t sx=(int64_t)(int32_t)lo;eflags=(eflags&~(CF|OF))|((p!=sx)?(CF|OF):0);eip=ip;return 0;}
-   if(sub==6){if(v==0){cpu_error=0xF706u;return -30;}uint64_t dividend=((uint64_t)regs[R_EDX]<<32)|regs[R_EAX];uint64_t q=dividend/v,r=dividend%v;if(q>0xFFFFFFFFull){cpu_error=0xF707u;return -31;}regs[R_EAX]=(uint32_t)q;regs[R_EDX]=(uint32_t)r;eip=ip;return 0;}
-   if(sub==7){if(v==0){cpu_error=0xF708u;return -32;}int32_t divisor=(int32_t)v;int64_t dividend=((int64_t)(int32_t)regs[R_EDX]<<32)|(uint32_t)regs[R_EAX];if(dividend==(-9223372036854775807ll-1ll)&&divisor==-1){cpu_error=0xF709u;return -33;}int64_t q=dividend/divisor,r=dividend%divisor;if(q>2147483647ll||q<(-2147483647ll-1ll)){cpu_error=0xF709u;return -33;}regs[R_EAX]=(uint32_t)q;regs[R_EDX]=(uint32_t)r;eip=ip;return 0;}
-   cpu_error=0xF700u|sub;return -34;
-  }
-  case 0x40:case 0x41:case 0x42:case 0x43:case 0x44:case 0x45:case 0x46:case 0x47:
-   {uint32_t r=regs[op-0x40]+1;regs[op-0x40]=r; /* INC does not modify CF */
-    uint32_t old=eflags;set_add_flags(regs[op-0x40]-1,1,r);eflags=(eflags&~CF)|(old&CF);eip=ip;return 0;}
-  case 0x48:case 0x49:case 0x4A:case 0x4B:case 0x4C:case 0x4D:case 0x4E:case 0x4F:
-   {uint32_t r=regs[op-0x48]-1;uint32_t old=eflags;set_sub_flags(regs[op-0x48]+1,1,r);eflags=(eflags&~CF)|(old&CF);regs[op-0x48]=r;eip=ip;return 0;}
-  case 0xE9:{int32_t d=(int32_t)rd32(ip);eip=ip+4+(uint32_t)d;return 0;} /* JMP rel32 */
-  case 0xEB:{int8_t d=(int8_t)MEM8(ip);eip=ip+1+(int32_t)d;return 0;} /* JMP rel8 */
-  case 0x70:case 0x71:case 0x72:case 0x73:case 0x74:case 0x75:case 0x76:case 0x77:case 0x78:case 0x79:case 0x7A:case 0x7B:case 0x7C:case 0x7D:case 0x7E:case 0x7F:{
-   int8_t d=(int8_t)MEM8(ip++);eip=cond(op)?ip+(int32_t)d:ip;return 0;
-  }
-  case 0x68:{uint32_t v=rd32(ip);ip+=4;if(!x86_stack_push32(v))return -42;eip=ip;return 0;} /* PUSH imm32 */
-  case 0x6A:{int8_t v=(int8_t)MEM8(ip++);if(!x86_stack_push32((uint32_t)(int32_t)v))return -43;eip=ip;return 0;} /* PUSH imm8 */
-  case 0x58:case 0x59:case 0x5A:case 0x5B:case 0x5C:case 0x5D:case 0x5E:case 0x5F:
-   regs[op-0x58]=rd32(regs[R_ESP]);regs[R_ESP]+=4;eip=ip;return 0;
-  case 0x50:case 0x51:case 0x52:case 0x53:case 0x54:case 0x55:case 0x56:case 0x57:
-   regs[R_ESP]-=4;wr32(regs[R_ESP],regs[op-0x50]);eip=ip;return 0;
-  case 0x0F: {
-   uint8_t op2=MEM8(ip++);
-   if(op2==0xAF){uint8_t m=MEM8(ip++);int64_t p=(int64_t)(int32_t)regs[(m>>3)&7]*(int64_t)(int32_t)modrm_read32(m,&ip);uint32_t r=(uint32_t)p;regs[(m>>3)&7]=r;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);eip=ip;return 0;}
-   if(op2==0x44){uint8_t m=MEM8(ip++);uint32_t v=modrm_read32(m,&ip);if(eflags&ZF)regs[(m>>3)&7]=v;eip=ip;return 0;}
-   if(op2==0x94){uint8_t m=MEM8(ip++),v=(eflags&ZF)?1u:0u;if((m>>6)==3)reg8_write(m&7u,(uint8_t)v);else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0F94u;return -19;}wr8(ea,(uint8_t)v);}eip=ip;return 0;}
-   if(op2==0xB6||op2==0xBE){uint8_t m=MEM8(ip++);uint32_t v;if((m>>6)==3){v=regs[m&7]&0xFFu;}else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0F00u|op2;return -17;}v=MEM8(ea);}if(op2==0xBE&&v&0x80u)v|=0xFFFFFF00u;regs[(m>>3)&7]=v;eip=ip;return 0;}
-   if(op2==0xA3||op2==0xAB||op2==0xB3||op2==0xBB){uint8_t m=MEM8(ip++),d=(m>>3)&7;int32_t bit=(int32_t)regs[d];uint32_t ea=0,shift=(uint32_t)bit&31u,v;if((m>>6)==3)v=regs[m&7];else{modrm_ea(m,&ip,&ea);ea+=(uint32_t)(bit>>5)*4u;v=rd32(ea);}uint32_t old=(v>>shift)&1u;eflags=(eflags&~CF)|(old?CF:0);if(op2!=0xA3){if(op2==0xAB)v|=1u<<shift;else if(op2==0xB3)v&=~(1u<<shift);else v^=1u<<shift;if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);}eip=ip;return 0;}
-   if(op2==0xBA){uint8_t m=MEM8(ip++),sub=(m>>3)&7,bit=MEM8(ip++);if(sub<4||sub>7){cpu_error=0x0FBAu|sub;return -36;}uint32_t ea=0,v,shift=bit&31u;if((m>>6)==3)v=regs[m&7];else{modrm_ea(m,&ip,&ea);v=rd32(ea);}uint32_t old=(v>>shift)&1u;eflags=(eflags&~CF)|(old?CF:0);if(sub!=4){if(sub==5)v|=1u<<shift;else if(sub==6)v&=~(1u<<shift);else v^=1u<<shift;if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);}eip=ip;return 0;}
-   if(op2>=0x80&&op2<=0x8F){int32_t d=(int32_t)rd32(ip);ip+=4;uint8_t shortop=(uint8_t)(0x70u+(op2-0x80u));eip=cond(shortop)?ip+(uint32_t)d:ip;return 0;}
-   cpu_error=0x0F00u|op2;return -18;
-  }
-  case 0xE3:{int8_t d=(int8_t)MEM8(ip++);eip=(regs[R_ECX]==0)?ip+(int32_t)d:ip;return 0;} /* JECXZ */
-  case 0xE0:case 0xE1:case 0xE2:{int8_t d=(int8_t)MEM8(ip++);regs[R_ECX]--;uint32_t take=(regs[R_ECX]!=0);if(op==0xE1)take=take&&((eflags&ZF)!=0);if(op==0xE0)take=take&&((eflags&ZF)==0);eip=take?ip+(int32_t)d:ip;return 0;}
-  case 0xC6:{ /* MOV r/m8,imm8 */
-   uint8_t m=MEM8(ip++),sub=(m>>3)&7u;
-   if(sub!=0u){cpu_error=0xC600u|sub;return -47;}
-   uint32_t ea=0;uint8_t v=MEM8(ip++);
-   if((m>>6)==3)reg8_write(m&7u,v);
-   else{if(!modrm_ea(m,&ip,&ea)){cpu_error=0xC601u;return -48;}wr8(ea,v);}
-   eip=ip;return 0;
-  }
-  case 0xC7:{ /* MOV r/m32,imm32 */
-   uint8_t m=MEM8(ip++),sub=(m>>3)&7u;
-   if(sub!=0u){cpu_error=0xC700u|sub;return -49;}
-   uint32_t ea=0,v;
-   if((m>>6)==3){v=rd32(ip);ip+=4;regs[m&7u]=v;}
-   else{if(!modrm_ea(m,&ip,&ea)){cpu_error=0xC701u;return -50;}v=rd32(ip);ip+=4;wr32(ea,v);}
-   eip=ip;return 0;
-  }
-  case 0xC9:{uint32_t v;regs[R_ESP]=regs[R_EBP];if(!x86_stack_pop32(&v))return -44;regs[R_EBP]=v;eip=ip;return 0;} /* LEAVE */
-  case 0xC2:{uint16_t n=rd16(ip);ip+=2;uint32_t v;if(!x86_stack_pop32(&v))return -45;if(!x86_stack_discard(n))return -46;eip=v;return 0;} /* RET imm16 */
-  case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
-   uint8_t m=MEM8(ip++);
-   uint8_t sub=(m>>3)&7;
-   if(sub!=2&&sub!=4){cpu_error=0xFF00u|sub;return -12;}
-   uint32_t target=modrm_read32(m,&ip);
-   uint32_t next=ip;
-   if(sub==2){
-    regs[R_ESP]-=4;wr32(regs[R_ESP],next);
-    if(call_builtin(target)){eip=next;regs[R_ESP]+=4;return 0;}
-    eip=target;return 0;
-   }
-   eip=target;return 0;
-  }
-  case 0xC3:{uint32_t v;if(!x86_stack_pop32(&v))return -49;eip=v;return 0;} /* RET */
-  case 0xE8:{int32_t d=(int32_t)rd32(ip);uint32_t next=ip+4;if(!x86_stack_push32(next))return -50;eip=next+(uint32_t)d;return 0;} /* CALL rel32 */
-  default: cpu_error=op; return -10;
- }
-}
-
-#include "cpu_decoder.c"
-
-static int image_rva_valid(uint32_t rva,uint32_t size){
- return rva<=image_size && size<=image_size-rva;
-}
-static void scan_imports(void){
- dll_count=0; import_count=0; import_resolved=0; import_failed=0; last_import_dll=0; last_import_func=0; last_import_thunk=0; last_import_target=0; last_failed_import_dll=0; last_failed_import_func=0;
- if(!import_rva||!import_size||!image_rva_valid(import_rva,20))return;
- uint32_t p=image_base+import_rva;
- uint32_t max=image_base+import_rva+import_size;
- for(uint32_t n=0;p+20u<=max;n++,p+=20u){
-  uint32_t oft=rd32(p),name_rva=rd32(p+12),ft=rd32(p+16);
-  if(!oft&&!name_rva&&!ft)break;
-  dll_count++;
-  if(!name_rva||name_rva>=image_size||!ft||ft>=image_size){import_failed++;continue;}
-  uint32_t thunk_rva=oft?oft:ft;
-  if(thunk_rva>=image_size){import_failed++;continue;}
-  uint32_t thunk=image_base+thunk_rva;
-  uint32_t iat=image_base+ft;
-  uint32_t dll=image_base+name_rva;
-  uint32_t resolved_this_dll=0;
-  for(uint32_t i=0;i<0x100000u;i++){
-   uint32_t v=rd32(thunk+i*4u);
-   if(!v)break;
-   if(v&0x80000000u){import_failed++;continue;} /* ordinal imports are a later milestone */
-   if(v+2u>=image_size){import_failed++;break;}
-   uint32_t name=image_base+v+2u;
-   import_count++;
-   uint32_t target=resolve_builtin(dll,name);
-   if(target){
-    wr32(iat+i*4u,target);
-    import_resolved++;
-    last_import_dll=name_rva;
-    last_import_func=v;
-    last_import_thunk=ft+i*4u;
-    last_import_target=target;
-    resolved_this_dll++;
-   }else{
-    import_failed++;
-    last_failed_import_dll=name_rva;
-    last_failed_import_func=v;
-    uint32_t dl=0,fn=0;
-    while(dl<255u&&MEM8(image_base+name_rva+dl))dl++;
-    while(fn<255u&&MEM8(image_base+v+2u+fn))fn++;
-    xwasm_log(2,(int32_t)(image_base+name_rva),(int32_t)dl);
-    xwasm_log(2,(int32_t)(image_base+v+2u),(int32_t)fn);
-   }
-  }
-  (void)resolved_this_dll;
- }
-}
-
-
-static int load_pe(uint32_t f,uint32_t sz){
- load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
- requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;surface_width=640;surface_height=360;
- if(sz<0x40u){load_error=1;return-1;} if(rd16(f)!=0x5a4du){load_error=2;return-1;}
- uint32_t pe=rd32(f+0x3cu); if(pe>sz-4u){load_error=3;return-2;} if(pe+24u>sz){load_error=4;return-2;}
- if(rd32(f+pe)!=0x4550u){load_error=5;return-2;}
- uint16_t mach=rd16(f+pe+4),nsec=rd16(f+pe+6),optsz=rd16(f+pe+20);
- if(mach!=0x14cu){load_error=6;return-3;} if(optsz<224u){load_error=7;return-3;}
- uint32_t oh=f+pe+24u; if(oh+optsz>f+sz){load_error=8;return-3;} if(rd16(oh)!=0x10bu){load_error=9;return-3;}
- uint32_t szimg=rd32(oh+56u),szhdr=rd32(oh+60u),ep=rd32(oh+16u),reqbase=rd32(oh+28u);
- uint32_t dirs=rd32(oh+92u);
- if(szimg<0x1000u||szimg>0x10000000u){load_error=10;return-4;} if(szhdr>sz||szhdr>szimg){load_error=11;return-4;}
- requested_image_base=reqbase; image_base=IMAGE_BASE; image_size=szimg; entry=ep;
- relocation_needed=(requested_image_base!=image_base)?1u:0u;
- if(dirs>1u){import_rva=rd32(oh+96u+8u);import_size=rd32(oh+96u+12u);}
- if(dirs>5u){reloc_rva=rd32(oh+96u+40u);reloc_size=rd32(oh+96u+44u);}
- uint32_t sh=oh+optsz;
- if(sh<f||sh>f+sz||(uint64_t)nsec*40u>(uint64_t)(f+sz-sh)){load_error=12;return-5;}
- for(uint32_t i=0;i<image_size;i++)wr8(image_base+i,0);
- copy_bytes(image_base,f,szhdr);
- for(uint16_t i=0;i<nsec;i++,sh+=40u){
-  uint32_t va=rd32(sh+12u),vsz=rd32(sh+8u),raw=rd32(sh+20u),rawsz=rd32(sh+16u);
-  uint32_t mapped=vsz>rawsz?vsz:rawsz;
-  if((uint64_t)va+mapped>(uint64_t)image_size){load_error=13;return-5;}
-  if(raw>sz||rawsz>sz-raw){load_error=14;return-5;}
-  if(rawsz)copy_bytes(image_base+va,f+raw,rawsz);
- }
- if(ep>=image_size){load_error=15;return-6;}
- if(import_rva&&import_size)scan_imports();
- x86_mem_reset(); x86_mem_register_image();
- x87_count=0; xmm_reset();
- loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;
-/* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
- * synthetic return address so C fixtures whose entrypoint is main() can RET cleanly. */
-if(!x86_stack_push32(X86_ENTRY_RETURN_SENTINEL)){loaded=0;load_error=16;return-7;}
-guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset();
- x87_count=0; xmm_reset();
- legacy_execution_count=0;
- loghex("X86 requested image base=",requested_image_base);
- loghex("X86 mapped image base=",image_base);
- loghex("X86 entry=",eip);
- return 0;
-}
-
-__attribute__((export_name("xwasm_init"))) int xwasm_init(void){
- crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;
- x86_fs_reset();
- x86_reg_reset();
- heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
- for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
-loglit("XWASM X86 Runtime v0.9");
-loglit("PE32 + decoder CPU + guest memory regions + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
-}
-__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00090000u;}
-__attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
-__attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
-__attribute__((export_name("x86_run"))) int x86_run(int32_t max_steps){
- if(!loaded)return -20; if(halted)return 1; if(max_steps<1)max_steps=1;
- for(int32_t i=0;i<max_steps&&!halted;i++){
-  int r=cpu_step();
-  if(r<0){
-   /* A CPU fault is terminal for this run, but the machine state remains
-    * intact for diagnostics: EIP, decoded opcode, trace, registers, stack,
-    * memory-fault counters, and cpu_error are all still queryable. */
-   halted=1;
-   return r;
-  }
-  if(eip==X86_ENTRY_RETURN_SENTINEL){halted=1;break;}
- }
- return halted?1:0;
-}
-__attribute__((export_name("x86_get_eip"))) uint32_t x86_get_eip(void){return eip;}
-__attribute__((export_name("x86_get_steps"))) uint32_t x86_get_steps(void){return steps;}
-__attribute__((export_name("x86_get_eax"))) uint32_t x86_get_eax(void){return regs[R_EAX];}
-__attribute__((export_name("x86_get_ecx"))) uint32_t x86_get_ecx(void){return regs[R_ECX];}
-__attribute__((export_name("x86_get_edx"))) uint32_t x86_get_edx(void){return regs[R_EDX];}
-__attribute__((export_name("x86_get_ebx"))) uint32_t x86_get_ebx(void){return regs[R_EBX];}
-__attribute__((export_name("x86_get_esp"))) uint32_t x86_get_esp(void){return regs[R_ESP];}
-__attribute__((export_name("x86_get_stack_faults"))) uint32_t x86_get_stack_faults(void){return x86_mem_faults;}
-__attribute__((export_name("x86_get_ebp"))) uint32_t x86_get_ebp(void){return regs[R_EBP];}
-__attribute__((export_name("x86_get_esi"))) uint32_t x86_get_esi(void){return regs[R_ESI];}
-__attribute__((export_name("x86_get_edi"))) uint32_t x86_get_edi(void){return regs[R_EDI];}
-__attribute__((export_name("x86_get_eflags"))) uint32_t x86_get_eflags(void){return eflags;}
-__attribute__((export_name("x86_get_halted"))) uint32_t x86_get_halted(void){return halted;}
-__attribute__((export_name("x86_get_cpu_error"))) uint32_t x86_get_cpu_error(void){return cpu_error;}
-__attribute__((export_name("x86_get_last_decoded_map"))) uint32_t x86_get_last_decoded_map(void){return last_decoded_map;}
-__attribute__((export_name("x86_get_last_decoded_opcode"))) uint32_t x86_get_last_decoded_opcode(void){return last_decoded_opcode;}
-__attribute__((export_name("x86_get_last_decoded_length"))) uint32_t x86_get_last_decoded_length(void){return last_decoded_length;}
-__attribute__((export_name("x86_get_last_dispatch_id"))) uint32_t x86_get_last_dispatch_id(void){return last_dispatch_id;}
-__attribute__((export_name("x86_get_last_dispatch_count"))) uint32_t x86_get_last_dispatch_count(void){return last_dispatch_count;}
-__attribute__((export_name("x86_get_last_semantic_id_ptr"))) uint32_t x86_get_last_semantic_id_ptr(void){return (uint32_t)(uintptr_t)last_decoded_semantic_id;}
-__attribute__((export_name("x86_get_last_semantic_id_len"))) uint32_t x86_get_last_semantic_id_len(void){uint32_t n=0;while(n<X86_SEMANTIC_ID_MAX&&last_decoded_semantic_id[n])++n;return n;}
-__attribute__((export_name("x86_get_last_semantic_id_char"))) uint32_t x86_get_last_semantic_id_char(uint32_t n){return n<X86_SEMANTIC_ID_MAX?(uint8_t)last_decoded_semantic_id[n]:0;}
-__attribute__((export_name("x86_get_trace_semantic_id_char"))) uint32_t x86_get_trace_semantic_id_char(uint32_t i,uint32_t n){return i<X86_TRACE_DEPTH&&n<X86_SEMANTIC_ID_MAX?(uint8_t)trace_semantic_id[i][n]:0;}
-__attribute__((export_name("x86_get_trace_semantic_id_ptr"))) uint32_t x86_get_trace_semantic_id_ptr(uint32_t i){return i<X86_TRACE_DEPTH?(uint32_t)(uintptr_t)trace_semantic_id[i]:0;}
-__attribute__((export_name("x86_get_trace_semantic_id_len"))) uint32_t x86_get_trace_semantic_id_len(uint32_t i){uint32_t n=0;if(i>=X86_TRACE_DEPTH)return 0;while(n<X86_SEMANTIC_ID_MAX&&trace_semantic_id[i][n])++n;return n;}
-
-/* Independent architectural RCR oracle used by the test shell.  This is
- * deliberately separate from guest state so a failed game fixture cannot
- * mask a rotate-through-carry regression. */
-__attribute__((export_name("x86_rcr32_self_test")))
-uint32_t x86_rcr32_self_test(void){
- uint32_t failures=0;
- const uint32_t values[4]={0x80000000u,0x80000000u,0x00000001u,0xFFFFFFFFu};
- const uint32_t carries[4]={0u,1u,1u,0u};
- const uint32_t counts[4]={1u,1u,1u,31u};
- const uint32_t expected[4]={0x40000000u,0xC0000000u,0x80000000u,0xFFFFFFFDu};
- const uint32_t expected_cf[4]={0u,0u,1u,1u};
- for(uint32_t i=0;i<4u;i++){
-  uint32_t count=counts[i]&31u;
-  uint64_t x=((uint64_t)carries[i]<<32)|values[i];
-  x=((x>>count)|(x<<(33u-count)))&0x1FFFFFFFFull;
-  if((uint32_t)x!=expected[i] || (uint32_t)((x>>32)&1u)!=expected_cf[i]) failures|=(1u<<i);
- }
- return failures;
-}
-__attribute__((export_name("x86_get_trace_count"))) uint32_t x86_get_trace_count(void){return trace_count;}
-__attribute__((export_name("x86_get_trace_index"))) uint32_t x86_get_trace_index(uint32_t n){if(n>=trace_count)return 0xFFFFFFFFu;return (trace_head+X86_TRACE_DEPTH-trace_count+n)%X86_TRACE_DEPTH;}
-__attribute__((export_name("x86_get_trace_eip"))) uint32_t x86_get_trace_eip(uint32_t i){return i<X86_TRACE_DEPTH?trace_eip[i]:0;}
-__attribute__((export_name("x86_get_trace_next_eip"))) uint32_t x86_get_trace_next_eip(uint32_t i){return i<X86_TRACE_DEPTH?trace_next_eip[i]:0;}
-__attribute__((export_name("x86_get_trace_opcode"))) uint32_t x86_get_trace_opcode(uint32_t i){return i<X86_TRACE_DEPTH?trace_opcode[i]:0;}
-__attribute__((export_name("x86_get_trace_flags"))) uint32_t x86_get_trace_flags(uint32_t i){return i<X86_TRACE_DEPTH?trace_flags[i]:0;}
-__attribute__((export_name("x86_get_trace_eax"))) uint32_t x86_get_trace_eax(uint32_t i){return i<X86_TRACE_DEPTH?trace_eax[i]:0;}
-__attribute__((export_name("x86_get_trace_ecx"))) uint32_t x86_get_trace_ecx(uint32_t i){return i<X86_TRACE_DEPTH?trace_ecx[i]:0;}
-__attribute__((export_name("x86_get_trace_edx"))) uint32_t x86_get_trace_edx(uint32_t i){return i<X86_TRACE_DEPTH?trace_edx[i]:0;}
-__attribute__((export_name("x86_get_trace_ebx"))) uint32_t x86_get_trace_ebx(uint32_t i){return i<X86_TRACE_DEPTH?trace_ebx[i]:0;}
-__attribute__((export_name("x86_get_trace_post_eax"))) uint32_t x86_get_trace_post_eax(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_eax[i]:0;}
-__attribute__((export_name("x86_get_trace_post_ecx"))) uint32_t x86_get_trace_post_ecx(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_ecx[i]:0;}
-__attribute__((export_name("x86_get_trace_post_edx"))) uint32_t x86_get_trace_post_edx(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_edx[i]:0;}
-__attribute__((export_name("x86_get_trace_post_ebx"))) uint32_t x86_get_trace_post_ebx(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_ebx[i]:0;}
-__attribute__((export_name("x86_get_trace_post_flags"))) uint32_t x86_get_trace_post_flags(uint32_t i){return i<X86_TRACE_DEPTH?trace_post_flags[i]:0;}
-__attribute__((export_name("x86_get_trace_dispatch"))) uint32_t x86_get_trace_dispatch(uint32_t i){return i<X86_TRACE_DEPTH?trace_dispatch[i]:0;}
-__attribute__((export_name("x86_get_trace_failure_index"))) uint32_t x86_get_trace_failure_index(void){return trace_failure_index;}
-__attribute__((export_name("x86_get_current_opcode")))
-uint32_t x86_get_current_opcode(void){
- if(!loaded)return 0xFFFFFFFFu;
- return (uint32_t)MEM8(eip);
-}
-__attribute__((export_name("x86_get_current_byte")))
-uint32_t x86_get_current_byte(uint32_t index){
- if(!loaded||index>=32u)return 0xFFFFFFFFu;
- return (uint32_t)MEM8(eip+index);
-}
-__attribute__((export_name("x86_get_stack_dword")))
-uint32_t x86_get_stack_dword(uint32_t index){
- if(index>=16u)return 0xFFFFFFFFu;
- uint32_t p=regs[R_ESP]+index*4u;
- if(!x86_mem_region_find(p,4u,X86_MEM_READ))return 0xDEADFA11u;
- return rd32(p);
-}
-__attribute__((export_name("x86_get_x87_count")))
-uint32_t x86_get_x87_count(void){return x87_count;}
-__attribute__((export_name("x86_get_xmm_dword")))
-uint32_t x86_get_xmm_dword(uint32_t reg,uint32_t lane){if(reg>=8u||lane>=4u)return 0xFFFFFFFFu;uint32_t p=lane*4u;return (uint32_t)xmm[reg][p]|((uint32_t)xmm[reg][p+1u]<<8)|((uint32_t)xmm[reg][p+2u]<<16)|((uint32_t)xmm[reg][p+3u]<<24);}
-__attribute__((export_name("x86_get_memory_faults")))
-uint32_t x86_get_memory_faults(void){return x86_mem_faults;}
-__attribute__((export_name("x86_get_current_imm32")))
-uint32_t x86_get_current_imm32(void){
- if(!loaded)return 0xFFFFFFFFu;
- return rd32(eip+1u);
-}
-__attribute__((export_name("x86_get_requested_image_base"))) uint32_t x86_get_requested_image_base(void){return requested_image_base;}
-__attribute__((export_name("x86_get_image_base"))) uint32_t x86_get_image_base(void){return image_base;}
-__attribute__((export_name("x86_get_image_size"))) uint32_t x86_get_image_size(void){return image_size;}
-__attribute__((export_name("x86_get_relocation_rva"))) uint32_t x86_get_relocation_rva(void){return reloc_rva;}
-__attribute__((export_name("x86_get_relocation_size"))) uint32_t x86_get_relocation_size(void){return reloc_size;}
-__attribute__((export_name("x86_get_import_rva"))) uint32_t x86_get_import_rva(void){return import_rva;}
-__attribute__((export_name("x86_get_import_size"))) uint32_t x86_get_import_size(void){return import_size;}
-__attribute__((export_name("x86_get_relocation_needed"))) uint32_t x86_get_relocation_needed(void){return relocation_needed;}
-__attribute__((export_name("x86_get_dll_count"))) uint32_t x86_get_dll_count(void){return dll_count;}
-__attribute__((export_name("x86_get_import_count"))) uint32_t x86_get_import_count(void){return import_count;}
-__attribute__((export_name("x86_get_import_resolved"))) uint32_t x86_get_import_resolved(void){return import_resolved;}
-__attribute__((export_name("x86_get_import_failed"))) uint32_t x86_get_import_failed(void){return import_failed;}
-__attribute__((export_name("x86_get_last_import_dll_rva"))) uint32_t x86_get_last_import_dll_rva(void){return last_import_dll;}
-__attribute__((export_name("x86_get_last_import_func_rva"))) uint32_t x86_get_last_import_func_rva(void){return last_import_func;}
-__attribute__((export_name("x86_get_last_import_thunk_rva"))) uint32_t x86_get_last_import_thunk_rva(void){return last_import_thunk;}
-__attribute__((export_name("x86_get_last_import_target"))) uint32_t x86_get_last_import_target(void){return last_import_target;}
-__attribute__((export_name("x86_get_last_failed_import_dll_rva"))) uint32_t x86_get_last_failed_import_dll_rva(void){return last_failed_import_dll;}
-__attribute__((export_name("x86_get_last_failed_import_func_rva"))) uint32_t x86_get_last_failed_import_func_rva(void){return last_failed_import_func;}
-__attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
-__attribute__((export_name("x86_crt_malloc"))) uint32_t x86_crt_malloc(uint32_t size){return x86_crt_malloc_impl(size);}
-__attribute__((export_name("x86_crt_calloc"))) uint32_t x86_crt_calloc(uint32_t count,uint32_t size){return x86_crt_calloc_impl(count,size);}
-__attribute__((export_name("x86_crt_free"))) uint32_t x86_crt_free(uint32_t address){return x86_crt_free_impl(address);}
-__attribute__((export_name("x86_crt_realloc"))) uint32_t x86_crt_realloc(uint32_t address,uint32_t size){return x86_crt_realloc_impl(address,size);}
-__attribute__((export_name("x86_crt_memcpy"))) uint32_t x86_crt_memcpy(uint32_t dst,uint32_t src,uint32_t size){
- if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}
- for(uint32_t i=0;i<size;i++)wr8(dst+i,MEM8(src+i)); return dst;
-}
-__attribute__((export_name("x86_crt_memmove"))) uint32_t x86_crt_memmove(uint32_t dst,uint32_t src,uint32_t size){
- if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}
- if(dst==src||size==0)return dst;
- if(dst<src){for(uint32_t i=0;i<size;i++)wr8(dst+i,MEM8(src+i));}
- else{for(uint32_t i=size;i>0;i--)wr8(dst+i-1u,MEM8(src+i-1u));}
- return dst;
-}
-__attribute__((export_name("x86_crt_memset"))) uint32_t x86_crt_memset(uint32_t dst,uint32_t value,uint32_t size){
- if(!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}
- for(uint32_t i=0;i<size;i++)wr8(dst+i,(uint8_t)value); return dst;
-}
-__attribute__((export_name("x86_crt_memcmp"))) int32_t x86_crt_memcmp(uint32_t a,uint32_t b,uint32_t size){
- if(!x86_mem_region_find(a,size,X86_MEM_READ)||!x86_mem_region_find(b,size,X86_MEM_READ)){x86_mem_faults++;return 0;}
- for(uint32_t i=0;i<size;i++){uint8_t x=MEM8(a+i),y=MEM8(b+i);if(x!=y)return x<y?-1:1;} return 0;
-}
-__attribute__((export_name("x86_crt_strlen"))) uint32_t x86_crt_strlen(uint32_t s){
- uint32_t n=0;
- while(n<0xFFFFFFFFu){
-  if(!x86_mem_region_find(s+n,1u,X86_MEM_READ)){x86_mem_faults++;return 0;}
-  if(MEM8(s+n)==0)return n; n++;
- }
- x86_mem_faults++; return 0;
-}
-__attribute__((export_name("x86_crt_strcpy"))) uint32_t x86_crt_strcpy(uint32_t dst,uint32_t src){
- uint32_t n=x86_crt_strlen(src); if(!n&&(!x86_mem_region_find(src,1u,X86_MEM_READ)||MEM8(src)!=0))return 0;
- if(!x86_mem_region_find(dst,n+1u,X86_MEM_WRITE)){x86_mem_faults++;return 0;}
- for(uint32_t i=0;i<=n;i++)wr8(dst+i,MEM8(src+i)); return dst;
-}
-__attribute__((export_name("x86_crt_strcmp"))) int32_t x86_crt_strcmp(uint32_t a,uint32_t b){
- uint32_t i=0;
- for(;;i++){
-  if(!x86_mem_region_find(a+i,1u,X86_MEM_READ)||!x86_mem_region_find(b+i,1u,X86_MEM_READ)){x86_mem_faults++;return 0;}
-  uint8_t x=MEM8(a+i),y=MEM8(b+i); if(x!=y)return x<y?-1:1; if(x==0)return 0;
- }
-}
-__attribute__((export_name("x86_get_guest_heap"))) uint32_t x86_get_guest_heap(void){return guest_heap;}
-__attribute__((export_name("x86_virtual_alloc"))) uint32_t x86_virtual_alloc(uint32_t size){return x86_mem_alloc_region(size,X86_MEM_READ|X86_MEM_WRITE,2u);}
-__attribute__((export_name("x86_virtual_free"))) uint32_t x86_virtual_free(uint32_t address){return x86_mem_free_region(address);}
-__attribute__((export_name("x86_mem_validate"))) uint32_t x86_mem_validate(uint32_t address,uint32_t size,uint32_t flags){uint32_t need=flags&(X86_MEM_READ|X86_MEM_WRITE|X86_MEM_EXEC);if(!x86_mem_region_find(address,size,need)){x86_mem_faults++;return 0;}return 1;}
-__attribute__((export_name("x86_mem_copy"))) uint32_t x86_mem_copy(uint32_t dst,uint32_t src,uint32_t size){if(!x86_mem_region_find(src,size,X86_MEM_READ)||!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}copy_bytes(dst,src,size);return 1;}
-__attribute__((export_name("x86_mem_set"))) uint32_t x86_mem_set(uint32_t dst,uint32_t value,uint32_t size){if(!x86_mem_region_find(dst,size,X86_MEM_WRITE)){x86_mem_faults++;return 0;}for(uint32_t i=0;i<size;i++)wr8(dst+i,(uint8_t)value);return 1;}
-__attribute__((export_name("x86_get_memory_region_count"))) uint32_t x86_get_memory_region_count(void){return x86_mem_region_count;}
-__attribute__((export_name("x86_get_virtual_heap"))) uint32_t x86_get_virtual_heap(void){return guest_vm;}
-__attribute__((export_name("x86_get_last_virtual_alloc"))) uint32_t x86_get_last_virtual_alloc(void){return last_virtual_alloc;}
-__attribute__((export_name("x86_get_last_virtual_alloc_size"))) uint32_t x86_get_last_virtual_alloc_size(void){return last_virtual_alloc_size;}
-__attribute__((export_name("x86_get_virtual_free_count"))) uint32_t x86_get_virtual_free_count(void){return virtual_free_count;}
-__attribute__((export_name("x86_fs_mount_file"))) uint32_t x86_fs_mount_file(uint32_t path_ptr,uint32_t data_ptr,uint32_t size){
- char raw[X86_FS_MAX_PATH];if(!x86_fs_guest_string(path_ptr,raw,sizeof(raw)))return 0;return x86_fs_mount_impl(raw,data_ptr,size);
-}
-__attribute__((export_name("x86_fs_open"))) uint32_t x86_fs_open(uint32_t path_ptr,uint32_t access,uint32_t flags){
- char raw[X86_FS_MAX_PATH];if(!x86_fs_guest_string(path_ptr,raw,sizeof(raw)))return 0;return x86_fs_open_impl(raw,access,flags);
-}
-__attribute__((export_name("x86_fs_close"))) uint32_t x86_fs_close(uint32_t handle){return x86_fs_close_impl(handle);}
-__attribute__((export_name("x86_fs_read"))) uint32_t x86_fs_read(uint32_t handle,uint32_t dst,uint32_t size){uint32_t n=0;uint32_t ok=x86_fs_read_impl(handle,dst,size,&n);return ok?n:0xFFFFFFFFu;}
-__attribute__((export_name("x86_fs_write"))) uint32_t x86_fs_write(uint32_t handle,uint32_t src,uint32_t size){uint32_t n=0;uint32_t ok=x86_fs_write_impl(handle,src,size,&n);return ok?n:0xFFFFFFFFu;}
-__attribute__((export_name("x86_fs_seek"))) uint32_t x86_fs_seek(uint32_t handle,int32_t distance,uint32_t origin){return x86_fs_seek_impl(handle,distance,origin);}
-__attribute__((export_name("x86_fs_size"))) uint32_t x86_fs_size(uint32_t handle){return x86_fs_size_impl(handle);}
-__attribute__((export_name("x86_fs_exists"))) uint32_t x86_fs_exists(uint32_t path_ptr){char raw[X86_FS_MAX_PATH];if(!x86_fs_guest_string(path_ptr,raw,sizeof(raw)))return 0;return x86_fs_exists_impl(raw);}
-__attribute__((export_name("x86_fs_get_last_error"))) uint32_t x86_fs_get_last_error(void){return x86_fs_last_error;}
-__attribute__((export_name("x86_reg_open_key"))) uint32_t x86_reg_open_key(uint32_t parent,uint32_t sub_ptr,uint32_t out_handle_ptr){
- char raw[X86_REG_MAX_PATH];uint32_t handle=0;if(sub_ptr&&!x86_fs_guest_string(sub_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;uint32_t result=x86_reg_open_impl(parent,sub_ptr?raw:"",&handle);if(result==X86_REG_ERROR_SUCCESS&&out_handle_ptr&&x86_mem_region_find(out_handle_ptr,4u,X86_MEM_WRITE))wr32(out_handle_ptr,handle);return result;
-}
-__attribute__((export_name("x86_reg_create_key"))) uint32_t x86_reg_create_key(uint32_t parent,uint32_t sub_ptr,uint32_t out_handle_ptr){
- char raw[X86_REG_MAX_PATH];uint32_t handle=0,disp=0;if(sub_ptr&&!x86_fs_guest_string(sub_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;uint32_t result=x86_reg_create_impl(parent,sub_ptr?raw:"",&handle,&disp);if(result==X86_REG_ERROR_SUCCESS&&out_handle_ptr&&x86_mem_region_find(out_handle_ptr,4u,X86_MEM_WRITE))wr32(out_handle_ptr,handle);return result;
-}
-__attribute__((export_name("x86_reg_close_key"))) uint32_t x86_reg_close_key(uint32_t handle){return x86_reg_close_impl(handle);}
-__attribute__((export_name("x86_reg_query_value"))) uint32_t x86_reg_query_value(uint32_t handle,uint32_t name_ptr,uint32_t type_ptr,uint32_t data_ptr,uint32_t size_ptr){
- char raw[X86_REG_MAX_VALUE_NAME];uint32_t type=0,size=0,result;if(name_ptr&&!x86_fs_guest_string(name_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;if(!size_ptr||!x86_mem_region_find(size_ptr,4u,X86_MEM_READ|X86_MEM_WRITE))return X86_REG_ERROR_INVALID_PARAMETER;size=rd32(size_ptr);result=x86_reg_query_value_impl(handle,name_ptr?raw:"",&type,data_ptr?((uint8_t*)(uintptr_t)data_ptr):0,&size);if(type_ptr&&x86_mem_region_find(type_ptr,4u,X86_MEM_WRITE))wr32(type_ptr,type);if(x86_mem_region_find(size_ptr,4u,X86_MEM_WRITE))wr32(size_ptr,size);return result;
-}
-__attribute__((export_name("x86_reg_set_value"))) uint32_t x86_reg_set_value(uint32_t handle,uint32_t name_ptr,uint32_t type,uint32_t data_ptr,uint32_t size){
- char raw[X86_REG_MAX_VALUE_NAME];if(name_ptr&&!x86_fs_guest_string(name_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;if(size&&!x86_mem_region_find(data_ptr,size,X86_MEM_READ))return X86_REG_ERROR_INVALID_PARAMETER;uint8_t tmp[X86_REG_MAX_VALUE_DATA];if(size>sizeof(tmp))return X86_REG_ERROR_INVALID_PARAMETER;for(uint32_t i=0;i<size;i++)tmp[i]=MEM8(data_ptr+i);return x86_reg_set_value_impl(handle,name_ptr?raw:"",type,tmp,size);
-}
-__attribute__((export_name("x86_reg_delete_value"))) uint32_t x86_reg_delete_value(uint32_t handle,uint32_t name_ptr){char raw[X86_REG_MAX_VALUE_NAME];if(name_ptr&&!x86_fs_guest_string(name_ptr,raw,sizeof(raw)))return X86_REG_ERROR_INVALID_PARAMETER;return x86_reg_delete_value_impl(handle,name_ptr?raw:"");}
-__attribute__((export_name("x86_reg_key_exists"))) uint32_t x86_reg_key_exists(uint32_t parent,uint32_t sub_ptr){char raw[X86_REG_MAX_PATH];if(sub_ptr&&!x86_fs_guest_string(sub_ptr,raw,sizeof(raw)))return 0;return x86_reg_key_exists_impl(parent,sub_ptr?raw:"");}
-__attribute__((export_name("x86_reg_value_exists"))) uint32_t x86_reg_value_exists(uint32_t handle,uint32_t name_ptr){char raw[X86_REG_MAX_VALUE_NAME];if(name_ptr&&!x86_fs_guest_string(name_ptr,raw,sizeof(raw)))return 0;return x86_reg_value_exists_impl(handle,name_ptr?raw:"");}
-__attribute__((export_name("x86_reg_get_last_error"))) uint32_t x86_reg_get_last_error(void){return x86_reg_last_error;}
-__attribute__((export_name("x86_get_loaded"))) uint32_t x86_get_loaded(void){return loaded;}
-__attribute__((export_name("x86_get_load_error"))) uint32_t x86_get_load_error(void){return load_error;}
-__attribute__((export_name("x86_get_load_ptr"))) uint32_t x86_get_load_ptr(void){return last_load_ptr;}
-__attribute__((export_name("x86_get_load_size"))) uint32_t x86_get_load_size(void){return last_load_size;}
-__attribute__((export_name("x86_get_message_count"))) uint32_t x86_get_message_count(void){return message_count;}
-__attribute__((export_name("x86_get_last_message"))) uint32_t x86_get_last_message(void){return message_last;}
-__attribute__((export_name("x86_get_message_quit"))) uint32_t x86_get_message_quit(void){return message_quit;}
-__attribute__((export_name("x86_get_mouse_clicks"))) uint32_t x86_get_mouse_clicks(void){return mouse_clicks;}
-__attribute__((export_name("x86_get_mouse_right_clicks"))) uint32_t x86_get_mouse_right_clicks(void){return mouse_right_clicks;}
-__attribute__((export_name("x86_get_mouse_middle_clicks"))) uint32_t x86_get_mouse_middle_clicks(void){return mouse_middle_clicks;}
-__attribute__((export_name("x86_get_mouse_moves"))) uint32_t x86_get_mouse_moves(void){return mouse_moves;}
-__attribute__((export_name("x86_get_surface_width"))) uint32_t x86_get_surface_width(void){return surface_width;}
-__attribute__((export_name("x86_get_surface_height"))) uint32_t x86_get_surface_height(void){return surface_height;}
-__attribute__((export_name("x86_get_rich_ops_pass"))) uint32_t x86_get_rich_ops_pass(void){return regs[R_EBP]==0x584F5053u?1u:0u;}
-__attribute__((export_name("x86_get_legacy_execution_count"))) uint32_t x86_get_legacy_execution_count(void){return legacy_execution_count;}
-__attribute__((export_name("x86_get_stress_report_word"))) uint32_t x86_get_stress_report_word(uint32_t index){if(index>=16u)return 0;return rd32(X86_STRESS_REPORT_BASE+(index*4u));}
-static uint32_t x86_crt_invoke_callback_impl(uint32_t target,uint32_t *ok_out){
- if(ok_out)*ok_out=0;
- if(!loaded||!x86_mem_region_find(target,1u,X86_MEM_EXEC))return 0;
- uint32_t saved_regs[8],saved_eflags=eflags,saved_eip=eip,saved_halted=halted,saved_error=cpu_error,saved_steps=steps;
- for(uint32_t i=0;i<8;i++)saved_regs[i]=regs[i];
- halted=0;cpu_error=0;
- if(!x86_stack_push32(X86_CRT_CALLBACK_MARKER)||!x86_stack_push32(X86_CRT_CALLBACK_SENTINEL)){
-  for(uint32_t i=0;i<8;i++)regs[i]=saved_regs[i];eflags=saved_eflags;eip=saved_eip;halted=saved_halted;cpu_error=saved_error;steps=saved_steps;return 0;
- }
- eip=target;
- uint32_t result=0,ok=0;
- for(uint32_t i=0;i<10000u;i++){
-  if(eip==X86_CRT_CALLBACK_SENTINEL){result=regs[R_EAX];ok=1;break;}
-  if(halted||cpu_error)break;
-  if(cpu_step()<0)break;
- }
- for(uint32_t i=0;i<8;i++)regs[i]=saved_regs[i];
- eflags=saved_eflags;eip=saved_eip;halted=saved_halted;cpu_error=saved_error;steps=saved_steps;
- if(ok&&ok_out)*ok_out=1;
- return ok?result:0;
-}
-__attribute__((export_name("x86_crt_startup"))) uint32_t x86_crt_startup(void){
- crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;crt_atexit_count=0;crt_last_atexit_result=0;crt_last_atexit_ok=0;crt_atexit_running=0;return 1;
-}
-__attribute__((export_name("x86_crt_get_errno"))) int32_t x86_crt_get_errno(void){return crt_errno;}
-__attribute__((export_name("x86_crt_set_errno"))) int32_t x86_crt_set_errno(int32_t value){crt_errno=value;return value;}
-__attribute__((export_name("x86_crt_get_last_error"))) uint32_t x86_crt_get_last_error(void){return crt_last_error;}
-__attribute__((export_name("x86_crt_set_last_error"))) uint32_t x86_crt_set_last_error(uint32_t value){crt_last_error=value;return value;}
-__attribute__((export_name("x86_crt_get_started"))) uint32_t x86_crt_get_started(void){return crt_started;}
-__attribute__((export_name("x86_crt_get_exited"))) uint32_t x86_crt_get_exited(void){return crt_exited;}
-__attribute__((export_name("x86_crt_get_exit_code"))) uint32_t x86_crt_get_exit_code(void){return crt_exit_code;}
-__attribute__((export_name("x86_crt_atexit"))) uint32_t x86_crt_atexit(uint32_t callback){
- if(!callback||crt_exited||crt_atexit_running){crt_errno=X86_CRT_EINVAL;return 0;}
- if(crt_atexit_count>=X86_CRT_ATEXIT_MAX){crt_errno=X86_CRT_ENOMEM;return 0;}
- crt_atexit_callbacks[crt_atexit_count++]=callback;return 1;
-}
-__attribute__((export_name("x86_crt_get_atexit_count"))) uint32_t x86_crt_get_atexit_count(void){return crt_atexit_count;}
-__attribute__((export_name("x86_crt_get_atexit_callback"))) uint32_t x86_crt_get_atexit_callback(uint32_t index){return index<crt_atexit_count?crt_atexit_callbacks[index]:0;}
-__attribute__((export_name("x86_crt_run_atexit"))) uint32_t x86_crt_run_atexit(void){
- if(crt_atexit_running)return 0;
- crt_atexit_running=1;uint32_t ran=0,failed=0;
- while(crt_atexit_count){
-  uint32_t callback=crt_atexit_callbacks[--crt_atexit_count];
-  uint32_t callback_ok=0,result=x86_crt_invoke_callback_impl(callback,&callback_ok);
-  crt_last_atexit_result=result;crt_last_atexit_ok=callback_ok;
-  if(!callback_ok)failed=1;else ran++;
- }
- crt_atexit_running=0;
- if(failed)crt_errno=X86_CRT_EFAULT;
- return failed?0:ran;
-}
-__attribute__((export_name("x86_crt_exit"))) uint32_t x86_crt_exit(uint32_t code){
- if(!crt_started)x86_crt_startup();
- if(crt_exited)return crt_exit_code==code?1u:0u;
- uint32_t ok=x86_crt_run_atexit();
- crt_exit_code=code;crt_exited=1;
- return ok;
-}
-__attribute__((export_name("x86_crt_get_last_atexit_result"))) uint32_t x86_crt_get_last_atexit_result(void){return crt_last_atexit_result;}
-__attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback,0);}
-__attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
