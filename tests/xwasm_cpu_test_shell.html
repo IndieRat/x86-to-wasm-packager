@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>XWASM CPU Test Shell</title>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:32px auto;padding:0 18px;background:#111;color:#eee}.card{padding:18px;margin:12px 0;background:#1b1b1b;border:1px solid #333;border-radius:10px}button{padding:8px 14px;font:inherit}#log{white-space:pre-wrap;font:13px monospace;background:#050505;padding:14px;min-height:360px;overflow:auto}.pass{color:#8ee28e}.fail{color:#ff7777}</style></head>
+<body><h1>XWASM CPU Test Shell</h1>
+<div class="card"><p>General CPU/PE32 runner for the native XWASM package format.</p>
+<label>Runtime: <input id="runtime" type="file" accept=".xwasm"></label><br>
+<label>Payload: <input id="payload" type="file" accept=".xpl"></label><br><button id="run">Run CPU test</button></div>
+<div class="card"><div id="log">Ready. Select runtime.xwasm and payload.xpl.</div></div>
+<script src="xwasm_cpu_test_shell.js"></script></body></html>
