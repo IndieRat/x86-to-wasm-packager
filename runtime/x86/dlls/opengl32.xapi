@@ -1,0 +1,27 @@
+{
+  "format": "xwasm-xapi",
+  "version": 1,
+  "libraries": {
+    "OPENGL32.dll": {
+      "functions": {
+        "wglCreateContext": {"id": 12289, "abi": "stdcall", "args": ["u32"], "return": "u32", "bridge": "xw.opengl32.wglCreateContext"},
+        "wglDeleteContext": {"id": 12290, "abi": "stdcall", "args": ["u32"], "return": "u32", "bridge": "xw.opengl32.wglDeleteContext"},
+        "wglMakeCurrent": {"id": 12291, "abi": "stdcall", "args": ["u32", "u32"], "return": "u32", "bridge": "xw.opengl32.wglMakeCurrent"},
+        "wglGetCurrentContext": {"id": 12292, "abi": "stdcall", "args": [], "return": "u32", "bridge": "xw.opengl32.wglGetCurrentContext"},
+        "glClearColor": {"id": 12293, "abi": "stdcall", "args": ["f32", "f32", "f32", "f32"], "return": "void", "bridge": "xw.opengl32.glClearColor"},
+        "glClear": {"id": 12294, "abi": "stdcall", "args": ["u32"], "return": "void", "bridge": "xw.opengl32.glClear"},
+        "glViewport": {"id": 12295, "abi": "stdcall", "args": ["i32", "i32", "i32", "i32"], "return": "void", "bridge": "xw.opengl32.glViewport"},
+        "glBegin": {"id": 12296, "abi": "stdcall", "args": ["u32"], "return": "void", "bridge": "xw.opengl32.glBegin"},
+        "glEnd": {"id": 12297, "abi": "stdcall", "args": [], "return": "void", "bridge": "xw.opengl32.glEnd"},
+        "glColor3f": {"id": 12298, "abi": "stdcall", "args": ["f32", "f32", "f32"], "return": "void", "bridge": "xw.opengl32.glColor3f"},
+        "glColor4f": {"id": 12299, "abi": "stdcall", "args": ["f32", "f32", "f32", "f32"], "return": "void", "bridge": "xw.opengl32.glColor4f"},
+        "glVertex2f": {"id": 12300, "abi": "stdcall", "args": ["f32", "f32"], "return": "void", "bridge": "xw.opengl32.glVertex2f"},
+        "glVertex3f": {"id": 12301, "abi": "stdcall", "args": ["f32", "f32", "f32"], "return": "void", "bridge": "xw.opengl32.glVertex3f"},
+        "glFlush": {"id": 12302, "abi": "stdcall", "args": [], "return": "void", "bridge": "xw.opengl32.glFlush"},
+        "glFinish": {"id": 12303, "abi": "stdcall", "args": [], "return": "void", "bridge": "xw.opengl32.glFinish"},
+        "SwapBuffers": {"id": 12304, "abi": "stdcall", "args": ["u32"], "return": "u32", "bridge": "xw.opengl32.SwapBuffers"},
+        "glGetString": {"id": 12305, "abi": "stdcall", "args": ["u32"], "return": "ptr", "bridge": "xw.opengl32.glGetString"}
+      }
+    }
+  }
+}
