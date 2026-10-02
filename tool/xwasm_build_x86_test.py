@@ -13,6 +13,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 import struct
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 
 def u16(v: int) -> bytes:
@@ -232,16 +236,12 @@ def main() -> int:
     if (out / "resources" / "__x86__" / "payload.exe").exists():
         raise SystemExit("test package leaked legacy payload.exe")
 
-    payload = payload_path.read_bytes()
-    # XPL has the XWSC01 envelope. The original PE is validated indirectly
-    # by unpacking it with the repository container implementation.
+    # XPL has the XWSC01 envelope. Validate that unpacking restores PE32.
     from xwasm.container import unpack_file
-    unpacked = Path(tempfile.mkdtemp(prefix="xwasm-xpl-check-")) / "payload.exe"
-    try:
+    with tempfile.TemporaryDirectory(prefix="xwasm-xpl-check-") as check_dir:
+        unpacked = Path(check_dir) / "payload.exe"
         unpack_file(payload_path, unpacked, expected_kind="xpl")
         raw = unpacked.read_bytes()
-    finally:
-        unpacked.parent.rmdir()
 
     if raw[:2] != b"MZ":
         raise SystemExit("unpacked XPL payload is not MZ")
