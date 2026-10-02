@@ -9,19 +9,105 @@
   };
   const hex = n => "0x" + (n >>> 0).toString(16).padStart(8, "0");
 
+  const textDecoder = new TextDecoder();
+
+  async function inflate(data) {
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("This browser does not provide DecompressionStream; use a current Chromium/Edge build.");
+    }
+    const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  function readU16(view, off) {
+    return view.getUint16(off, true);
+  }
+
+  function readU32(view, off) {
+    return view.getUint32(off, true);
+  }
+
+  function readU64(view, off) {
+    const value = view.getBigUint64(off, true);
+    if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new Error("XWASM container is too large for this browser runner");
+    }
+    return Number(value);
+  }
+
+  async function unpackContainer(buffer, expectedKind, label) {
+    const bytes = new Uint8Array(buffer);
+    if (bytes.length < 62) throw new Error(label + " is too small to be an XWASM container");
+
+    const view = new DataView(buffer);
+    const magic = textDecoder.decode(bytes.subarray(0, 6));
+    if (magic !== "XWSC01") throw new Error(label + " is not an XWSC01 container");
+    const version = readU16(view, 6);
+    const kind = view.getUint8(8);
+    const compression = view.getUint8(9);
+    const rawSize = readU64(view, 14);
+    const dataSize = readU64(view, 22);
+    const dataEnd = 62 + dataSize;
+    if (dataEnd > bytes.length) throw new Error(label + " data section is truncated");
+    if (kind !== expectedKind) throw new Error(label + " has unexpected container kind " + kind);
+    if (version !== 1) throw new Error(label + " has unsupported XWSC01 version " + version);
+
+    let raw;
+    const stored = bytes.subarray(62, dataEnd);
+    if (compression === 0) {
+      raw = stored.slice();
+    } else if (compression === 1) {
+      raw = await inflate(stored);
+    } else {
+      throw new Error(label + " uses unsupported compression " + compression);
+    }
+
+    if (raw.length !== rawSize) {
+      throw new Error(label + " raw size mismatch: got " + raw.length + ", expected " + rawSize);
+    }
+
+    if (crypto && crypto.subtle) {
+      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", raw));
+      const expectedHash = bytes.subarray(30, 62);
+      for (let i = 0; i < 32; i++) {
+        if (digest[i] !== expectedHash[i]) {
+          throw new Error(label + " SHA-256 mismatch");
+        }
+      }
+      log("[PASS] " + label + " SHA-256", "pass");
+    }
+
+    return raw;
+  }
+
   async function run() {
     $("log").textContent = "";
     const runtimeFile = $("runtime").files[0];
     const payloadFile = $("payload").files[0];
     if (!runtimeFile || !payloadFile) {
-      log("Select runtime.wasm and payload.exe first.", "fail");
+      log("Select runtime.xwasm and payload.xpl first.", "fail");
       return;
     }
 
     try {
-      log("Loading runtime.wasm...");
-      const runtimeBytes = await runtimeFile.arrayBuffer();
-      const payload = new Uint8Array(await payloadFile.arrayBuffer());
+      log("Loading runtime.xwasm...");
+      const runtimeContainer = await runtimeFile.arrayBuffer();
+      const payloadContainer = await payloadFile.arrayBuffer();
+
+      const runtimeBytes = await unpackContainer(runtimeContainer, 1, "runtime.xwasm");
+      const payload = await unpackContainer(payloadContainer, 2, "payload.xpl");
+
+      if (runtimeBytes[0] !== 0x00 || runtimeBytes[1] !== 0x61 ||
+          runtimeBytes[2] !== 0x73 || runtimeBytes[3] !== 0x6d) {
+        throw new Error("runtime.xwasm did not contain a valid WebAssembly module");
+      }
+      if (payload[0] !== 0x4d || payload[1] !== 0x5a) {
+        throw new Error("payload.xpl did not contain a PE32 MZ executable");
+      }
+
+      log("[PASS] runtime.xwasm -> raw WASM verified", "pass");
+      log("[PASS] payload.xpl -> original PE32 verified", "pass");
+
       const module = await WebAssembly.compile(runtimeBytes);
       const env = {};
       let importedMemory = null;
@@ -156,7 +242,6 @@
       check("CRT free calloc", e.x86_crt_free(zeroed), 1);
       check("CRT freed pointer rejected", e.x86_mem_validate(resized, 1, 1), 0);
       check("CRT invalid operation faulted", e.x86_get_memory_faults(), c1Before + 1);
-
 
       log("=== C2 RUNTIME STATE ===");
       check("CRT started", e.x86_crt_get_started(), 1);
@@ -327,4 +412,3 @@
 
   $("run").addEventListener("click", run);
 })();
-
