@@ -944,9 +944,9 @@ static uint32_t call_builtin(uint32_t target){
   if(!src){regs[R_EAX]=0;regs[R_ESP]+=24u;return 1;}
   uint32_t limit=src_n==0xFFFFFFFFu?0x10000u:src_n;
   for(uint32_t i=0;i<limit&&count<dst_n;i++){
-   uint8_t ch=MEM8(src+i); if(!dst)break; wr32(dst+count*2u,(uint16_t)ch); /* low 16-bit store */
-   /* Correct the high half left by wr32 so UTF-16LE remains two bytes. */
-   if(x86_mem_region_find(dst+count*2u,2u,X86_MEM_WRITE)){wr8(dst+count*2u,(uint8_t)ch);wr8(dst+count*2u+1u,0);}
+   uint8_t ch=MEM8(src+i);
+   if(!dst||!x86_mem_region_find(dst+count*2u,2u,X86_MEM_WRITE))break;
+   wr8(dst+count*2u,ch);wr8(dst+count*2u+1u,0);
    count++; if(src_n==0xFFFFFFFFu&&ch==0)break;
   }
   regs[R_EAX]=count; regs[R_ESP]+=24u; return 1;
@@ -955,7 +955,12 @@ static uint32_t call_builtin(uint32_t target){
   uint32_t sp=regs[R_ESP],src=rd32(sp+12u),src_n=rd32(sp+16u),dst=rd32(sp+20u),dst_n=rd32(sp+24u),used=rd32(sp+28u);
   uint32_t count=0;
   if(src&&dst){
-   for(uint32_t i=0;i<src_n&&count<dst_n;i++){uint32_t wc=rd32(src+i*2u)&0xFFFFu;wr8(dst+count++,(uint8_t)(wc<=0xFFu?wc:'?'));}
+   for(uint32_t i=0;i<src_n&&count<dst_n;i++){
+    uint32_t p=src+i*2u;
+    if(!x86_mem_region_find(p,2u,X86_MEM_READ)||!x86_mem_region_find(dst+count,1u,X86_MEM_WRITE))break;
+    uint32_t wc=(uint32_t)MEM8(p)|((uint32_t)MEM8(p+1u)<<8);
+    wr8(dst+count++,(uint8_t)(wc<=0xFFu?wc:'?'));
+   }
   }
   if(used&&x86_mem_region_find(used,4u,X86_MEM_WRITE))wr32(used,count);
   regs[R_EAX]=count; regs[R_ESP]+=32u; return 1;
@@ -998,62 +1003,3 @@ static uint32_t call_builtin(uint32_t target){
  if(target==API_GDI32_RECTANGLE){
   uint32_t sp=regs[R_ESP]; uint32_t hdc=rd32(sp+4u),left=rd32(sp+8u),top=rd32(sp+12u),right=rd32(sp+16u),bottom=rd32(sp+20u);
   if(hdc) xwasm_gfx_rect((int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom,0x00FFFFFF); xwasm_gfx_present(); regs[R_EAX]=1u; regs[R_ESP]+=20u; return 1;
- }
- if(target==API_USER32_GETMESSAGEA || target==API_USER32_PEEKMESSAGEA){
-  /* 32-bit MSG: hwnd, message, wParam, lParam, time, pt.x, pt.y. */
-  uint32_t sp=regs[R_ESP],msg=rd32(sp+4u);
-  /* PeekMessageA(MSG*, hWnd, min, max, removeMsg): removeMsg is arg 5. */
-  uint32_t remove=target==API_USER32_GETMESSAGEA?1u:rd32(sp+20u);
-  int32_t got=xwasm_input_poll((int32_t)msg,(int32_t)remove);
-  if(got>0){
-   message_count++; message_last=rd32(msg+4u);
-   if(message_last==0x0012u)message_quit=1;
-   regs[R_EAX]=1u;
-  }else{
-   regs[R_EAX]=0u;
-  }
-  regs[R_ESP]+=20u;
-  return 1;
- }
- if(target==API_USER32_TRANSLATEMESSAGE){
-  regs[R_EAX]=1u; regs[R_ESP]+=4u; return 1;
- }
- if(target==API_USER32_DISPATCHMESSAGEA){
-  uint32_t sp=regs[R_ESP],msg=rd32(sp+4u),type=msg?rd32(msg+4u):0;
-  if(msg){
-   uint32_t lp=rd32(msg+12u);
-   if(type==0x0200u) mouse_moves++;
-   else if(type==0x0204u) mouse_right_clicks++;
-   else if(type==0x0207u) mouse_middle_clicks++;
-   if(type==0x0201u){
-    int32_t x=(int16_t)(lp&0xFFFFu),y=(int16_t)((lp>>16)&0xFFFFu);
-    mouse_clicks++;
-    xwasm_gfx_rect(x-4,y-4,x+5,y+5,0x0000FF00);
-    xwasm_gfx_pixel(x,y,0x00FFFFFF);
-    xwasm_gfx_present();
-    xwasm_audio_beep(880,70);
-   }
-  }
-  regs[R_EAX]=0u; regs[R_ESP]+=4u; return 1;
- }
- if(target==API_USER32_DEFWINDOWPROCA){
-  regs[R_EAX]=0u; regs[R_ESP]+=16u; return 1;
- }
- if(target==API_USER32_POSTQUITMESSAGE){
-  message_quit=1; xwasm_input_quit(); regs[R_ESP]+=4u; return 1;
- }
- if(target==API_USER32_GETCLIENTRECT){
-  uint32_t sp=regs[R_ESP],rect=rd32(sp+8u);
-  if(rect){wr32(rect,0);wr32(rect+4u,0);wr32(rect+8u,surface_width);wr32(rect+12u,surface_height);}
-  regs[R_EAX]=rect?1u:0u; regs[R_ESP]+=8u; return 1;
- }
- if(target==API_USER32_INVALIDATERECT){
-  regs[R_EAX]=1u; regs[R_ESP]+=12u; xwasm_gfx_present(); return 1;
- }
- if(target==API_USER32_UPDATEWINDOW){
-  regs[R_EAX]=1u; regs[R_ESP]+=4u; xwasm_gfx_present(); return 1;
- }
- if(target==API_KERNEL32_CREATEFILEA){
-  uint32_t sp=regs[R_ESP],path=rd32(sp+4u),access=rd32(sp+8u),creation=rd32(sp+20u);char raw[X86_FS_MAX_PATH];
-  if(!x86_fs_guest_string(path,raw,sizeof(raw))){regs[R_EAX]=0xFFFFFFFFu;regs[R_ESP]+=28u;return 1;}
-  uint32_t a=(access&0x40000000u)?X86_FS_ACCESS_WRITE:X86_FS_ACCESS_READ;
