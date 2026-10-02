@@ -3115,6 +3115,26 @@
           "source": "modrm.rm"
         }
       ]
+    },
+    {
+      "id": "CALL_RM32",
+      "instruction": "CALL",
+      "opcode": [
+        "FF"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true,
+        "reg_extension": 2
+      }
     }
   ]
 }
