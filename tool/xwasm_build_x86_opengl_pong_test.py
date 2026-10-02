@@ -56,12 +56,12 @@ def pe():
             push(y); push(x); call(0x3038)
         call(0x3030)
     color(0x3f800000,0x3f800000,0x3f800000)
-    tri(-0x3f600000,0x3e000000,-0x3f600000,0xbe000000,-0x3f000000,0xbe000000)
-    tri(-0x3f000000,0xbe000000,-0x3f000000,0x3e000000,-0x3f600000,0x3e000000)
-    tri(0x3f000000,0x3e000000,0x3f600000,0xbe000000,0x3f600000,0x3e000000)
-    tri(0x3f000000,0x3e000000,0x3f600000,0x3e000000,0x3f000000,0xbe000000)
+    tri(0xbf800000,0x3e800000,0xbf800000,0xbe800000,0xbf000000,0xbe800000)
+    tri(0xbf000000,0xbe800000,0xbf000000,0x3e800000,0xbf800000,0x3e800000)
+    tri(0x3f000000,0x3e800000,0x3f800000,0xbe800000,0x3f800000,0x3e800000)
+    tri(0x3f000000,0x3e800000,0x3f800000,0x3e800000,0x3f000000,0xbe800000)
     color(0x3f000000,0x3f800000,0x3f000000)
-    tri(0xbe400000,0xbe400000,0x00000000,0x3e400000,0x3e400000,0xbe400000)
+    tri(0xbe800000,0xbe800000,0x00000000,0x3e800000,0x3e800000,0xbe800000)
     call(0x3044) # SwapBuffers
 
     # Audio proof.
@@ -69,15 +69,16 @@ def pe():
 
     # Poll a small deterministic number of frames; host input wakes the bridge.
     mov_edi(0x00900000)
-    mov_eax(0)
-    code.extend(b"\x89\xc7") # EDI currently msg ptr after mov; keep simple.
-    # HLT gives the shell a clean completion point after the render/audio/input seed.
+    # Exercise the browser input bridge once: PeekMessageA(MSG*, NULL, 0, 0, PM_REMOVE).
+    for v in (1,0,0,0,0x00900000): push(v)
+    call(0x300c)
+    # HLT gives the shell a clean completion point after render/audio/input.
     code.extend(b"\xf4")
     b[SECTION_RAW:SECTION_RAW+len(code)]=code
 
     # Import table in the same section.
     desc=0x1800; oft=0x1900; iat=0x1a00; names_base=0x1b00
-    dlls=[("USER32.dll",[("CreateWindowExA",0x3000),("ShowWindow",0x3004),("GetDC",0x3008)]),
+    dlls=[("USER32.dll",[("CreateWindowExA",0x3000),("ShowWindow",0x3004),("GetDC",0x3008),("PeekMessageA",0x300c)]),
           ("GDI32.dll",[("ChoosePixelFormat",0x3010),("SetPixelFormat",0x3014),("SwapBuffers",0x3044)]),
           ("OPENGL32.dll",[("wglCreateContext",0x3018),("wglMakeCurrent",0x301c),("glViewport",0x3020),("glClearColor",0x3024),("glClear",0x3028),("glBegin",0x302c),("glEnd",0x3030),("glColor3f",0x3034),("glVertex2f",0x3038)]),
           ("KERNEL32.dll",[("Beep",0x3048)])]
