@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Package a 32-bit PE game as an XWASM x86-runtime package."""
+"""Package a 32-bit PE game into the basic XWASM runtime package."""
 from __future__ import annotations
 import argparse
 import hashlib
 import json
 import shutil
 import struct
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from xwasm.container import pack_file, unpack_bytes  # noqa: E402
 
 def pe32_info(path: Path) -> dict:
     data=path.read_bytes()
@@ -28,11 +34,11 @@ def copy_tree(source:Path,dest:Path,exe:Path)->int:
     return count
 
 def main()->int:
-    ap=argparse.ArgumentParser(description="Package a 32-bit PE game as XWASM x86-runtime input.")
+    ap=argparse.ArgumentParser(description="Package a 32-bit PE game as an XWASM x86-runtime package.")
     ap.add_argument("game_folder",type=Path)
     ap.add_argument("--output",type=Path,required=True)
     ap.add_argument("--exe",type=Path,default=None,help="Executable path relative to game_folder; otherwise auto-detect an EXE.")
-    ap.add_argument("--runtime",default=None,help="Optional runtime.wasm path. Relative paths are resolved against game_folder first, then the current directory; absolute paths are accepted.")
+    ap.add_argument("--runtime",default=None,help="Path to runtime.xwasm (or legacy runtime.wasm).")
     a=ap.parse_args()
     game=a.game_folder.resolve(); out=a.output.resolve()
     if not game.is_dir(): raise SystemExit("Input game_folder must be a directory.")
@@ -44,10 +50,15 @@ def main()->int:
         exe=candidates[0]
     if not exe.is_file(): raise SystemExit(f"Executable not found: {exe}")
     info=pe32_info(exe)
-    payload=resources/"__x86__"/"payload.exe"; payload.parent.mkdir(parents=True,exist_ok=True); shutil.copy2(exe,payload)
+
+    payload=out/"payload.xpl"
+    pack_file(exe,payload,"xpl",compression="auto")
+
     count=copy_tree(game,resources,exe)
     bundled_dlls=[str(x.relative_to(game)).replace("\\","/") for x in sorted(game.rglob("*.dll")) if x.resolve()!=exe.resolve()]
+
     runtime_source=None
+    runtime_raw=None
     if a.runtime:
         candidate=Path(a.runtime)
         if not candidate.is_absolute():
@@ -55,23 +66,31 @@ def main()->int:
             candidate=game_candidate if game_candidate.is_file() else Path.cwd()/candidate
         runtime_source=candidate.resolve()
         if not runtime_source.is_file(): raise SystemExit(f"Runtime path does not exist: {a.runtime}")
-        if runtime_source.read_bytes()[:4]!=b"\0asm": raise SystemExit(f"Runtime is not a WebAssembly binary: {runtime_source}")
+        runtime_data=runtime_source.read_bytes()
+        if runtime_data[:4]==b"\x00asm":
+            runtime_raw=runtime_data
+        else:
+            _, runtime_raw=unpack_bytes(runtime_data,expected_kind="xwasm")
+
     manifest={
         "format":"xwasm-package","format_version":1,"name":game.name,"architecture":"x86",
-        "runtime_kind":"x86-compatibility","runtime":"runtime.wasm" if runtime_source else None,
-        "runtime_sha256": hashlib.sha256(runtime_source.read_bytes()).hexdigest() if runtime_source else None,
-        "abi":"xwasm.host/1","resource_root":"resources/","payload":"resources/__x86__/payload.exe",
-        "payload_format":"PE32","payload_architecture":"i386",
+        "runtime_kind":"x86-compatibility","runtime":"runtime.xwasm" if runtime_source else None,
+        "runtime_sha256": hashlib.sha256(runtime_raw).hexdigest() if runtime_raw else None,
+        "abi":"xwasm.host/1","resource_root":"resources/","payload":"payload.xpl",
+        "payload_format":"XPL","payload_architecture":"i386",
         "entry":{"init":"xwasm_init","tick":"xwasm_tick","shutdown":"xwasm_shutdown"},
         "pe":info,"resource_file_count":count,"bundled_dlls":bundled_dlls,
         "sha256":hashlib.sha256(exe.read_bytes()).hexdigest(),
         "execution_status":"x86_runtime_bundled" if runtime_source else "requires_x86_runtime",
     }
-    if runtime_source is not None: shutil.copy2(runtime_source,out/"runtime.wasm")
+    if runtime_source is not None:
+        if runtime_source.read_bytes()[:4] == b"\x00asm":
+            raise SystemExit("Runtime must be .xwasm for the new package format; pass the .xwasm output.")
+        shutil.copy2(runtime_source,out/"runtime.xwasm")
     (out/"manifest.xwasm.json").write_text(json.dumps(manifest,indent=2)+"\n",encoding="utf-8")
     print(f"Created XWASM x86 package: {out}")
     print(f"Payload: {payload.relative_to(out)}")
     print(f"Resources: {count}")
-    print(f"Runtime: {'bundled' if runtime_source else 'external/host-supplied'}")
+    print(f"Runtime: {'bundled as runtime.xwasm' if runtime_source else 'external/host-supplied'}")
     return 0
 if __name__=="__main__": raise SystemExit(main())
