@@ -105,6 +105,8 @@ enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_
 #define API_GDI32_SETPIXEL (API_BASE+0x00005000u)
 #define API_GDI32_RECTANGLE (API_BASE+0x00005004u)
 #define API_GDI32_SWAPBUFFERS (API_BASE+0x00005008u)
+#define API_GDI32_CHOOSEPIXELFORMAT (API_BASE+0x0000500Cu)
+#define API_GDI32_SETPIXELFORMAT (API_BASE+0x00005010u)
 #define API_OPENGL32_WGLCREATECONTEXT (API_BASE+0x0000A000u)
 #define API_OPENGL32_WGLDELETECONTEXT (API_BASE+0x0000A004u)
 #define API_OPENGL32_WGLMAKECURRENT (API_BASE+0x0000A008u)
@@ -917,6 +919,8 @@ static uint32_t call_builtin(uint32_t target){
  if(target==API_OPENGL32_GLFLUSH||target==API_OPENGL32_GLFINISH){xwasm_gfx_present();return 1;}
  if(target==API_OPENGL32_GLGETSTRING){uint32_t sp=regs[R_ESP],name=rd32(sp+4u);const char *s="XWASM OpenGL";if(name==0x1F00u)s="XWASM";else if(name==0x1F01u)s="XWASM WebGL-compatible renderer";else if(name==0x1F02u)s="1.1 XWASM compatibility";uint32_t p=guest_alloc_raw(64u);if(p){uint32_t i=0;while(s[i]){wr8(p+i,(uint8_t)s[i]);i++;}wr8(p+i,0);}regs[R_EAX]=p;regs[R_ESP]+=4u;return 1;}
  if(target==API_GDI32_SWAPBUFFERS){xwasm_gfx_present();regs[R_EAX]=1u;regs[R_ESP]+=4u;return 1;}
+ if(target==API_GDI32_CHOOSEPIXELFORMAT){regs[R_EAX]=1u;regs[R_ESP]+=8u;return 1;}
+ if(target==API_GDI32_SETPIXELFORMAT){regs[R_EAX]=1u;regs[R_ESP]+=12u;return 1;}
  if(target==API_GDI32_RECTANGLE){
   uint32_t sp=regs[R_ESP]; uint32_t hdc=rd32(sp+4u),left=rd32(sp+8u),top=rd32(sp+12u),right=rd32(sp+16u),bottom=rd32(sp+20u);
   if(hdc) xwasm_gfx_rect((int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom,0x00FFFFFF); xwasm_gfx_present(); regs[R_EAX]=1u; regs[R_ESP]+=20u; return 1;
