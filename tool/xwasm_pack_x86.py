@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from xwasm.container import pack_file, unpack_bytes  # noqa: E402
+from xwasm.dll import convert_dll  # noqa: E402
 
 def pe32_info(path: Path) -> dict:
     data=path.read_bytes()
@@ -55,7 +56,17 @@ def main()->int:
     pack_file(exe,payload,"xpl",compression="auto")
 
     count=copy_tree(game,resources,exe)
-    bundled_dlls=[str(x.relative_to(game)).replace("\\","/") for x in sorted(game.rglob("*.dll")) if x.resolve()!=exe.resolve()]
+    dll_files=[x for x in sorted(game.rglob("*.dll")) if x.resolve()!=exe.resolve()]
+    bundled_dlls=[str(x.relative_to(game)).replace("\\","/") for x in dll_files]
+    dll_api_manifests=[]
+    dll_api_dir=out/"dll_apis"
+    for dll in dll_files:
+        try:
+            api_name=dll.stem.lower()+".xapi"
+            convert_dll(dll,dll_api_dir/api_name)
+            dll_api_manifests.append("dll_apis/"+api_name)
+        except (FileNotFoundError,ValueError):
+            pass
 
     runtime_source=None
     runtime_raw=None
@@ -80,6 +91,7 @@ def main()->int:
         "payload_format":"XPL","payload_architecture":"i386",
         "entry":{"init":"xwasm_init","tick":"xwasm_tick","shutdown":"xwasm_shutdown"},
         "pe":info,"resource_file_count":count,"bundled_dlls":bundled_dlls,
+        "dll_api_manifests":dll_api_manifests,
         "sha256":hashlib.sha256(exe.read_bytes()).hexdigest(),
         "execution_status":"x86_runtime_bundled" if runtime_source else "requires_x86_runtime",
     }
@@ -91,6 +103,7 @@ def main()->int:
     print(f"Created XWASM x86 package: {out}")
     print(f"Payload: {payload.relative_to(out)}")
     print(f"Resources: {count}")
+    print(f"DLL API manifests: {len(dll_api_manifests)}")
     print(f"Runtime: {'bundled as runtime.xwasm' if runtime_source else 'external/host-supplied'}")
     return 0
 if __name__=="__main__": raise SystemExit(main())
