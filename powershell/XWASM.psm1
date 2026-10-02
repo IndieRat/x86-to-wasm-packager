@@ -28,41 +28,16 @@ function xwasm_build {
     New-Item -ItemType Directory -Force -Path $out | Out-Null
 
     switch -Regex ($Target.ToLowerInvariant()) {
-        '^stress(_test)?$' {
-            Invoke-XWASM "xwasm_build_cpu_stress.py" @("--output",(Join-Path $out "stress_test"),"--clang",$clangPath); return
-        }
-        '^c(_test)?$' {
-            if(!$lldPath){throw "lld-link not found: $LldLink"}
-            Invoke-XWASM "xwasm_build_c5_fixture.py" @("--output",(Join-Path $out "C_test"),"--clang",$clangPath,"--lld-link",$lldPath); return
-        }
-        '^cpp(_test)?$' {
-            if(!$lldPath){throw "lld-link not found: $LldLink"}
-            Invoke-XWASM "xwasm_build_cpp_fixture.py" @("--output",(Join-Path $out "CPP_test\cpp_fixture.exe"),"--clang",$clangPath,"--lld-link",$lldPath); return
-        }
-        '^sse(_test)?$' {
-            if(!$lldPath){throw "lld-link not found: $LldLink"}
-            Invoke-XWASM "xwasm_build_sse_fixture.py" @("--output",(Join-Path $out "SSE_test\sse_scalar_fixture.exe"),"--clang",$clangPath,"--lld-link",$lldPath); return
-        }
-        '^x87(_test)?$' {
-            if(!$lldPath){throw "lld-link not found: $LldLink"}
-            Invoke-XWASM "xwasm_build_x87_fixture.py" @("--output",(Join-Path $out "x87_test\x87_fixture.exe"),"--clang",$clangPath,"--lld-link",$lldPath); return
-        }
-        '^integer(_test)?$' {
-            if(!$lldPath){throw "lld-link not found: $LldLink"}
-            Invoke-XWASM "xwasm_build_integer_coverage_fixture.py" @("--output",(Join-Path $out "integer_test\integer_fixture.exe"),"--clang",$clangPath,"--lld-link",$lldPath); return
-        }
-        '^cpu(_test)?$' {
-            Invoke-XWASM "xwasm_build_x86_test.py" @("--output",(Join-Path $out "cpu_test"),"--clang",$clangPath); return
-        }
-        '^graphics(_test)?$' {
-            Invoke-XWASM "xwasm_build_x86_graphics_test.py" @("--output",(Join-Path $out "graphics_test")); return
-        }
-        '^window(_test)?$' {
-            Invoke-XWASM "xwasm_build_x86_window_input_audio_test.py" @("--output",(Join-Path $out "window_test")); return
-        }
-        '^api(_test)?$' {
-            Invoke-XWASM "xwasm_build_xapi.py" @("--output",(Join-Path $out "default.xapi")); return
-        }
+        '^stress(_test)?$' { Invoke-XWASM "xwasm_build_cpu_stress.py" @("--output",(Join-Path $out "stress_test"),"--clang",$clangPath); return }
+        '^c(_test)?$' { if(!$lldPath){throw "lld-link not found: $LldLink"}; Invoke-XWASM "xwasm_build_c5_fixture.py" @("--output",(Join-Path $out "C_test"),"--clang",$clangPath,"--lld-link",$lldPath); return }
+        '^cpp(_test)?$' { if(!$lldPath){throw "lld-link not found: $LldLink"}; Invoke-XWASM "xwasm_build_cpp_fixture.py" @("--output",(Join-Path $out "CPP_test\cpp_fixture.exe"),"--clang",$clangPath,"--lld-link",$lldPath); return }
+        '^sse(_test)?$' { if(!$lldPath){throw "lld-link not found: $LldLink"}; Invoke-XWASM "xwasm_build_sse_fixture.py" @("--output",(Join-Path $out "SSE_test\sse_scalar_fixture.exe"),"--clang",$clangPath,"--lld-link",$lldPath); return }
+        '^x87(_test)?$' { if(!$lldPath){throw "lld-link not found: $LldLink"}; Invoke-XWASM "xwasm_build_x87_fixture.py" @("--output",(Join-Path $out "x87_test\x87_fixture.exe"),"--clang",$clangPath,"--lld-link",$lldPath); return }
+        '^integer(_test)?$' { if(!$lldPath){throw "lld-link not found: $LldLink"}; Invoke-XWASM "xwasm_build_integer_coverage_fixture.py" @("--output",(Join-Path $out "integer_test\integer_fixture.exe"),"--clang",$clangPath,"--lld-link",$lldPath); return }
+        '^cpu(_test)?$' { Invoke-XWASM "xwasm_build_x86_test.py" @("--output",(Join-Path $out "cpu_test"),"--clang",$clangPath); return }
+        '^graphics(_test)?$' { Invoke-XWASM "xwasm_build_x86_graphics_test.py" @("--output",(Join-Path $out "graphics_test")); return }
+        '^window(_test)?$' { Invoke-XWASM "xwasm_build_x86_window_input_audio_test.py" @("--output",(Join-Path $out "window_test")); return }
+        '^api(_test)?$' { Invoke-XWASM "xwasm_build_xapi.py" @("--output",(Join-Path $out "default.xapi")); return }
         '^all(_tests)?$' {
             foreach($k in @("cpu_test","stress_test","C_test","CPP_test","SSE_test","x87_test","integer_test","api_test")) {
                 xwasm_build $k -Clang $clangPath -LldLink $LldLink -OutputRoot $OutputRoot
@@ -74,13 +49,12 @@ function xwasm_build {
     $game=(Resolve-Path $Target -ErrorAction Stop).Path
     if(!(Test-Path $game -PathType Container)){ throw "Game target must be a directory or a supported keyword: $Target" }
 
-    # This is the complete equivalent of the user's manual ISA/runtime sequence.
     Invoke-XWASM "xwasm_import_xed_isa.py"
     Invoke-XWASM "xwasm_generate_x86_opcode_map.py"
     Invoke-XWASM "xwasm_generate_x86_decode_table.py"
     Invoke-XWASM "xwasm_validate_instruction_db.py"
 
-    $runtime=Join-Path $root "dist\x86-runtime-v0.9\runtime.wasm"
+    $runtime=Join-Path $root "dist\x86-runtime-v0.9\runtime.xwasm"
     $xapi=Join-Path $out "default.xapi"
     Invoke-XWASM "xwasm_build_x86_runtime.py" @("--clang",$clangPath,"--output",$runtime)
     Invoke-XWASM "xwasm_build_xapi.py" @("--output",$xapi)
