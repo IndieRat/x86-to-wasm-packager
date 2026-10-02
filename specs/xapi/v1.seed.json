@@ -1,0 +1,44 @@
+{
+  "format": "xwasm-xapi",
+  "version": 1,
+  "name": "XWASM Win32 Seed API",
+  "description": "Declarative compatibility seeds for the XWASM x86 runtime.",
+  "libraries": {
+    "KERNEL32.dll": {
+      "functions": {
+        "GetTickCount": {"id": 4097, "abi": "stdcall", "args": [], "return": "u32", "bridge": "xw.kernel32.get_tick_count"},
+        "VirtualAlloc": {"id": 4098, "abi": "stdcall", "args": ["ptr", "u32", "u32", "u32"], "return": "ptr", "bridge": "xw.kernel32.virtual_alloc"},
+        "VirtualFree": {"id": 4099, "abi": "stdcall", "args": ["ptr", "u32", "u32"], "return": "u32", "bridge": "xw.kernel32.virtual_free"},
+        "Beep": {"id": 4100, "abi": "stdcall", "args": ["u32", "u32"], "return": "u32", "bridge": "xw.kernel32.beep"},
+        "CreateFileA": {"id": 4101, "abi": "stdcall", "args": ["ptr", "u32", "u32", "ptr", "u32", "u32", "ptr"], "return": "ptr", "bridge": "xw.kernel32.create_file_a"},
+        "ReadFile": {"id": 4102, "abi": "stdcall", "args": ["ptr", "ptr", "u32", "ptr", "ptr"], "return": "u32", "bridge": "xw.kernel32.read_file"}
+      }
+    },
+    "USER32.dll": {
+      "functions": {
+        "CreateWindowExA": {"id": 8193, "abi": "stdcall", "args": ["u32", "ptr", "ptr", "u32", "i32", "i32", "i32", "i32", "ptr", "ptr", "ptr", "ptr"], "return": "ptr", "bridge": "xw.user32.create_window_ex_a"},
+        "ShowWindow": {"id": 8194, "abi": "stdcall", "args": ["ptr", "i32"], "return": "u32", "bridge": "xw.user32.show_window"},
+        "GetMessageA": {"id": 8195, "abi": "stdcall", "args": ["ptr", "ptr", "u32", "u32"], "return": "u32", "bridge": "xw.user32.get_message_a"},
+        "PeekMessageA": {"id": 8196, "abi": "stdcall", "args": ["ptr", "ptr", "u32", "u32", "u32"], "return": "u32", "bridge": "xw.user32.peek_message_a"},
+        "TranslateMessage": {"id": 8197, "abi": "stdcall", "args": ["ptr"], "return": "u32", "bridge": "xw.user32.translate_message"},
+        "DispatchMessageA": {"id": 8198, "abi": "stdcall", "args": ["ptr"], "return": "ptr", "bridge": "xw.user32.dispatch_message_a"},
+        "DefWindowProcA": {"id": 8199, "abi": "stdcall", "args": ["ptr", "u32", "u32", "u32"], "return": "u32", "bridge": "xw.user32.def_window_proc_a"},
+        "PostQuitMessage": {"id": 8200, "abi": "stdcall", "args": ["i32"], "return": "void", "bridge": "xw.user32.post_quit_message"},
+        "GetClientRect": {"id": 8201, "abi": "stdcall", "args": ["ptr", "ptr"], "return": "u32", "bridge": "xw.user32.get_client_rect"}
+      }
+    },
+    "GDI32.dll": {
+      "functions": {
+        "SetPixel": {"id": 12289, "abi": "stdcall", "args": ["ptr", "i32", "i32", "u32"], "return": "u32", "bridge": "xw.gdi32.set_pixel"},
+        "Rectangle": {"id": 12290, "abi": "stdcall", "args": ["ptr", "i32", "i32", "i32", "i32"], "return": "u32", "bridge": "xw.gdi32.rectangle"}
+      }
+    },
+    "OPENGL32.dll": {
+      "functions": {
+        "wglCreateContext": {"id": 16385, "abi": "stdcall", "args": ["ptr"], "return": "ptr", "bridge": "xw.opengl32.wgl_create_context"},
+        "wglMakeCurrent": {"id": 16386, "abi": "stdcall", "args": ["ptr", "ptr"], "return": "u32", "bridge": "xw.opengl32.wgl_make_current"},
+        "wglDeleteContext": {"id": 16387, "abi": "stdcall", "args": ["ptr"], "return": "u32", "bridge": "xw.opengl32.wgl_delete_context"}
+      }
+    }
+  }
+}
