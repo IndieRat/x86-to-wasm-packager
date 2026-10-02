@@ -15,6 +15,25 @@ const out=document.querySelector("#log");
 const say=s=>{out.textContent+="\n"+s;};
 const files=new Map();
 const hex=(u8,n=32)=>Array.from(u8.slice(0,n),b=>b.toString(16).padStart(2,"0")).join(" ");
+const td=new TextDecoder();
+async function unpackXWSC(file,expectedKind,label){
+  const b=new Uint8Array(file),v=new DataView(file);
+  if(b.length<62||td.decode(b.slice(0,6))!=="XWSC01") throw Error(label+" is not an XWSC01 container");
+  if(v.getUint16(6,true)!==1||v.getUint8(8)!==expectedKind) throw Error(label+" has the wrong XWASM container kind/version");
+  const comp=v.getUint8(9),rawSize=Number(v.getBigUint64(14,true)),dataSize=Number(v.getBigUint64(22,true));
+  if(62+dataSize!==b.length) throw Error(label+" has an invalid container size");
+  const stored=b.slice(62,62+dataSize);
+  let raw;
+  if(comp===0) raw=stored;
+  else if(comp===1){
+    if(typeof DecompressionStream==="undefined") throw Error("browser lacks DecompressionStream for "+label);
+    raw=new Uint8Array(await new Response(new Blob([stored]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer());
+  } else throw Error(label+" uses unsupported XWASM compression "+comp);
+  if(raw.length!==rawSize) throw Error(label+" raw size mismatch");
+  const hash=new Uint8Array(await crypto.subtle.digest("SHA-256",raw));
+  for(let i=0;i<32;i++) if(hash[i]!==b[30+i]) throw Error(label+" SHA-256 mismatch");
+  return raw;
+}
 
 document.querySelector("#files").onchange=async e=>{
   files.clear();
@@ -35,11 +54,11 @@ document.querySelector("#files").onchange=async e=>{
     say("Bundled DLLs: "+((manifest.bundled_dlls||[]).length));
     say("Test profile: "+(isWindowAudio?"v0.7 window/input/audio":"generic x86"));
 
-    const rt=files.get(manifest.runtime||"runtime.wasm");
-    if(!rt) throw Error("runtime.wasm is missing");
+    const rt=files.get(manifest.runtime||"runtime.xwasm");
+    if(!rt) throw Error("runtime.xwasm is missing");
 
     const mem=new WebAssembly.Memory({initial:1024,maximum:4096});
-    const bytes=await rt.arrayBuffer();
+    const bytes=await unpackXWSC(await rt.arrayBuffer(),1,"runtime.xwasm");
     const pkg={
       get:p=>files.get(p)||files.get("resources/"+p),
       readString:(ptr,len)=>new TextDecoder().decode(new Uint8Array(mem.buffer,ptr,len))
@@ -90,7 +109,7 @@ document.querySelector("#files").onchange=async e=>{
     const payload=files.get(manifest.payload);
     if(!payload) throw Error("payload missing: "+manifest.payload);
 
-    const buf=new Uint8Array(await payload.arrayBuffer());
+    const buf=manifest.payload_format==="XPL" ? await unpackXWSC(await payload.arrayBuffer(),2,"payload.xpl") : new Uint8Array(await payload.arrayBuffer());
     say("Payload bytes: "+buf.length);
     say("Payload first 32 bytes: "+hex(buf,32));
 
