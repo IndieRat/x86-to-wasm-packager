@@ -1,0 +1,218 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>XWASM CPU test shell</title>
+<style>
+body{font:13px/1.4 monospace;background:#111;color:#ddd;margin:12px}
+button,input{font:inherit}button{margin:2px}
+.PASS{color:#6c6}.FAIL{color:#f66}.MISSING{color:#fc6}.info{color:#8ad}.dim{color:#888}
+#log{white-space:pre-wrap;border:1px solid #333;padding:6px;margin-top:8px;max-height:72vh;overflow:auto}
+</style>
+<h3>XWASM CPU test shell: x87 / SSE / integer / PE</h3>
+<div>runtime.wasm: <input type="file" id="rt"> <span id="rts" class="dim">(tries ./runtime.wasm when served over http)</span></div>
+<div>PE32 fixture: <input type="file" id="pe"> <button id="runpe">Run PE (expects EAX=1, halted, no error)</button></div>
+<div>
+<button data-g="all">Run all</button>
+<button data-g="x87">x87</button>
+<button data-g="sse">SSE</button>
+<button data-g="mix">x87+SSE mix</button>
+<button data-g="int">Integer</button>
+<button data-g="probe">Coverage probes</button>
+<button id="copy">Copy report</button>
+</div>
+<div id="log"></div>
+<script>
+(() => {
+const S = 0x00401800;                               // scratch data inside the RWX image
+const u32 = v => [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255];
+const H = n => "0x" + (n >>> 0).toString(16).padStart(8, "0");
+const a = o => u32(S + o), c = (...p) => p.flat(), HLT = [0xF4];
+const fld64 = o => [0xDD, 0x05, ...a(o)], fstp64 = o => [0xDD, 0x1D, ...a(o)];
+const fld32 = o => [0xD9, 0x05, ...a(o)], fstp32 = o => [0xD9, 0x1D, ...a(o)];
+const sseM = (p, op, x, o) => [p, 0x0F, op, 0x05 | (x << 3), ...a(o)];   // 10=load 11=store
+const sseR = (p, op, d, s) => [p, 0x0F, op, 0xC0 | (d << 3) | s];
+const $ = id => document.getElementById(id), report = [];
+const out = (cls, t) => { const d = document.createElement("div"); d.className = cls; d.textContent = t; $("log").appendChild(d); report.push(t); $("log").scrollTop = 1e9; };
+
+// ---------- test table ----------
+const G = [];
+const T = (g, n, code, init, exp, o) => G.push({ g, n, code, init: init || [], exp: exp || [], o: o || {} });
+const A = 6, B = 2, two = [[0, "f64", A], [8, "f64", B]], L2 = c(fld64(0), fld64(8));
+
+// x87: pop forms DE (ST1 = ST1 op ST0, pop). a=ST1, b=ST0
+[["FADDP DE C1", 0xC1, A + B], ["FMULP DE C9", 0xC9, A * B], ["FSUBP DE E9 (a-b)", 0xE9, A - B],
+ ["FSUBRP DE E1 (b-a)", 0xE1, B - A], ["FDIVP DE F9 (a/b)", 0xF9, A / B], ["FDIVRP DE F1 (b/a)", 0xF1, B / A]]
+ .forEach(([n, m, r]) => T("x87", n, c(L2, [0xDE, m], fstp64(16), HLT), two, [[16, "f64", r]], { x87: 0 }));
+// x87: DC register forms (non-pop), result in ST1, then pop ST0
+[["FADD DC C1", 0xC1, A + B], ["FMUL DC C9", 0xC9, A * B], ["FSUBR DC E1 (b-a)", 0xE1, B - A],
+ ["FSUB DC E9 (a-b)", 0xE9, A - B], ["FDIVR DC F1 (b/a)", 0xF1, B / A], ["FDIV DC F9 (a/b)", 0xF9, A / B]]
+ .forEach(([n, m, r]) => T("x87", n, c(L2, [0xDC, m], [0xDD, 0xD8], fstp64(16), HLT), two, [[16, "f64", r]], { x87: 0 }));
+// x87: D8 register forms, result in ST0
+[["FADD D8 C1", 0xC1, A + B], ["FMUL D8 C9", 0xC9, A * B], ["FSUB D8 E1 (b-a)", 0xE1, B - A],
+ ["FSUBR D8 E9 (a-b)", 0xE9, A - B], ["FDIV D8 F1 (b/a)", 0xF1, B / A], ["FDIVR D8 F9 (a/b)", 0xF9, A / B]]
+ .forEach(([n, m, r]) => T("x87", n, c(L2, [0xD8, m], fstp64(16), [0xDD, 0xD8], HLT), two, [[16, "f64", r]], { x87: 0 }));
+// x87: DC memory forms (m64)
+[["FADD m64 DC 05", 0x05, A + B], ["FMUL m64 DC 0D", 0x0D, A * B], ["FSUB m64 DC 25 (a-B)", 0x25, A - B],
+ ["FSUBR m64 DC 2D (B-a)", 0x2D, B - A], ["FDIV m64 DC 35 (a/B)", 0x35, A / B], ["FDIVR m64 DC 3D (B/a)", 0x3D, B / A]]
+ .forEach(([n, m, r]) => T("x87", n, c(fld64(0), [0xDC, m, ...a(8)], fstp64(16), HLT), two, [[16, "f64", r]], { x87: 0 }));
+T("x87", "FMUL m32 D8 0D", c(fld32(0), [0xD8, 0x0D, ...a(4)], fstp32(16), HLT), [[0, "f32", 1.5], [4, "f32", 2.25]], [[16, "f32", 3.375]], { x87: 0 });
+T("x87", "FLD1 + FCHS", c([0xD9, 0xE8, 0xD9, 0xE0], fstp64(16), HLT), [], [[16, "f64", -1]], { x87: 0 });
+T("x87", "FLDZ + FABS(-0 safe)", c([0xD9, 0xEE, 0xD9, 0xE1], fstp64(16), HLT), [], [[16, "f64", 0]], { x87: 0 });
+T("x87", "FXCH st1 (D9 C9)", c(L2, [0xD9, 0xC9], fstp64(16), [0xDD, 0xD8], HLT), two, [[16, "f64", A]], { x87: 0 });
+T("x87", "FLD st0 + FADDP", c(fld64(0), [0xD9, 0xC0, 0xDE, 0xC1], fstp64(16), HLT), two, [[16, "f64", 2 * A]], { x87: 0 });
+T("x87", "FCOMPP DE D9 pops two", c(L2, [0xDE, 0xD9], HLT), two, [], { x87: 0 });
+T("x87", "FLD/FSTP m32 round trip", c(fld32(0), fstp32(16), HLT), [[0, "f32", 1.5]], [[16, "f32", 1.5]], { x87: 0 });
+T("x87", "compiled-C pattern: a*b via fmulp", c(fld64(0), fld64(8), [0xDE, 0xC9], fstp64(16), HLT), two, [[16, "f64", 12]], { x87: 0 });
+
+// SSE scalar double / single, register and memory source
+[["ADDSD", 0x58, A + B], ["MULSD", 0x59, A * B], ["SUBSD", 0x5C, A - B], ["DIVSD", 0x5E, A / B]].forEach(([n, op, r]) => {
+  T("sse", n + " xmm0,xmm1", c(sseM(0xF2, 0x10, 0, 0), sseM(0xF2, 0x10, 1, 8), sseR(0xF2, op, 0, 1), sseM(0xF2, 0x11, 0, 16), HLT), two, [[16, "f64", r]]);
+  T("sse", n + " xmm0,[mem]", c(sseM(0xF2, 0x10, 0, 0), [0xF2, 0x0F, op, 0x05, ...a(8)], sseM(0xF2, 0x11, 0, 16), HLT), two, [[16, "f64", r]]);
+});
+const s32 = [[0, "f32", 1.5], [4, "f32", 2.25]];
+[["ADDSS", 0x58, 1.5 + 2.25], ["MULSS", 0x59, 1.5 * 2.25], ["SUBSS", 0x5C, 1.5 - 2.25], ["DIVSS", 0x5E, 1.5 / 2.25]].forEach(([n, op, r]) => {
+  T("sse", n + " xmm0,xmm1", c(sseM(0xF3, 0x10, 0, 0), sseM(0xF3, 0x10, 1, 4), sseR(0xF3, op, 0, 1), sseM(0xF3, 0x11, 0, 16), HLT), s32, [[16, "f32", r]]);
+  T("sse", n + " xmm0,[mem]", c(sseM(0xF3, 0x10, 0, 0), [0xF3, 0x0F, op, 0x05, ...a(4)], sseM(0xF3, 0x11, 0, 16), HLT), s32, [[16, "f32", r]]);
+});
+T("sse", "compiled-C pattern: (a*b)+b (double)", c(sseM(0xF2, 0x10, 0, 0), [0xF2, 0x0F, 0x59, 0x05, ...a(8)], [0xF2, 0x0F, 0x58, 0x05, ...a(8)], sseM(0xF2, 0x11, 0, 16), HLT), two, [[16, "f64", A * B + B]]);
+
+// x87 and SSE in one program (checks neither breaks the other)
+T("mix", "x87 mul then SSE add", c(fld64(0), fld64(8), [0xDE, 0xC9], fstp64(16), sseM(0xF2, 0x10, 0, 16), [0xF2, 0x0F, 0x58, 0x05, ...a(8)], sseM(0xF2, 0x11, 0, 24), HLT), two, [[16, "f64", 12], [24, "f64", 14]], { x87: 0 });
+T("mix", "SSE load/store then x87 mul", c(sseM(0xF2, 0x10, 0, 0), sseM(0xF2, 0x11, 0, 16), fld64(16), fld64(8), [0xDE, 0xC9], fstp64(24), HLT), two, [[24, "f64", 12]], { x87: 0 });
+
+// integer sanity
+T("int", "mov+add eax", c([0xB8, ...u32(5)], [0x05, ...u32(3)], HLT), [], [], { eax: 8 });
+T("int", "push/pop/mov", c([0x6A, 7, 0x59, 0x89, 0xC8], HLT), [], [], { eax: 7 });
+T("int", "dec/jnz loop (5x add 2)", c([0xB8, ...u32(0)], [0xB9, ...u32(5)], [0x83, 0xC0, 2, 0x49, 0x75, 0xFA], HLT), [], [], { eax: 10 });
+T("int", "mov [abs],imm / mov eax,[abs]", c([0xC7, 0x05, ...a(0), ...u32(0xDEADBEEF)], [0x8B, 0x05, ...a(0)], HLT), [], [], { eax: 0xDEADBEEF });
+
+// coverage probes: not failures. They report which instructions the runtime can already execute.
+const two87 = [0xD9, 0xE8, 0xD9, 0xE8];
+[["UCOMISD", [0x66, 0x0F, 0x2E, 0xC1]], ["COMISD", [0x66, 0x0F, 0x2F, 0xC1]], ["CVTSI2SD", [0xF2, 0x0F, 0x2A, 0xC0]],
+ ["CVTTSD2SI", [0xF2, 0x0F, 0x2C, 0xC0]], ["CVTSS2SD", [0xF3, 0x0F, 0x5A, 0xC0]], ["CVTSD2SS", [0xF2, 0x0F, 0x5A, 0xC0]],
+ ["SQRTSD", [0xF2, 0x0F, 0x51, 0xC1]], ["MINSD", [0xF2, 0x0F, 0x5D, 0xC1]], ["MAXSD", [0xF2, 0x0F, 0x5F, 0xC1]],
+ ["XORPS", [0x0F, 0x57, 0xC0]], ["XORPD", [0x66, 0x0F, 0x57, 0xC0]], ["ANDPD", [0x66, 0x0F, 0x54, 0xC1]],
+ ["MOVAPS", [0x0F, 0x28, 0xC1]], ["MOVAPD", [0x66, 0x0F, 0x28, 0xC1]], ["MOVD xmm,r32", [0x66, 0x0F, 0x6E, 0xC0]],
+ ["MOVD r32,xmm", [0x66, 0x0F, 0x7E, 0xC0]], ["MOVQ xmm,[m]", [0xF3, 0x0F, 0x7E, 0x05, ...a(0)]], ["PXOR", [0x66, 0x0F, 0xEF, 0xC0]],
+ ["EMMS (MMX)", [0x0F, 0x77]], ["MOVQ mm,[m] (MMX)", [0x0F, 0x6F, 0x05, ...a(0)]], ["PADDD mm (MMX)", [0x0F, 0xFE, 0xC1]]]
+ .forEach(([n, b]) => T("probe", n, c(b, HLT)));
+[["FILD m32", [0xDB, 0x05, ...a(0)]], ["FISTP m32", [0xDB, 0x1D, ...a(0)]], ["FILD m16", [0xDF, 0x05, ...a(0)]],
+ ["FISTP m64", [0xDF, 0x3D, ...a(0)]], ["FNSTCW m16", [0xD9, 0x3D, ...a(0)]], ["FLDCW m16", [0xD9, 0x2D, ...a(0)]],
+ ["FNSTSW AX", [0xDF, 0xE0]], ["FUCOMPP", [0xDA, 0xE9]], ["FUCOMI", [0xDB, 0xE9]], ["FCOMIP", [0xDF, 0xF1]],
+ ["FUCOM st1", [0xDD, 0xE1]], ["FUCOMP st1", [0xDD, 0xE9]], ["FSQRT", [0xD9, 0xFA]], ["FSIN", [0xD9, 0xFE]],
+ ["FRNDINT", [0xD9, 0xFC]], ["FLDPI", [0xD9, 0xEB]], ["FPREM", [0xD9, 0xF8]], ["FSCALE", [0xD9, 0xFD]]]
+ .forEach(([n, b]) => T("probe", "x87 " + n, c(two87, b, HLT)));
+
+// ---------- PE builder (same layout as tool/xwasm_build_x86_test.py, no imports) ----------
+function makePE(code) {
+  const b = new Uint8Array(0x400), d = new DataView(b.buffer);
+  if (code.length > 0x200) throw new Error("code too large for .text raw size");
+  b.set([0x4D, 0x5A]); d.setUint32(0x3C, 0x80, true); b.set([0x50, 0x45, 0, 0], 0x80);
+  const fh = 0x84, oh = fh + 20, sh = oh + 0xE0;
+  d.setUint16(fh, 0x14C, true); d.setUint16(fh + 2, 1, true); d.setUint16(fh + 16, 0xE0, true); d.setUint16(fh + 18, 0x010F, true);
+  d.setUint16(oh, 0x10B, true); d.setUint32(oh + 16, 0x1000, true); d.setUint32(oh + 28, 0x400000, true);
+  d.setUint32(oh + 32, 0x1000, true); d.setUint32(oh + 36, 0x200, true); d.setUint32(oh + 56, 0x2000, true);
+  d.setUint32(oh + 60, 0x200, true); d.setUint16(oh + 68, 3, true); d.setUint32(oh + 92, 16, true);
+  b.set([0x2E, 0x74, 0x65, 0x78, 0x74], sh);
+  d.setUint32(sh + 8, 0x1000, true); d.setUint32(sh + 12, 0x1000, true); d.setUint32(sh + 16, 0x200, true); d.setUint32(sh + 20, 0x200, true);
+  b.set(code, 0x200);
+  return b;
+}
+
+// ---------- runtime ----------
+let mod = null;
+async function setRuntime(buf, label) {
+  mod = await WebAssembly.compile(buf);
+  $("rts").textContent = label + " (" + buf.byteLength + " bytes)"; $("rts").className = "PASS";
+}
+async function inst() {
+  const imports = {}; let memory = null;
+  for (const i of WebAssembly.Module.imports(mod)) {
+    imports[i.module] = imports[i.module] || {};
+    if (i.kind === "memory") { memory = new WebAssembly.Memory({ initial: 1024, maximum: 4096 }); imports[i.module][i.name] = memory; }
+    else if (i.kind === "function") imports[i.module][i.name] = () => 0;
+  }
+  if (!memory) throw new Error("runtime did not import memory");
+  return { e: (await WebAssembly.instantiate(mod, imports)).exports, mem: memory };
+}
+async function exec(pe, init, steps) {
+  const { e, mem } = await inst(), addr = 0x100000;
+  new Uint8Array(mem.buffer).set(pe, addr);
+  const r = { e, mem };
+  r.init = e.xwasm_init(); r.load = e.x86_load_pe(addr, pe.length); r.loaded = e.x86_get_loaded(); r.lerr = e.x86_get_load_error();
+  if (r.load === 0 && r.loaded) {
+    const dv = new DataView(mem.buffer);
+    for (const [o, ty, v] of init) ty === "f64" ? dv.setFloat64(S + o, v, true) : ty === "f32" ? dv.setFloat32(S + o, v, true) : dv.setUint32(S + o, v, true);
+    r.run = e.x86_run(steps);
+  }
+  r.eip = e.x86_get_eip() >>> 0; r.eax = e.x86_get_eax() >>> 0; r.halted = e.x86_get_halted(); r.err = e.x86_get_cpu_error() >>> 0;
+  r.steps = e.x86_get_steps(); r.x87 = e.x86_get_x87_count();
+  return r;
+}
+const sem = (e, i) => { let s = "", n = e.x86_get_trace_semantic_id_len(i); for (let k = 0; k < n; k++) s += String.fromCharCode(e.x86_get_trace_semantic_id_char(i, k)); return s; };
+function trace(r, last = 8) {
+  const e = r.e, n = e.x86_get_trace_count(), lines = [];
+  for (let j = Math.max(0, n - last); j < n; j++) {
+    const i = e.x86_get_trace_index(j), op = e.x86_get_trace_opcode(i) & 255;
+    lines.push("    [" + j + "] " + H(e.x86_get_trace_eip(i)) + "->" + H(e.x86_get_trace_next_eip(i)) + " op=0x" + op.toString(16).padStart(2, "0") +
+      " " + sem(e, i) + " disp=" + e.x86_get_trace_dispatch(i));
+  }
+  return lines.join("\n");
+}
+function why(r) {
+  const x = r.err, hi = x >>> 8;
+  let m = "cpu_error=" + H(x) + " run=" + r.run + " EIP=" + H(r.eip);
+  if (r.run === -10) m += " | unsupported opcode 0x" + (x & 255).toString(16);
+  else if (hi === 0xD0) m += " | decoder has no entry for opcode 0x" + (x & 255).toString(16);
+  else if (hi === 0xD8) m += " | x87 form not implemented (op/sub " + (x & 255) + ")";
+  else if (hi === 0x0F) m += " | 0F-map form not implemented (opcode 0x" + (x & 255).toString(16) + ")";
+  else if (!r.halted) m += " | did not halt";
+  return m;
+}
+const rd = (mem, o, ty) => { const dv = new DataView(mem.buffer), p = S + o; return ty === "f64" ? dv.getFloat64(p, true) : ty === "f32" ? dv.getFloat32(p, true) : dv.getUint32(p, true); };
+function judge(t, r) {
+  if (r.load !== 0 || !r.loaded) return ["FAIL", "PE load failed: load=" + r.load + " loadError=" + H(r.lerr)];
+  if (r.err || !r.halted) return [t.g === "probe" ? "MISSING" : "FAIL", why(r)];
+  for (const [o, ty, x] of t.exp) {
+    const g = rd(r.mem, o, ty), w = ty === "f32" ? Math.fround(x) : x;
+    if (!(g === w || (Number.isNaN(g) && Number.isNaN(w)))) return ["FAIL", "mem+" + o + " (" + ty + ") got " + g + ", expected " + w];
+  }
+  if (t.o.eax !== undefined && r.eax !== (t.o.eax >>> 0)) return ["FAIL", "EAX got " + H(r.eax) + ", expected " + H(t.o.eax)];
+  if (t.o.x87 !== undefined && r.x87 !== t.o.x87) return ["FAIL", "x87 stack depth " + r.x87 + ", expected " + t.o.x87];
+  return ["PASS", ""];
+}
+
+async function runGroups(g) {
+  if (!mod) { out("FAIL", "Load runtime.wasm first."); return; }
+  const list = G.filter(t => g === "all" ? t.g !== "probe" : t.g === g), cnt = { PASS: 0, FAIL: 0, MISSING: 0 };
+  out("info", "=== " + (g === "all" ? "all (excluding probes)" : g) + ": " + list.length + " tests ===");
+  for (const t of list) {
+    try {
+      const r = await exec(makePE(Uint8Array.from(t.code)), t.init, 10000), [st, msg] = judge(t, r);
+      cnt[st]++;
+      const label = t.g === "probe" && st === "PASS" ? "SUPPORTED" : st;
+      out(st, "[" + label + "] " + t.n + (msg ? "  " + msg : ""));
+      if (st === "FAIL") out("dim", trace(r));
+    } catch (err) { cnt.FAIL++; out("FAIL", "[FAIL] " + t.n + "  exception: " + err); }
+  }
+  out("info", g === "probe" ? "=== probes: " + cnt.PASS + " supported, " + cnt.MISSING + " missing ===" : "=== " + cnt.PASS + " passed, " + cnt.FAIL + " failed ===");
+}
+async function runPE() {
+  if (!mod) { out("FAIL", "Load runtime.wasm first."); return; }
+  const f = $("pe").files[0]; if (!f) { out("FAIL", "Pick a PE32 fixture first."); return; }
+  try {
+    const r = await exec(new Uint8Array(await f.arrayBuffer()), [], 2000000);
+    out("info", "=== PE " + f.name + " ===");
+    out("info", "load=" + r.load + " loadError=" + H(r.lerr) + " run=" + r.run + " steps=" + r.steps + " EIP=" + H(r.eip) + " EAX=" + H(r.eax) + " halted=" + r.halted + " cpu_error=" + H(r.err));
+    const ok = r.load === 0 && r.halted && !r.err && r.eax === 1;
+    out(ok ? "PASS" : "FAIL", ok ? "[PASS] fixture returned 1" : "[FAIL] " + (r.err ? why(r) : "EAX=" + H(r.eax) + " (expected 1)"));
+    if (!ok) out("dim", trace(r, 12));
+  } catch (err) { out("FAIL", "[FAIL] exception: " + err); }
+}
+
+$("rt").addEventListener("change", async ev => { const f = ev.target.files[0]; if (f) try { await setRuntime(await f.arrayBuffer(), f.name); } catch (e) { out("FAIL", "runtime load failed: " + e); } });
+document.querySelectorAll("button[data-g]").forEach(b => b.addEventListener("click", () => runGroups(b.dataset.g)));
+$("runpe").addEventListener("click", runPE);
+$("copy").addEventListener("click", () => navigator.clipboard.writeText(report.join("\n")));
+fetch("runtime.wasm").then(r => r.ok ? r.arrayBuffer() : Promise.reject()).then(b => setRuntime(b, "./runtime.wasm")).catch(() => {});
+})();
+</script>
