@@ -94,12 +94,20 @@ function xwasm_build {
     Write-Host "API:     $(Join-Path $package 'game.xapi')"
 }
 function xwasm_environment {
+    [CmdletBinding()]
+    param(
+        [string]$Clang="C:\Program Files\LLVM\bin\clang.exe",
+        [string]$LldLink="C:\Program Files\LLVM\bin\lld-link.exe"
+    )
+    $python = Get-Command python -ErrorAction SilentlyContinue
     Write-Host "XWASM environment: $script:XWASM_ROOT"
+    Write-Host "Python: $(if($python){$python.Source}else{'[MISSING]'})"
+    Write-Host "LLVM clang: $Clang $(if(Test-Path $Clang -PathType Leaf){'[OK]'}else{'[MISSING]'})"
+    Write-Host "LLVM lld-link: $LldLink $(if(Test-Path $LldLink -PathType Leaf){'[OK]'}else{'[MISSING]'})"
     Write-Host "Commands:"
     Write-Host "  xwasm_build <game-folder>"
     Write-Host "  xwasm_build stress_test | C_test | CPP_test | SSE_test | x87_test"
     Write-Host "  xwasm_build integer_test | cpu_test | graphics_test | window_test"
     Write-Host "  xwasm_build api_test | all_tests"
-    Write-Host "LLVM: $Clang"
 }
 Export-ModuleMember -Function xwasm_build,xwasm_environment
