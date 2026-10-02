@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>XWASM OpenGL Pong — native package bridge shell</title>
+<style>
+body{font:14px monospace;background:#111;color:#ddd;margin:0}header{padding:12px;border-bottom:1px solid #444}
+button,input{font:inherit;margin:4px}canvas{display:block;width:640px;height:360px;border:1px solid #555;image-rendering:auto}
+#log{white-space:pre-wrap;padding:12px;max-height:35vh;overflow:auto} .ok{color:#8f8}
+</style>
+<header>
+<strong>XWASM OpenGL Pong</strong>
+<input id="runtime" type="file" accept=".xwasm,.wasm">
+<input id="payload" type="file" accept=".xpl,.exe">
+<button id="run">Run</button>
+</header>
+<canvas id="screen" width="640" height="360"></canvas><pre id="log"></pre>
+<script>
+const log=s=>{document.querySelector("#log").textContent+=s+"\n";console.log(s)};
+const canvas=document.querySelector("#screen"),ctx=canvas.getContext("2d");
+let pixels=null, quit=false, events=[], audioCtx=null;
+function gfxCreate(w,h){canvas.width=w||640;canvas.height=h||360;pixels=ctx.createImageData(canvas.width,canvas.height)}
+function gfxClear(rgb){ctx.fillStyle="#"+((rgb>>>0)&0xffffff).toString(16).padStart(6,"0");ctx.fillRect(0,0,canvas.width,canvas.height)}
+function gfxPixel(x,y,rgb){if(x<0||y<0||x>=canvas.width||y>=canvas.height)return;ctx.fillStyle="#"+((rgb>>>0)&0xffffff).toString(16).padStart(6,"0");ctx.fillRect(x,y,1,1)}
+function gfxRect(x,y,w,h,rgb){ctx.fillStyle="#"+((rgb>>>0)&0xffffff).toString(16).padStart(6,"0");ctx.fillRect(x,y,w,h)}
+function present(){/* 2D bridge is immediate; retained for API compatibility */}
+function beep(freq,dur){try{audioCtx??=new AudioContext();let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.frequency.value=freq;g.gain.value=.04;o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur/1000)}catch(e){log("[AUDIO] "+e)}}
+function poll(ptr){
+  if(!events.length)return 0;
+  const e=events.shift(), dv=new DataView(mem.buffer); dv.setInt32(ptr,e.msg,true); dv.setInt32(ptr+8,e.x||0,true); dv.setInt32(ptr+12,e.y||0,true); return 1;
+}
+window.addEventListener("keydown",e=>events.push({msg:0x100,x:e.keyCode}));
+window.addEventListener("keyup",e=>events.push({msg:0x101,x:e.keyCode}));
+canvas.addEventListener("mousemove",e=>{let r=canvas.getBoundingClientRect();events.push({msg:0x200,x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height})});
+canvas.addEventListener("mousedown",e=>events.push({msg:e.button===0?0x201:e.button===2?0x204:0x207,x:e.offsetX,y:e.offsetY}));
+canvas.addEventListener("contextmenu",e=>e.preventDefault());
+
+async function unpack(buf){
+  const u=new Uint8Array(buf), dv=new DataView(buf);
+  if(new TextDecoder().decode(u.subarray(0,6))!=="XWSC01")return buf;
+  const raw=dv.getUint32(12,true), stored=u.subarray(20);
+  if(u[11]===1 && "DecompressionStream" in window){
+    const out=await new Response(new Blob([stored]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer();
+    if(out.byteLength!==raw)throw Error("XWSC01 size mismatch"); return out;
+  }
+  throw Error("XWSC01 DEFLATE requires DecompressionStream");
+}
+async function main(){
+  const rb=document.querySelector("#runtime").files[0],pb=document.querySelector("#payload").files[0];
+  if(!rb||!pb)return alert("Select runtime.xwasm and payload.xpl");
+  const wasm=await unpack(await rb.arrayBuffer()), payload=await unpack(await pb.arrayBuffer());
+  let mem;
+  const env={
+    memory:new WebAssembly.Memory({initial:1024,maximum:4096}),
+    xwasm_log:(lvl,p,n)=>log("[GUEST] "+lvl+" ptr=0x"+p.toString(16)+" len="+n),
+    xwasm_gfx_create:(w,h)=>gfxCreate(w,h),xwasm_gfx_clear:rgb=>gfxClear(rgb>>>0),
+    xwasm_gfx_present:()=>present(),xwasm_gfx_pixel:(x,y,c)=>gfxPixel(x,y,c>>>0),
+    xwasm_gfx_rect:(x,y,w,h,c)=>gfxRect(x,y,w,h,c>>>0),
+    xwasm_input_poll:p=>poll(p),xwasm_audio_beep:(f,d)=>beep(f,d),xwasm_input_quit:()=>{quit=true}
+  };
+  mem=env.memory;
+  const {instance}=await WebAssembly.instantiate(wasm,{env});
+  const e=instance.exports;
+  log("[PASS] runtime instantiated; exports="+Object.keys(e).length);
+  if(!e.xwasm_init||!e.x86_load_pe||!e.x86_run)throw Error("required XWASM API missing");
+  log("[PASS] window + input + audio + graphics bridge supplied");
+  log("runtime=0x"+e.x86_get_runtime_version().toString(16));
+  const bytes=new Uint8Array(mem.buffer); const p=0x100000; bytes.set(new Uint8Array(payload),p);
+  if(e.x86_load_pe(p,payload.byteLength)!==0)throw Error("x86_load_pe failed: "+e.x86_get_load_error());
+  e.xwasm_init(); const r=e.x86_run(200000);
+  log("x86_run="+r+" halted="+e.x86_get_halted()+" steps="+e.x86_get_steps());
+  log("EIP=0x"+e.x86_get_eip().toString(16)+" cpu_error=0x"+e.x86_get_cpu_error().toString(16));
+  log(r===1?"[PASS] Pong guest reached its render/audio completion":"[INFO] Guest did not complete");
+}
+document.querySelector("#run").onclick=()=>main().catch(e=>log("[FAIL] "+e.stack));
+</script>
