@@ -4,12 +4,17 @@
   "architecture": "i386",
   "source": "XWASM instruction semantics layer; instruction forms cross-checked against Intel IA-32 instruction reference",
   "operand_kinds": {
-    "reg32": "32-bit general-purpose register",
-    "rm32": "32-bit register or memory operand",
-    "imm8": "8-bit immediate",
-    "imm32": "32-bit immediate",
-    "rel8": "8-bit signed relative displacement",
-    "rel32": "32-bit signed relative displacement"
+    "reg8": "8-bit general-purpose register",
+	"reg16": "16-bit general-purpose register",
+	"rm8": "8-bit register or memory operand",
+	"rm16": "16-bit register or memory operand",
+	"rm64": "64-bit memory operand",
+	"imm16": "16-bit immediate",
+	"moffs8": "8-bit accumulator memory offset",
+	"moffs32": "32-bit accumulator memory offset",
+	"xmm": "128-bit XMM register",
+	"st0": "x87 ST(0) register",
+	"sti": "x87 ST(i) register"
   },
   "flag_bits": {
     "CF": "carry",
@@ -25,15 +30,16 @@
       "family": "data_move",
       "status": "EXECUTE",
       "forms": [
-        "MOV_R32_RM32",
-        "MOV_RM32_R32",
-        "MOV_R32_IMM32",
-        "MOV_RM32_IMM32",
-        "MOV_R8_IMM8",
-        "MOV_AL_MOFFS8",
-        "MOV_EAX_MOFFS32",
-        "MOV_MOFFS8_AL",
-        "MOV_MOFFS32_EAX"
+          "MOV_R32_RM32",
+		  "MOV_RM32_R32",
+		  "MOV_R32_IMM32",
+		  "MOV_RM32_IMM32",
+		  "MOV_R8_IMM8",
+		  "MOV_RM8_IMM8",
+		  "MOV_AL_MOFFS8",
+		  "MOV_EAX_MOFFS32",
+		  "MOV_MOFFS8_AL",
+		  "MOV_MOFFS32_EAX"
       ],
       "flags": {
         "read": [],
@@ -272,7 +278,8 @@
       "family": "integer_core",
       "status": "EXECUTE",
       "forms": [
-        "IMUL_R32_RM32"
+        "IMUL_R32_RM32",
+		"IMUL_RM32"
       ],
       "flags": {
         "read": [],
@@ -1196,7 +1203,8 @@
       "family": "x87_floating_point",
       "status": "EXECUTE",
       "forms": [
-        "FADD_RM32"
+        "FADD_RM32",
+		"FADD_STI_ST0"
       ],
       "flags": {
         "read": [],
@@ -1316,7 +1324,8 @@
       "family": "x87_floating_point",
       "status": "EXECUTE",
       "forms": [
-        "FSUB_RM32"
+        "FSUBR_RM32",
+		"FSUBR_STI_ST0"
       ],
       "flags": {
         "read": [],
@@ -1329,7 +1338,8 @@
       "family": "x87_floating_point",
       "status": "EXECUTE",
       "forms": [
-        "FSUBR_RM32"
+        "FSUBR_RM32",
+		"FSUBR_STI_ST0"
       ],
       "flags": {
         "read": [],
@@ -1342,7 +1352,8 @@
       "family": "x87_floating_point",
       "status": "EXECUTE",
       "forms": [
-        "FDIV_RM32"
+        "FDIV_RM32",
+		"FDIV_STI_ST0"
       ],
       "flags": {
         "read": [],
@@ -1355,7 +1366,8 @@
       "family": "x87_floating_point",
       "status": "EXECUTE",
       "forms": [
-        "FDIVR_RM32"
+        "FDIVR_RM32",
+		"FDIVR_STI_ST0"
       ],
       "flags": {
         "read": [],
