@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from .format import custom_sections, metadata, validate_manifest
+from .container import KIND_XPL, KIND_XWASM, unpack_bytes
 
 
 def _safe_package_path(root: Path, relative: str, label: str) -> Path:
@@ -35,6 +36,7 @@ def validate_package(root: Path) -> dict:
     # X86 packages intentionally do not contain a native game.wasm module.
     if architecture == "x86":
         payload_name = manifest.get("payload")
+        payload_format = manifest.get("payload_format")
         if isinstance(payload_name, str) and payload_name:
             try:
                 payload_path = _safe_package_path(root, payload_name, "payload")
@@ -42,10 +44,25 @@ def validate_package(root: Path) -> dict:
                     errors.append(f"missing payload: {payload_name!r}")
                 else:
                     data = payload_path.read_bytes()
-                    if data[:2] != b"MZ":
-                        errors.append("x86 payload does not have an MZ/PE header")
-                    elif len(data) < 0x40:
-                        errors.append("x86 payload is too small to be a PE file")
+                    if payload_format == "XPL" or data.startswith(b"XWSC01"):
+                        try:
+                            _, data = unpack_bytes(data, expected_kind=KIND_XPL)
+                        except ValueError as exc:
+                            errors.append(f"invalid XPL payload: {exc}")
+                            data = b""
+                    if data:
+                        if data[:2] != b"MZ":
+                            errors.append("x86 payload does not have an MZ/PE header")
+                        elif len(data) < 0x40:
+                            errors.append("x86 payload is too small to be a PE file")
+                        else:
+                            pe = int.from_bytes(data[0x3C:0x40], "little")
+                            if pe + 24 > len(data) or data[pe:pe + 4] != b"PE\\0\\0":
+                                errors.append("x86 payload does not contain a valid PE header")
+                            elif int.from_bytes(data[pe + 4:pe + 6], "little") != 0x014C:
+                                errors.append("x86 payload is not i386 PE32")
+                            elif int.from_bytes(data[pe + 24:pe + 26], "little") != 0x010B:
+                                errors.append("x86 payload is not PE32 (optional-header magic 0x010B)")
             except ValueError as exc:
                 errors.append(str(exc))
 
@@ -55,12 +72,24 @@ def validate_package(root: Path) -> dict:
                 runtime_path = _safe_package_path(root, runtime_name, "runtime")
                 if not runtime_path.is_file():
                     errors.append(f"missing runtime: {runtime_name!r}")
-                elif not runtime_path.read_bytes().startswith(b"\x00asm"):
-                    errors.append("x86 runtime does not have a WebAssembly binary header")
+                else:
+                    data = runtime_path.read_bytes()
+                    if data.startswith(b"XWSC01"):
+                        try:
+                            _, wasm = unpack_bytes(data, expected_kind=KIND_XWASM)
+                        except ValueError as exc:
+                            errors.append(f"invalid XWASM runtime container: {exc}")
+                            wasm = b""
+                        if wasm and not wasm.startswith(b"\\x00asm"):
+                            errors.append("unpacked XWASM runtime does not have a WebAssembly binary header")
+                    elif data.startswith(b"\\x00asm"):
+                        warnings.append("x86 package uses legacy raw runtime.wasm; prefer runtime.xwasm")
+                    else:
+                        errors.append("x86 runtime is neither an XWASM container nor a WebAssembly binary")
             except ValueError as exc:
                 errors.append(str(exc))
         else:
-            warnings.append("x86 package has no runtime.wasm; it requires an external/host-supplied x86 runtime")
+            warnings.append("x86 package has no runtime; it requires an external/host-supplied x86 runtime")
 
         resource_root = manifest.get("resource_root")
         if isinstance(resource_root, str):

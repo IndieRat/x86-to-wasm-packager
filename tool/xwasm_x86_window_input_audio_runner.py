@@ -119,6 +119,8 @@ canvas{display:block;width:640px;height:360px;max-width:100%;image-rendering:pix
 <script>
 const $=id=>document.getElementById(id);
 const canvas=$("gfx"),gfx=canvas.getContext("2d"),picker=$("picker");
+const td=new TextDecoder();
+async function unpackXwasm(buf){const b=new Uint8Array(buf),v=new DataView(buf);if(b.length<62||td.decode(b.slice(0,6))!=="XWSC01"||v.getUint16(6,true)!==1||v.getUint8(8)!==1)throw Error("runtime.xwasm is not a valid XWASM container");const comp=v.getUint8(9),rawSize=Number(v.getBigUint64(14,true)),dataSize=Number(v.getBigUint64(22,true)),stored=b.slice(62,62+dataSize);let raw;if(comp===0)raw=stored;else if(comp===1)raw=new Uint8Array(await new Response(new Blob([stored]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer());else throw Error("unsupported XWASM compression");if(raw.length!==rawSize)throw Error("XWASM runtime size mismatch");const h=new Uint8Array(await crypto.subtle.digest("SHA-256",raw));for(let i=0;i<32;i++)if(h[i]!==b[30+i])throw Error("XWASM runtime SHA-256 mismatch");return raw;}
 const inputQueue=[];
 let memory=null,runtimeExports=null,inputReady=false,loopRunning=false,paused=false;
 let frameHandle=0,sliceCount=0,lastSteps=0,richReported=false,windowReported=false,audioReported=false;
@@ -300,7 +302,7 @@ picker.onchange=async e=>{
     const mf=files.get("manifest.xwasm.json");if(!mf)throw Error("manifest.xwasm.json is missing");
     const manifest=JSON.parse(await mf.text());if(manifest.architecture!=="x86")throw Error("Not an XWASM x86 package");
     logTo("system","Package: "+manifest.name,"pass");
-    const rt=files.get(manifest.runtime||"runtime.wasm"),payload=files.get(manifest.payload);
+    const rt=files.get(manifest.runtime||"runtime.xwasm"),payload=files.get(manifest.payload);
     if(!rt||!payload)throw Error("runtime.wasm or payload.exe is missing");
     memory=new WebAssembly.Memory({initial:1024,maximum:4096});
     const imports={env:{
@@ -322,7 +324,7 @@ picker.onchange=async e=>{
         logTo("audio","Browser Web Audio: "+frequency+" Hz for "+duration+" ms.","pass");
       }
     }};
-    const {instance}=await WebAssembly.instantiate(await rt.arrayBuffer(),imports);
+    const {instance}=await WebAssembly.instantiate(await unpackXwasm(await rt.arrayBuffer()),imports);
     runtimeExports=instance.exports;
     logTo("system","Runtime WASM instantiated.","pass");
     logTo("system","Runtime version: "+hex(runtimeExports.x86_get_runtime_version()),"pass");

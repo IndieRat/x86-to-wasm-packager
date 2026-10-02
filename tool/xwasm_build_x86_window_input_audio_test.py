@@ -206,10 +206,10 @@ def main():
     args = ap.parse_args()
     root = args.output
     payload = root / "resources" / "__x86__" / "payload.exe"
-    runtime = root / "runtime.wasm"
+    runtime = root / "runtime.xwasm"
     payload.parent.mkdir(parents=True, exist_ok=True)
 
-    runtime_source = Path("dist/x86-runtime-v0.7/runtime.wasm")
+    runtime_source = Path("dist/x86-runtime-v0.9/runtime.xwasm")
     if not runtime_source.exists():
         raise SystemExit("missing dist/x86-runtime-v0.7/runtime.wasm; build the runtime first")
     runtime.parent.mkdir(parents=True, exist_ok=True)
@@ -222,7 +222,7 @@ def main():
         "name": "XWASM-X86-Window-Input-Audio-Test",
         "architecture": "x86",
         "runtime_kind": "x86-compatibility",
-        "runtime": "runtime.wasm",
+        "runtime": "runtime.xwasm",
         "abi": "xwasm.host/1",
         "resource_root": "resources/",
         "payload": "resources/__x86__/payload.exe",
