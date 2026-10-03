@@ -128,27 +128,31 @@
       },
       {
         "mnemonic": "PUSHAD",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "POPAD",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "PUSHFD",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "POPFD",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "CWDE",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "CDQ",
-        "status": "PLANNED"
+        "status": "EXECUTE"
+      },
+      {
+        "mnemonic": "XCHG",
+        "status": "EXECUTE"
       }
     ],
     "control_flow": [
