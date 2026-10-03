@@ -73,7 +73,8 @@
         "ADD_RM32_IMM32",
         "ADD_RM32_IMM8",
         "ADD_EAX_IMM32",
-        "ADD_AL_IMM8"
+        "ADD_AL_IMM8",
+        "ADD_RM8_IMM8"
       ],
       "flags": {
         "read": [],
@@ -97,7 +98,8 @@
         "SUB_RM32_IMM32",
         "SUB_RM32_IMM8",
         "SUB_EAX_IMM32",
-        "SUB_AL_IMM8"
+        "SUB_AL_IMM8",
+        "SUB_RM8_IMM8"
       ],
       "flags": {
         "read": [],
@@ -121,7 +123,8 @@
         "CMP_RM32_IMM32",
         "CMP_RM32_IMM8",
         "CMP_EAX_IMM32",
-        "CMP_AL_IMM8"
+        "CMP_AL_IMM8",
+        "CMP_RM8_IMM8"
       ],
       "flags": {
         "read": [],
@@ -183,7 +186,8 @@
         "AND_RM32_R32",
         "AND_R32_RM32",
         "AND_RM32_IMM8",
-        "AND_AL_IMM8"
+        "AND_AL_IMM8",
+        "AND_RM8_IMM8"
       ],
       "flags": {
         "read": [],
@@ -230,7 +234,9 @@
         "XOR_RM32_R32",
         "XOR_R32_RM32",
         "XOR_RM32_IMM32",
-        "XOR_AL_IMM8"
+        "XOR_AL_IMM8",
+        "XOR_RM8_IMM8",
+        "XOR_RM32_IMM8"
       ],
       "flags": {
         "read": [],
@@ -703,7 +709,8 @@
         "ADC_RM32_IMM32",
         "ADC_RM32_IMM8",
         "ADC_EAX_IMM32",
-        "ADC_AL_IMM8"
+        "ADC_AL_IMM8",
+        "ADC_RM8_IMM8"
       ],
       "flags": {
         "read": [
@@ -730,7 +737,8 @@
         "SBB_RM32_IMM32",
         "SBB_RM32_IMM8",
         "SBB_EAX_IMM32",
-        "SBB_AL_IMM8"
+        "SBB_AL_IMM8",
+        "SBB_RM8_IMM8"
       ],
       "flags": {
         "read": [
