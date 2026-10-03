@@ -198,6 +198,7 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {1,0x59,1,-1,"MULSD_XMM_RM64",2,2},
   {1,0x5E,1,-1,"DIVSD_XMM_RM64",2,2},
   {0,0xFF,1,2,"CALL_RM32",0,0},
+  {0,0xFF,1,4,"JMP_RM32",0,0},
   {0,0x60,0,-1,"PUSHAD",0,0},
   {0,0x61,0,-1,"POPAD",0,0},
   {0,0x98,0,-1,"CWDE",0,0},
