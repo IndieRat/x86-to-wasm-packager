@@ -1,0 +1,45 @@
+{
+  "format": "xwasm-xapi",
+  "version": 1,
+  "libraries": {
+    "MATH.dll": {
+      "functions": {
+        "sin": {
+          "id": 1,
+          "abi": "cdecl",
+          "args": ["f64"],
+          "return": "f64",
+          "bridge": "xw.math.sin"
+        },
+        "cos": {
+          "id": 2,
+          "abi": "cdecl",
+          "args": ["f64"],
+          "return": "f64",
+          "bridge": "xw.math.cos"
+        },
+        "tan": {
+          "id": 3,
+          "abi": "cdecl",
+          "args": ["f64"],
+          "return": "f64",
+          "bridge": "xw.math.tan"
+        },
+        "sqrt": {
+          "id": 4,
+          "abi": "cdecl",
+          "args": ["f64"],
+          "return": "f64",
+          "bridge": "xw.math.sqrt"
+        },
+        "pow": {
+          "id": 5,
+          "abi": "cdecl",
+          "args": ["f64", "f64"],
+          "return": "f64",
+          "bridge": "xw.math.pow"
+        }
+      }
+    }
+  }
+}
