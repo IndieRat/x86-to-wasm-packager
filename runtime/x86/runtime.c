@@ -253,7 +253,6 @@ typedef struct {
 
 static x86_mem_region_t x86_mem_regions[X86_MEM_REGION_MAX];
 static uint32_t x86_mem_region_count=0;
-static uint32_t x86_mem_faults=0;
 
 static void x86_mem_reset(void){
  for(uint32_t i=0;i<X86_MEM_REGION_MAX;i++)x86_mem_regions[i].active=0;
