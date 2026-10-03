@@ -3,6 +3,19 @@
 from pathlib import Path
 import argparse, json, struct
 
+
+def find_runtime():
+    """Find the runtime produced by xwasm_build_x86_runtime.py."""
+    dist = Path("dist")
+    candidates = sorted(dist.glob("x86-runtime-v*/runtime.xwasm"), key=lambda p: p.parent.name)
+    if candidates:
+        return candidates[-1]
+    # Also accept a directly placed runtime for local/CI fixture work.
+    direct = dist / "runtime.xwasm"
+    if direct.exists():
+        return direct
+    return None
+
 IMAGE_BASE=0x00400000
 SECTION_RVA=0x1000
 SECTION_RAW=0x200
@@ -102,10 +115,11 @@ def pe():
     return bytes(b)
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument("--output",type=Path,required=True); a=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument("--output",type=Path,default=Path("dist/xwasm-opengl-pong")); a=ap.parse_args()
     root=a.output; (root/"resources/__x86__").mkdir(parents=True,exist_ok=True)
-    runtime=Path("dist/x86-runtime-v0.9/runtime.xwasm")
-    if not runtime.exists(): raise SystemExit("build dist/x86-runtime-v0.9/runtime.xwasm first")
+    runtime=find_runtime()
+    if runtime is None:
+        raise SystemExit("No built XWASM runtime found under dist/x86-runtime-v*/runtime.xwasm. Run xwasm_build_x86_runtime.py first.")
     (root/"runtime.xwasm").write_bytes(runtime.read_bytes())
     (root/"resources/__x86__/payload.exe").write_bytes(pe())
     manifest={"format":"xwasm-package","format_version":1,"name":"XWASM-X86-OpenGL-Pong-Test","architecture":"x86","runtime_kind":"x86-compatibility","runtime":"runtime.xwasm","abi":"xwasm.host/1","resource_root":"resources/","payload":"resources/__x86__/payload.exe","payload_format":"PE32","payload_architecture":"i386","bundled_dlls":["KERNEL32.dll","USER32.dll","GDI32.dll","OPENGL32.dll"],"execution_status":"opengl_window_input_audio_seed","test_suite":{"name":"Win32/OpenGL Pong seed","tests":["CreateWindowExA/ShowWindow/GetDC","ChoosePixelFormat/SetPixelFormat","wglCreateContext/wglMakeCurrent","glViewport/glClearColor/glClear","glBegin/glEnd/glColor3f/glVertex2f","SwapBuffers","KERNEL32 Beep audio bridge","XWASM input bridge availability"]}}
