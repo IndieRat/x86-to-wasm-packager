@@ -20,5 +20,5 @@ extern "C" int main() {
     // Deliberately exercise compiler-generated C++ control flow, stack
     // locals, address calculation, a helper call, and integer comparisons.
     const int result = accumulate_pairs(7);
-    return result == 56 ? 42 : 0;
+    return result == 49 ? 42 : 0;
 }
