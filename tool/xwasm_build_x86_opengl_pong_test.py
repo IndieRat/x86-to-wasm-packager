@@ -26,6 +26,11 @@ def pe():
     struct.pack_into("<II",b,oh+32,0x1000,0x200)
     struct.pack_into("<II",b,oh+56,0x4000,0x200)
     struct.pack_into("<I",b,oh+92,16)
+    # Import data directory (index 1): the descriptor table is emitted at
+    # RVA 0x1800 below. Without this directory entry the loader never scans
+    # the IAT, so FF /2 would jump to the raw Hint/Name RVA instead of the
+    # resolved XWASM API address.
+    struct.pack_into("<II",b,oh+96+8,0x1800,0x64)
     sh=oh+0xe0; b[sh:sh+8]=b".text\0\0\0"
     struct.pack_into("<IIII",b,sh+8,SECTION_SIZE,SECTION_RVA,SECTION_SIZE,SECTION_RAW)
     struct.pack_into("<I",b,sh+36,0xe0000020)
