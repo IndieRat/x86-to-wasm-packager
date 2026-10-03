@@ -70,9 +70,10 @@ def main()->int:
     seed_dir=ROOT/"runtime"/"x86"/"dlls"
     for api_name in canonical_xapis:
         seed=seed_dir/api_name
-        if seed.is_file():
-            pack_xapi_file(seed, dll_api_dir/api_name)
-            dll_api_manifests.append("dll_apis/"+api_name)
+        if not seed.is_file():
+            raise SystemExit(f"Canonical XAPI seed missing: {seed}")
+        pack_xapi_file(seed, dll_api_dir/api_name)
+        dll_api_manifests.append("dll_apis/"+api_name)
 
     for dll in dll_files:
         try:
