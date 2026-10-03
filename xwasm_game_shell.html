@@ -39,7 +39,8 @@ input{display:none}
 <button id="load">Load selected</button>
 <button id="start">Start</button>
 <input id="packageDir" type="file" webkitdirectory directory multiple>
-<input id="packageFiles" type="file" multiple accept=".xwasm,.xpl,.wasm,.bin,.json,.js">
+<!-- Updated to accept .xapi files -->
+<input id="packageFiles" type="file" multiple accept=".xwasm,.xpl,.wasm,.bin,.json,.js,.xapi">
 <button id="pause">Pause</button>
 <button id="fullscreen">Fullscreen</button>
 <span id="packageName" class="small">No package selected</span>
@@ -69,9 +70,10 @@ input{display:none}
 (()=>{"use strict";
 const $=id=>document.getElementById(id);
 const td=new TextDecoder();
+// Updated state to include xapis array
 const state={
  runtime:null,payload:null,bridge:null,manifest:null,files:[],packageName:"",module:null,instance:null,exports:null,memory:null,
- running:false,audio:null,muted:false,events:[],errors:[],
+ running:false,audio:null,muted:false,events:[],errors:[],xapis:[],
  gl:null,ctx:null,diagnostics:{exportNames:[],last:null},window:{width:1280,height:720,visible:true,title:"XWASM Game"}
 };
 const hex=v=>"0x"+(Number(v)>>>0).toString(16).padStart(8,"0");
@@ -187,6 +189,22 @@ function createHost(){
 function buildImports(mod){
  const host=createHost(),env=host;
  state.memory=env.memory;
+ 
+ // Added logic to process parsed .xapi files and map them to the env
+ for (const xapi of state.xapis) {
+  for (const lib in xapi.libraries) {
+   for (const fnName in xapi.libraries[lib].functions) {
+    const fnDef = xapi.libraries[lib].functions[fnName];
+    const flatName = fnDef.bridge.replace(/\./g, "_"); 
+    
+    if (fnDef.bridge.startsWith("xw.math.")) {
+     const jsMathFunc = fnDef.bridge.split(".")[2];
+     env[flatName] = Math[jsMathFunc] || (() => 0);
+    }
+   }
+  }
+ }
+
  const imports=WebAssembly.Module.imports(mod);
  for(const i of imports){
   if(i.module!=="env")continue;
@@ -215,6 +233,14 @@ async function readSelectedPackage(){
   try{
    const files=state.files;
    if(!files.length)throw Error("select an XWASM game package folder first");
+   
+   // Added logic to load and parse .xapi files
+   state.xapis = [];
+   const xapiFiles = files.filter(f => f.name.toLowerCase().endsWith('.xapi'));
+   for (const f of xapiFiles) {
+       state.xapis.push(JSON.parse(await f.text()));
+   }
+
    const rf=fileByNames(["runtime.xwasm","runtime.wasm"]);
    const pf=fileByNames(["payload.xpl","payload.bin"]);
    const mf=fileByNames(["manifest.json"]);
