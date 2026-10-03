@@ -234,11 +234,17 @@ async function readSelectedPackage(){
    const files=state.files;
    if(!files.length)throw Error("select an XWASM game package folder first");
    
-   // Added logic to load and parse .xapi files
+   // XAPI files are XWSC01 binary containers, not plain JSON.
+   // Unpack the container first, then decode the raw JSON payload.
    state.xapis = [];
-   const xapiFiles = files.filter(f => f.name.toLowerCase().endsWith('.xapi'));
+   const xapiFiles = files.filter(f => f.name.toLowerCase().endsWith(".xapi"));
    for (const f of xapiFiles) {
-       state.xapis.push(JSON.parse(await f.text()));
+    const raw = await unpack(await f.arrayBuffer(),"xapi",f.name);
+    const text = td.decode(new Uint8Array(raw));
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch(e) { throw Error(f.name+": XAPI payload is not valid JSON after unpack: "+e.message); }
+    state.xapis.push(parsed);
    }
 
    const rf=fileByNames(["runtime.xwasm","runtime.wasm"]);
