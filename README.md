@@ -216,3 +216,23 @@ The fixture is freestanding C and does not depend on a Windows CRT. It uses cdec
 The C5 browser runner is tests/xwasm_c5_runner.html. It expects the rebuilt runtime.wasm and the compiled C5 PE32 fixture.
 
 C5 intentionally uses direct cdecl XWASM compatibility addresses (the 0x70010000 range) rather than pretending these are normal Windows DLL exports. This keeps the fixture focused on the CPU/ABI/runtime integration boundary; real MSVCRT/ADVAPI32 import compatibility remains a later expansion.
+
+
+## XWASM x86 build fixture series
+
+The `tool/xwasm_build_*` scripts are the executable compatibility-fixture series. They are deterministic PE32 guests used to validate the runtime and browser bridges incrementally before running real games.
+
+Current progression includes:
+
+- `tool/xwasm_build_x86_runtime.py` — builds the XWASM x86 runtime container.
+- `tool/xwasm_build_x86_graphics_test.py` — Win32/GDI graphics surface bring-up.
+- `tool/xwasm_build_x86_window_input_audio_test.py` — USER32 message/input, window, GDI, and KERNEL32 audio bridge coverage.
+- `tool/xwasm_build_x86_opengl_pong_test.py` — OpenGL-style window/input/audio Pong seed using `OPENGL32.dll`, `GDI32.dll`, `USER32.dll`, and `KERNEL32.dll` compatibility imports.
+- `tests/xwasm_opengl_pong/index.html` — browser shell that supplies the graphics, window/input, and Web Audio host bridges required by the Pong fixture.
+
+Build the OpenGL Pong seed after building the v0.9 runtime:
+
+    python3 tool/xwasm_build_x86_runtime.py --clang /path/to/clang.exe
+    python3 tool/xwasm_build_x86_opengl_pong_test.py --output ./dist/xwasm-opengl-pong
+
+The Pong fixture is intentionally a **bring-up seed**, not the final gameplay stress test. Its initial milestone is successful PE loading, Win32 window/DC setup, pixel-format/WGL setup, OpenGL draw calls, buffer presentation, audio, and one input-bridge poll. Once that milestone is green, the next test replaces the deterministic completion path with a persistent Pong loop so CPU branches, CALL/RET, stack discipline, message polling, input state, repeated OpenGL rendering, collision/update logic, and frame-to-frame host synchronization can be stress-tested under real gameplay.
