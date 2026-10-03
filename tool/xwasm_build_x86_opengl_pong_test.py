@@ -3,6 +3,7 @@
 from pathlib import Path
 import argparse, json, struct
 
+from xwasm.container import pack_file
 
 IMAGE_BASE=0x00400000
 SECTION_RVA=0x1000
@@ -29,25 +30,21 @@ def pe():
     def call(iat): code.extend(b"\xff\x15"+struct.pack("<I",IMAGE_BASE+iat))
     def mov_edi(v): code.extend(b"\xbf"+struct.pack("<I",v))
 
-    # Create/show window, obtain DC.
     for v in reversed([0,0,0,0x10000000,0,0,640,360,0,0,0,0]): push(v)
     call(0x3000); code.extend(b"\x89\xc6"); push(1); code.extend(b"\x56"); call(0x3004)
     code.extend(b"\x56"); call(0x3008); code.extend(b"\x89\xc3")
 
-    # Minimal pixel-format/WGL setup.
     push(0); push(0); call(0x3010)
     push(0); push(0); push(0); call(0x3014)
     code.extend(b"\x53"); call(0x3018); code.extend(b"\x89\xc5")
     code.extend(b"\x53\x55"); call(0x301c)
 
-    # Viewport + black clear.
     for v in (360,640,0,0): push(v)
     call(0x3020)
     for bits in (0x00000000,0x00000000,0x00000000,0x3f800000): push(bits)
     call(0x3024)
     push(0x00004000); call(0x3028)
 
-    # Draw 2 paddles and a ball as triangles. GL_TRIANGLES=4.
     def color(r,g,b):
         for x in (b,g,r): push(x)
         call(0x3034)
@@ -65,19 +62,15 @@ def pe():
     tri(0xbe800000,0xbe800000,0x00000000,0x3e800000,0x3e800000,0xbe800000)
     call(0x3044)
 
-    # Audio proof.
     push(90); push(660); call(0x3048)
 
-    # Exercise the browser input bridge once: PeekMessageA(MSG*, NULL, 0, 0, PM_REMOVE).
     mov_edi(0x00900000)
     for v in (1,0,0,0,0x00900000): push(v)
     call(0x300c)
 
-    # HLT gives the shell a clean completion point after render/audio/input.
     code.extend(b"\xf4")
     b[SECTION_RAW:SECTION_RAW+len(code)]=code
 
-    # Import table in the same section.
     desc=0x1800; oft=0x1900; iat=0x1a00; names_base=0x1b00
     dlls=[("USER32.dll",[("CreateWindowExA",0x3000),("ShowWindow",0x3004),("GetDC",0x3008),("PeekMessageA",0x300c)]),
           ("GDI32.dll",[("ChoosePixelFormat",0x3010),("SetPixelFormat",0x3014),("SwapBuffers",0x3044)]),
@@ -118,10 +111,37 @@ def main():
         raise SystemExit(f"XWASM runtime not found: {runtime}")
 
     (root/"runtime.xwasm").write_bytes(runtime.read_bytes())
-    (root/"resources/__x86__/payload.exe").write_bytes(pe())
-    manifest={"format":"xwasm-package","format_version":1,"name":"XWASM-X86-OpenGL-Pong-Test","architecture":"x86","runtime_kind":"x86-compatibility","runtime":"runtime.xwasm","abi":"xwasm.host/1","resource_root":"resources/","payload":"resources/__x86__/payload.exe","payload_format":"PE32","payload_architecture":"i386","bundled_dlls":["KERNEL32.dll","USER32.dll","GDI32.dll","OPENGL32.dll"],"execution_status":"opengl_window_input_audio_seed","test_suite":{"name":"Win32/OpenGL Pong seed","tests":["CreateWindowExA/ShowWindow/GetDC","ChoosePixelFormat/SetPixelFormat","wglCreateContext/wglMakeCurrent","glViewport/glClearColor/glClear","glBegin/glEnd/glColor3f/glVertex2f","SwapBuffers","KERNEL32 Beep audio bridge","XWASM input bridge availability"]}}
+
+    exe=root/"resources/__x86__/payload.exe"
+    exe.write_bytes(pe())
+    payload=root/"payload.xpl"
+    pack_file(exe,payload,"xpl",compression="auto")
+    exe.unlink()
+
+    manifest={
+        "format":"xwasm-package","format_version":1,
+        "name":"XWASM-X86-OpenGL-Pong-Test","architecture":"x86",
+        "runtime_kind":"x86-compatibility","runtime":"runtime.xwasm",
+        "abi":"xwasm.host/1","resource_root":"resources/",
+        "payload":"payload.xpl","payload_format":"XPL",
+        "payload_architecture":"i386",
+        "bundled_dlls":["KERNEL32.dll","USER32.dll","GDI32.dll","OPENGL32.dll"],
+        "execution_status":"opengl_window_input_audio_seed",
+        "test_suite":{"name":"Win32/OpenGL Pong seed","tests":[
+            "CreateWindowExA/ShowWindow/GetDC",
+            "ChoosePixelFormat/SetPixelFormat",
+            "wglCreateContext/wglMakeCurrent",
+            "glViewport/glClearColor/glClear",
+            "glBegin/glEnd/glColor3f/glVertex2f",
+            "SwapBuffers","KERNEL32 Beep audio bridge",
+            "XWASM input bridge availability"
+        ]}
+    }
     (root/"manifest.xwasm.json").write_text(json.dumps(manifest,indent=2)+"\n",encoding="utf-8")
     print(root)
+    print(f"Payload: {payload}")
+    print("Payload format: XPL")
+    print(f"Runtime: {root/'runtime.xwasm'}")
 
 
 if __name__=="__main__":
