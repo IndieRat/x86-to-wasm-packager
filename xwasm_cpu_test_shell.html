@@ -95,7 +95,7 @@ pre{white-space:pre-wrap;word-break:break-word;background:#070809;border-radius:
 <section id="abi" class="page">
 <div class="card">
 <h2>XAPI / ABI manifests</h2>
-<p class="small">Load the package's dll_apis/*.xapi files here. The shell also checks that the canonical ABI families are present.</p>
+<p class="small">Load the package's dll_apis/*.xapi files here. Package exports use XWSC01/XAPI containers; legacy JSON XAPI files are also accepted. The shell also checks that the canonical ABI families are present.</p>
 <pre id="abiOut">No XAPI manifests loaded.</pre>
 </div>
 </section>
@@ -263,9 +263,16 @@ $("gfxPresent").onclick=()=>bridge?.xwasm_gfx_present();
 $("gfxDemo").onclick=()=>{if(!bridge)return;bridge.xwasm_gfx_create(640,360);bridge.xwasm_gfx_clear(0x101820);bridge.xwasm_gfx_rect(40,40,220,150,0x3060a0);bridge.xwasm_gfx_rect(420,220,600,320,0xa05030);for(let i=0;i<160;i++)bridge.xwasm_gfx_pixel(240+i,180-Math.floor(i/4),0xe0e0e0);bridge.xwasm_gfx_present()};
 $("audioTest").onclick=()=>playBeep(+$("freq").value,+$("dur").value);
 $("clearInput").onclick=()=>{state.input.length=0;renderInput()};
+async function readXapiFile(f){
+ const raw=await f.arrayBuffer(), b=new Uint8Array(raw);
+ if(b.length>=6 && td.decode(b.slice(0,6))==="XWSC01"){
+  return JSON.parse(td.decode(await unpack(raw,"xapi",f.name)));
+ }
+ return JSON.parse(td.decode(b));
+}
 $("xapis").onchange=async()=>{
  const files=[...$("xapis").files];const expected=["kernel32.xapi","user32.xapi","gdi32.xapi","opengl32.xapi","advapi32.xapi"];let out="=== XAPI MANIFESTS ===\n";
- for(const f of files){try{const j=JSON.parse(await f.text());const libs=Object.keys(j.libraries||{});out+="\n"+f.name+": "+libs.join(", ");for(const l of libs)out+="\n  "+l+": "+Object.keys(j.libraries[l].functions||{}).length+" functions";}catch(e){out+="\n"+f.name+": INVALID ("+e+")"}}
+ for(const f of files){try{const j=await readXapiFile(f);if(j.format!=="xwasm-xapi"||j.version!==1)throw Error("not an XWASM XAPI v1 manifest");const libs=Object.keys(j.libraries||{});out+="\n"+f.name+": XWSC01/XAPI -> "+libs.join(", ");for(const l of libs)out+="\n  "+l+": "+Object.keys(j.libraries[l].functions||{}).length+" functions";}catch(e){out+="\n"+f.name+": INVALID ("+e+")"}}
  out+="\n\n=== CANONICAL FAMILIES ===\n"+expected.map(n=>n+" -> "+(files.some(f=>f.name.toLowerCase()===n)?"PRESENT":"MISSING")).join("\n");$("abiOut").textContent=out;
 };
 renderInput();
