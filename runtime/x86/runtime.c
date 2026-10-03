@@ -1530,10 +1530,14 @@ static int cpu_step_legacy(void){
   }
   case 0x68:{uint32_t v=rd32(ip);ip+=4;if(!x86_stack_push32(v))return -42;eip=ip;return 0;} /* PUSH imm32 */
   case 0x6A:{int8_t v=(int8_t)MEM8(ip++);if(!x86_stack_push32((uint32_t)(int32_t)v))return -43;eip=ip;return 0;} /* PUSH imm8 */
-  case 0x58:case 0x59:case 0x5A:case 0x5B:case 0x5C:case 0x5D:case 0x5E:case 0x5F:
-   regs[op-0x58]=rd32(regs[R_ESP]);regs[R_ESP]+=4;eip=ip;return 0;
+  case 0x58:case 0x59:case 0x5A:case 0x5B:case 0x5C:case 0x5D:case 0x5E:case 0x5F:{
+   uint32_t v;
+   if(!x86_stack_pop32(&v))return -55;
+   regs[op-0x58]=v;eip=ip;return 0;
+  }
   case 0x50:case 0x51:case 0x52:case 0x53:case 0x54:case 0x55:case 0x56:case 0x57:
-   regs[R_ESP]-=4;wr32(regs[R_ESP],regs[op-0x50]);eip=ip;return 0;
+   if(!x86_stack_push32(regs[op-0x50]))return -56;
+   eip=ip;return 0;
   case 0x0F: {
    uint8_t op2=MEM8(ip++);
    if(op2==0xAF){uint8_t m=MEM8(ip++);int64_t p=(int64_t)(int32_t)regs[(m>>3)&7]*(int64_t)(int32_t)modrm_read32(m,&ip);uint32_t r=(uint32_t)p;regs[(m>>3)&7]=r;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);eip=ip;return 0;}
@@ -1572,8 +1576,8 @@ static int cpu_step_legacy(void){
    uint32_t target=modrm_read32(m,&ip);
    uint32_t next=ip;
    if(sub==2){
-    regs[R_ESP]-=4;wr32(regs[R_ESP],next);
-    if(call_builtin(target)){eip=next;regs[R_ESP]+=4;return 0;}
+    if(!x86_stack_push32(next))return -57;
+    if(call_builtin(target)){eip=next;if(!x86_stack_pop32(&target))return -57;return 0;}
     eip=target;return 0;
    }
    eip=target;return 0;
@@ -1667,6 +1671,8 @@ static int load_pe(uint32_t f,uint32_t sz){
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
  x86_mem_reset(); x86_mem_register_image();
+ /* Ensure the guest stack has real WASM backing before the first PUSH. */
+ if(!x86_mem_ensure_wasm(0x03F00000u)){load_error=16;return-7;}
  x87_count=0; xmm_reset();
  loaded=1;eip=image_base+entry;regs[R_ESP]=0x03F00000u;
 /* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
