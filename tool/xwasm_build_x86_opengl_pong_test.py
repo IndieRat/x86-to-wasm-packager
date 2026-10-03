@@ -15,6 +15,21 @@ SECTION_RVA=0x1000
 SECTION_RAW=0x200
 SECTION_SIZE=0x3000
 
+IMPORTS=[("USER32.dll",["CreateWindowExA","ShowWindow","GetDC","PeekMessageA"]),
+         ("GDI32.dll",["ChoosePixelFormat","SetPixelFormat","SwapBuffers"]),
+         ("OPENGL32.dll",["wglCreateContext","wglMakeCurrent","glViewport","glClearColor","glClear","glBegin","glEnd","glColor3f","glVertex2f"]),
+         ("KERNEL32.dll",["Beep"])]
+IAT_RVA=0x3000
+# IAT slots are contiguous across DLLs (no terminators between DLLs). The
+# loader walks the OFT (null-terminated per DLL) and writes IAT[i] for each
+# entry, so only the OFT needs terminators. Generated code resolves slots by
+# name from this table so code and import tables can never drift apart.
+SLOT={}
+_c=0
+for _dll,_names in IMPORTS:
+    for _n in _names:
+        SLOT[_n]=IAT_RVA+_c; _c+=4
+
 
 def pe():
     b=bytearray(SECTION_RAW+SECTION_SIZE)
@@ -37,33 +52,35 @@ def pe():
 
     code=bytearray()
     def push(v): code.extend(b"\x68"+struct.pack("<I",v&0xffffffff))
-    def call(iat): code.extend(b"\xff\x15"+struct.pack("<I",IMAGE_BASE+iat))
-    def mov_edi(v): code.extend(b"\xbf"+struct.pack("<I",v))
+    def call(name): code.extend(b"\xff\x15"+struct.pack("<I",IMAGE_BASE+SLOT[name]))
 
     for v in reversed([0,0,0,0x10000000,0,0,640,360,0,0,0,0]): push(v)
-    call(0x3000); code.extend(b"\x89\xc6"); push(1); code.extend(b"\x56"); call(0x3004)
-    code.extend(b"\x56"); call(0x3008); code.extend(b"\x89\xc3")
-    push(0); push(0); call(0x3010)
-    push(0); push(0); push(0); call(0x3014)
-    code.extend(b"\x53"); call(0x301c); code.extend(b"\x89\xc5")
-    code.extend(b"\x53\x55"); call(0x3020)
+    call("CreateWindowExA"); code.extend(b"\x89\xc6")          # mov esi, eax (hwnd)
+    push(1); code.extend(b"\x56"); call("ShowWindow")
+    code.extend(b"\x56"); call("GetDC"); code.extend(b"\x89\xc3")  # mov ebx, eax (hdc)
+    push(0); push(0); call("ChoosePixelFormat")
+    push(0); push(0); push(0); call("SetPixelFormat")
+    code.extend(b"\x53"); call("wglCreateContext"); code.extend(b"\x89\xc5")  # mov ebp, eax (hglrc)
+    code.extend(b"\x53\x55"); call("wglMakeCurrent")
     for v in (360,640,0,0): push(v)
-    call(0x3024)
+    call("glViewport")
     for bits in (0x00000000,0x00000000,0x00000000,0x3f800000): push(bits)
-    call(0x3028)
-    # Run three complete render/present/poll/audio frames through LOOP.
-    code.extend(b"\xb9\x03\x00\x00\x00")  # mov ecx, 3
+    call("glClearColor")
+    # Three complete render/present/poll/audio frames.
+    # Loop counter lives in EDI (not ECX): ECX/EDX are caller-saved in the
+    # Windows ABI, so imported calls are allowed to clobber them.
+    code.extend(b"\xbf\x03\x00\x00\x00")  # mov edi, 3
     loop_start = len(code)
-    push(0x00004000); call(0x302c)
+    push(0x00004000); call("glClear")
 
     def color(r,g,b):
         for x in (b,g,r): push(x)
-        call(0x3038)
+        call("glColor3f")
     def tri(x0,y0,x1,y1,x2,y2):
-        push(4); call(0x3030)
+        push(4); call("glBegin")
         for x,y in ((x0,y0),(x1,y1),(x2,y2)):
-            push(y); push(x); call(0x303c)
-        call(0x3034)
+            push(y); push(x); call("glVertex2f")
+        call("glEnd")
     color(0x3f800000,0x3f800000,0x3f800000)
     tri(0xbf800000,0x3e800000,0xbf800000,0xbe800000,0xbf000000,0xbe800000)
     tri(0xbf000000,0xbe800000,0xbf000000,0x3e800000,0xbf800000,0x3e800000)
@@ -71,37 +88,36 @@ def pe():
     tri(0x3f000000,0x3e800000,0x3f000000,0x3e800000,0x3f000000,0xbe800000)
     color(0x3f000000,0x3f800000,0x3f000000)
     tri(0xbe800000,0xbe800000,0x00000000,0x3e800000,0x3e800000,0xbe800000)
-    call(0x3018)
-    push(90); push(660); call(0x3040)
-    mov_edi(0x00900000)
-    for v in (1,0,0,0,0x00900000): push(v)
-    call(0x300c)
-    code.extend(b"\xe2" + bytes([(loop_start - (len(code) + 2)) & 0xff]))
-    code.extend(b"\xf4")
+    code.extend(b"\x53"); call("SwapBuffers")   # push ebx (hdc); SwapBuffers is stdcall(1 arg)
+    push(90); push(660); call("Beep")
+    for v in (1,0,0,0,0x00900000): push(v)       # PeekMessageA(lpMsg=0x900000, 0,0,0, PM_REMOVE)
+    call("PeekMessageA")
+    # The frame body is ~440 bytes, far beyond LOOP's rel8 reach, so use
+    # dec edi / je done / jmp rel32 loop_start (all supported by the CPU).
+    code.extend(b"\x4f")                    # dec edi
+    code.extend(b"\x74\x05")                # je +5 (skip the jmp)
+    jmp_end = len(code) + 5
+    code.extend(b"\xe9" + struct.pack("<i", loop_start - jmp_end))
+    code.extend(b"\xf4")                    # hlt
     b[SECTION_RAW:SECTION_RAW+len(code)]=code
 
-    desc=0x1800; oft=0x1900; iat=0x3000; names_base=0x1b00
-    dlls=[("USER32.dll",[("CreateWindowExA",0x3000),("ShowWindow",0x3004),("GetDC",0x3008),("PeekMessageA",0x300c)]),
-          ("GDI32.dll",[("ChoosePixelFormat",0x3010),("SetPixelFormat",0x3014),("SwapBuffers",0x3044)]),
-          ("OPENGL32.dll",[("wglCreateContext",0x3018),("wglMakeCurrent",0x301c),("glViewport",0x3020),("glClearColor",0x3024),("glClear",0x3028),("glBegin",0x302c),("glEnd",0x3030),("glColor3f",0x3034),("glVertex2f",0x3038)]),
-          ("KERNEL32.dll",[("Beep",0x3048)])]
+    desc=0x1800; oft=0x1900; iat=IAT_RVA; names_base=0x1b00
     rva=names_base
-    thunk_cursor=0
-    for di,(dll,entries) in enumerate(dlls):
+    oft_cursor=0   # OFT: per-DLL tables, each null-terminated
+    iat_cursor=0   # IAT: contiguous slots, matches SLOT[]
+    for di,(dll,entries) in enumerate(IMPORTS):
         d=SECTION_RAW+(desc-SECTION_RVA)+di*20
-        # Keep descriptor thunk tables contiguous with the IAT slots used by
-        # the generated code. The old per-DLL stride left calls at 0x3000...
-        # while descriptors pointed at 0x3100/0x3200/etc.
-        ot=oft+thunk_cursor; it=iat+thunk_cursor
+        ot=oft+oft_cursor; it=iat+iat_cursor
         struct.pack_into("<IIIII",b,d,ot,0,0,rva,it)
-        for j,(name,_) in enumerate(entries):
+        for j,name in enumerate(entries):
+            assert it+j*4==SLOT[name], (name,hex(it+j*4),hex(SLOT[name]))
             struct.pack_into("<I",b,SECTION_RAW+(ot-SECTION_RVA)+j*4,rva)
             struct.pack_into("<I",b,SECTION_RAW+(it-SECTION_RVA)+j*4,rva)
             no=SECTION_RAW+(rva-SECTION_RVA); b[no:no+2]=b"\0\0"; nb=name.encode()+b"\0"; b[no+2:no+2+len(nb)]=nb
             rva += 0x40
         struct.pack_into("<I",b,SECTION_RAW+(ot-SECTION_RVA)+len(entries)*4,0)
-        struct.pack_into("<I",b,SECTION_RAW+(it-SECTION_RVA)+len(entries)*4,0)
-        thunk_cursor += (len(entries)+1)*4
+        oft_cursor += (len(entries)+1)*4
+        iat_cursor += len(entries)*4
         dll_name_rva=rva
         db=SECTION_RAW+(dll_name_rva-SECTION_RVA); dbs=dll.encode()+b"\0"; b[db:db+len(dbs)]=dbs; rva+=0x40
         struct.pack_into("<I",b,d+12,dll_name_rva)
