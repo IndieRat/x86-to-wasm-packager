@@ -40,6 +40,8 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {0,0x81,1,0,"ADD_RM32_IMM32",0,0},
   {0,0x83,1,0,"ADD_RM32_IMM8",0,0},
   {0,0x05,0,-1,"ADD_EAX_IMM32",0,0},
+  {0,0x28,1,-1,"SUB_RM8_R8",0,0},
+  {0,0x2A,1,-1,"SUB_R8_RM8",0,0},
   {0,0x29,1,-1,"SUB_RM32_R32",0,0},
   {0,0x2B,1,-1,"SUB_R32_RM32",0,0},
   {0,0x81,1,5,"SUB_RM32_IMM32",0,0},
