@@ -4327,34 +4327,6 @@
       "modrm": {
         "required": true
       }
-    },
-    {
-      "id": "XCHG_EAX_R32",
-      "instruction": "XCHG",
-      "opcode": [
-        "90",
-        "91",
-        "92",
-        "93",
-        "94",
-        "95",
-        "96",
-        "97"
-      ],
-      "opcode_map": "primary",
-      "encoding": "O",
-      "operands": [
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "source": "opcode.low3"
-        },
-        {
-          "kind": "reg32",
-          "access": "rw",
-          "fixed": "EAX"
-        }
-      ]
     }
   ]
 }
