@@ -53,7 +53,7 @@ input{display:none}
 <div id="controls"><button id="mute">Audio</button></div>
 </div>
 </div>
-<div id="settings"><span class="small">Host bridges active simultaneously</span><button id="showDiagnostics">Diagnostics</button><button id="showErrors">Errors</button></div>
+<div id="settings"><span class="small">Host bridges active simultaneously</span><button id="showDiagnostics">Diagnostics</button><button id="copyReport">Copy report</button><button id="showErrors">Errors</button></div>
 <div id="diagnostics" style="position:fixed;right:12px;bottom:52px;width:min(720px,92vw);max-height:62vh;z-index:15;background:#0b0d10ee;border:1px solid #39414b;border-radius:8px;display:none;box-shadow:0 18px 60px #000">
 <div class="termHead"><strong style="color:#8ecae6">XWASM X86 DIAGNOSTICS</strong><span id="diagCount">idle</span><button id="refreshDiagnostics">Refresh</button><button id="closeDiagnostics">Close</button></div>
 <pre id="diagText" style="margin:0;padding:10px;max-height:54vh;overflow:auto;white-space:pre-wrap;font:11px/1.45 Consolas,monospace;color:#c8d1da"></pre>
@@ -324,6 +324,92 @@ function readDiagnostics(){
  out.__stack=stack;
  return out;
 }
+function readProfile(){
+ const ex=state.exports;if(!ex)return [];
+ const countFn=ex.x86_get_profile_count,usedFn=ex.x86_get_profile_used;
+ if(typeof countFn!=="function"||typeof usedFn!=="function")return [];
+ const slots=1024,rows=[];
+ const str=(i)=>{
+  const n=Number(callDiagnostic("x86_get_profile_semantic_id_len",i)||0);let s="";
+  for(let j=0;j<n;j++)s+=String.fromCharCode(Number(callDiagnostic("x86_get_profile_semantic_id_char",i,j))||0);
+  return s||"UNKNOWN";
+ };
+ for(let i=0;i<slots;i++){
+  if(!Number(usedFn(i)))continue;
+  rows.push({
+   slot:i,map:Number(callDiagnostic("x86_get_profile_map",i)||0),
+   opcode:Number(callDiagnostic("x86_get_profile_opcode",i)||0),
+   modrm:Number(callDiagnostic("x86_get_profile_modrm",i)||0),
+   hasModrm:Number(callDiagnostic("x86_get_profile_has_modrm",i)||0),
+   dispatch:Number(callDiagnostic("x86_get_profile_dispatch",i)||0),
+   count:Number(callDiagnostic("x86_get_profile_count_at",i)||0),
+   firstEip:Number(callDiagnostic("x86_get_profile_first_eip",i)||0),
+   lastEip:Number(callDiagnostic("x86_get_profile_last_eip",i)||0),
+   minLen:Number(callDiagnostic("x86_get_profile_min_length",i)||0),
+   maxLen:Number(callDiagnostic("x86_get_profile_max_length",i)||0),
+   semantic:str(i)
+  });
+ }
+ rows.sort((a,b)=>b.count-a.count||a.map-b.map||a.opcode-b.opcode||a.modrm-b.modrm);
+ return rows;
+}
+function profileLine(p){
+ const map=p.map===0?"0":p.map===1?"0F":"0F "+p.map.toString(16).padStart(2,"0").toUpperCase();
+ let bytes=map+" "+p.opcode.toString(16).padStart(2,"0").toUpperCase();
+ if(p.hasModrm)bytes+=" /"+((p.modrm>>3)&7)+" (ModRM "+p.modrm.toString(16).padStart(2,"0").toUpperCase()+")";
+ return bytes+" | "+p.semantic+" | count="+p.count+" | len="+p.minLen+(p.maxLen!==p.minLen?"-"+p.maxLen:"")+" | first="+hex(p.firstEip)+" | last="+hex(p.lastEip)+" | dispatch="+p.dispatch;
+}
+function buildFullReport(){
+ const d=readDiagnostics(),p=readProfile();
+ const lines=[];
+ lines.push("XWASM EXECUTION REPORT");
+ lines.push("Generated: "+new Date().toISOString());
+ lines.push("Package: "+(state.packageName||"unknown"));
+ lines.push("Runtime exports: "+Object.keys(state.exports||{}).length);
+ lines.push("");
+ lines.push("=== RUNTIME DIAGNOSTICS ===");
+ for(const k of Object.keys(d).filter(k=>!k.startsWith("__")).sort())lines.push(k+" = "+d[k]);
+ lines.push("");
+ lines.push("=== INSTRUCTION PROFILE ===");
+ lines.push("Unique executed instruction forms: "+p.length);
+ lines.push("Profile is aggregated by map/opcode/ModRM/semantic ID; counts are executions.");
+ for(let i=0;i<p.length;i++)lines.push(String(i+1).padStart(4,"0")+" "+profileLine(p[i]));
+ lines.push("");
+ lines.push("=== RECENT TRACE ===");
+ for(const t of d.__trace||[])lines.push(
+  String(t.index).padStart(2,"0")+" EIP="+hex(t.eip)+" NEXT="+hex(t.nextEip)+" OP="+hex(t.opcode)+
+  " DISPATCH="+t.dispatch+" FLAGS="+hex(t.flags)+" -> "+hex(t.postFlags)+
+  " EAX="+hex(t.eax)+" -> "+hex(t.postEax)
+ );
+ lines.push("");
+ lines.push("=== CURRENT BYTES ===");
+ const eip=Number(d.x86_get_eip)>>>0;
+ const bytes=d.__currentBytes||[];
+ for(let i=0;i<bytes.length;i++)lines.push(hex((eip+i)>>>0)+" "+bytes[i].toString(16).padStart(2,"0").toUpperCase());
+ lines.push("");
+ lines.push("=== STACK ===");
+ for(let i=0;i<(d.__stack||[]).length;i++)lines.push(String(i).padStart(2,"0")+": "+hex(d.__stack[i]));
+ lines.push("");
+ lines.push("=== HOST EVENTS (RECENT) ===");
+ for(const ev of state.events)lines.push(JSON.stringify(ev));
+ lines.push("");
+ lines.push("=== ERRORS ===");
+ if(state.errors.length)lines.push(...state.errors);else lines.push("(none)");
+ return lines.join("\n");
+}
+async function copyReport(){
+ try{
+  const report=buildFullReport();
+  if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(report);
+  else{
+   const ta=document.createElement("textarea");ta.value=report;ta.style.position="fixed";ta.style.opacity="0";
+   document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();
+  }
+  $("copyReport").textContent="Copied!";
+  setTimeout(()=>{if($("copyReport"))$("copyReport").textContent="Copy report"},1200);
+  log("full execution report copied");
+ }catch(e){error("copy report failed",e)}
+}
 function renderDiagnostics(reason){
  const d=readDiagnostics();
  state.diagnostics.last={reason,t:Date.now(),data:d};
@@ -387,6 +473,7 @@ $("load").onclick=readSelectedPackage;$("start").onclick=start;$("pause").onclic
 $("fullscreen").onclick=()=>{$("gameFrame").requestFullscreen?.().catch(e=>error("fullscreen",e))};
 $("mute").onclick=()=>{state.muted=!state.muted;$("mute").textContent=state.muted?"Muted":"Audio"};
 $("showDiagnostics").onclick=()=>{$("diagnostics").style.display="block";renderDiagnostics("manual")};
+$("copyReport").onclick=copyReport;
 $("refreshDiagnostics").onclick=()=>renderDiagnostics("manual refresh");
 $("closeDiagnostics").onclick=()=>$("diagnostics").style.display="none";
 $("showErrors").onclick=()=>$("terminal").classList.add("visible");
