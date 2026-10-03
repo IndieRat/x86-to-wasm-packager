@@ -4653,6 +4653,262 @@
           "source": "next1"
         }
       ]
+    },
+    {
+      "id": "JO_REL32",
+      "instruction": "JO",
+      "opcode": [
+        "80"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JNO_REL32",
+      "instruction": "JNO",
+      "opcode": [
+        "81"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JB_REL32",
+      "instruction": "JB",
+      "opcode": [
+        "82"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JAE_REL32",
+      "instruction": "JAE",
+      "opcode": [
+        "83"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JE_REL32",
+      "instruction": "JE",
+      "opcode": [
+        "84"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JNE_REL32",
+      "instruction": "JNE",
+      "opcode": [
+        "85"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JBE_REL32",
+      "instruction": "JBE",
+      "opcode": [
+        "86"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JA_REL32",
+      "instruction": "JA",
+      "opcode": [
+        "87"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JS_REL32",
+      "instruction": "JS",
+      "opcode": [
+        "88"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JNS_REL32",
+      "instruction": "JNS",
+      "opcode": [
+        "89"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JP_REL32",
+      "instruction": "JP",
+      "opcode": [
+        "8A"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JNP_REL32",
+      "instruction": "JNP",
+      "opcode": [
+        "8B"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JL_REL32",
+      "instruction": "JL",
+      "opcode": [
+        "8C"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JGE_REL32",
+      "instruction": "JGE",
+      "opcode": [
+        "8D"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JLE_REL32",
+      "instruction": "JLE",
+      "opcode": [
+        "8E"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "JG_REL32",
+      "instruction": "JG",
+      "opcode": [
+        "8F"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "D",
+      "operands": [
+        {
+          "kind": "rel32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
     }
   ]
 }
