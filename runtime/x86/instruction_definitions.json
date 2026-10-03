@@ -5,16 +5,16 @@
   "source": "XWASM instruction semantics layer; instruction forms cross-checked against Intel IA-32 instruction reference",
   "operand_kinds": {
     "reg8": "8-bit general-purpose register",
-	"reg16": "16-bit general-purpose register",
-	"rm8": "8-bit register or memory operand",
-	"rm16": "16-bit register or memory operand",
-	"rm64": "64-bit memory operand",
-	"imm16": "16-bit immediate",
-	"moffs8": "8-bit accumulator memory offset",
-	"moffs32": "32-bit accumulator memory offset",
-	"xmm": "128-bit XMM register",
-	"st0": "x87 ST(0) register",
-	"sti": "x87 ST(i) register"
+    "reg16": "16-bit general-purpose register",
+    "rm8": "8-bit register or memory operand",
+    "rm16": "16-bit register or memory operand",
+    "rm64": "64-bit memory operand",
+    "imm16": "16-bit immediate",
+    "moffs8": "8-bit accumulator memory offset",
+    "moffs32": "32-bit accumulator memory offset",
+    "xmm": "128-bit XMM register",
+    "st0": "x87 ST(0) register",
+    "sti": "x87 ST(i) register"
   },
   "flag_bits": {
     "CF": "carry",
@@ -30,16 +30,17 @@
       "family": "data_move",
       "status": "EXECUTE",
       "forms": [
-          "MOV_R32_RM32",
-		  "MOV_RM32_R32",
-		  "MOV_R32_IMM32",
-		  "MOV_RM32_IMM32",
-		  "MOV_R8_IMM8",
-		  "MOV_RM8_IMM8",
-		  "MOV_AL_MOFFS8",
-		  "MOV_EAX_MOFFS32",
-		  "MOV_MOFFS8_AL",
-		  "MOV_MOFFS32_EAX"
+        "MOV_R32_RM32",
+        "MOV_RM32_R32",
+        "MOV_R32_IMM32",
+        "MOV_RM32_IMM32",
+        "MOV_R8_IMM8",
+        "MOV_RM8_IMM8",
+        "MOV_AL_MOFFS8",
+        "MOV_EAX_MOFFS32",
+        "MOV_MOFFS8_AL",
+        "MOV_MOFFS32_EAX",
+        "XCHG_R32_RM32"
       ],
       "flags": {
         "read": [],
@@ -279,7 +280,7 @@
       "status": "EXECUTE",
       "forms": [
         "IMUL_R32_RM32",
-		"IMUL_RM32"
+        "IMUL_RM32"
       ],
       "flags": {
         "read": [],
@@ -383,7 +384,9 @@
       "forms": [
         "PUSH_R32",
         "PUSH_IMM32",
-        "PUSH_IMM8"
+        "PUSH_IMM8",
+        "PUSHAD",
+        "PUSHFD"
       ],
       "flags": {
         "read": [
@@ -400,7 +403,9 @@
       "family": "data_move",
       "status": "EXECUTE",
       "forms": [
-        "POP_R32"
+        "POP_R32",
+        "POPAD",
+        "POPFD"
       ],
       "flags": {
         "read": [
@@ -1204,7 +1209,7 @@
       "status": "EXECUTE",
       "forms": [
         "FADD_RM32",
-		"FADD_STI_ST0"
+        "FADD_STI_ST0"
       ],
       "flags": {
         "read": [],
@@ -1325,7 +1330,7 @@
       "status": "EXECUTE",
       "forms": [
         "FSUBR_RM32",
-		"FSUBR_STI_ST0"
+        "FSUBR_STI_ST0"
       ],
       "flags": {
         "read": [],
@@ -1339,7 +1344,7 @@
       "status": "EXECUTE",
       "forms": [
         "FSUBR_RM32",
-		"FSUBR_STI_ST0"
+        "FSUBR_STI_ST0"
       ],
       "flags": {
         "read": [],
@@ -1353,7 +1358,7 @@
       "status": "EXECUTE",
       "forms": [
         "FDIV_RM32",
-		"FDIV_STI_ST0"
+        "FDIV_STI_ST0"
       ],
       "flags": {
         "read": [],
@@ -1367,7 +1372,7 @@
       "status": "EXECUTE",
       "forms": [
         "FDIVR_RM32",
-		"FDIVR_STI_ST0"
+        "FDIVR_STI_ST0"
       ],
       "flags": {
         "read": [],
@@ -1544,6 +1549,45 @@
       "status": "EXECUTE",
       "forms": [
         "DIVSD_XMM_RM64"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "CWDE",
+      "mnemonic": "CWDE",
+      "family": "data_move",
+      "status": "EXECUTE",
+      "forms": [
+        "CWDE"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "CDQ",
+      "mnemonic": "CDQ",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "CDQ"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "XCHG",
+      "mnemonic": "XCHG",
+      "family": "data_move",
+      "status": "EXECUTE",
+      "forms": [
+        "XCHG_R32_RM32"
       ],
       "flags": {
         "read": [],
