@@ -1577,7 +1577,7 @@ static int cpu_step_legacy(void){
    uint32_t next=ip;
    if(sub==2){
     if(!x86_stack_push32(next))return -57;
-    if(call_builtin(target)){eip=next;if(!x86_stack_pop32(&target))return -57;return 0;}
+    if(call_builtin(target)){eip=next;regs[R_ESP]+=4u;return 0;}
     eip=target;return 0;
    }
    eip=target;return 0;
