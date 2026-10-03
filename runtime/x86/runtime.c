@@ -9,7 +9,8 @@ extern unsigned char __heap_base[];
 /* Raw WASM access is now bounded independently of the guest-region layer.  This is
  * the final safety net for the C++/CPU stage: malformed guest pointers must become
  * XWASM memory faults, never browser-level WebAssembly OOB traps. */
-/* x86_mem_faults is declared with the raw WASM safety net above. */
+static uint32_t x86_mem_faults=0;
+static uint32_t cpu_error=0;
 static uint32_t x86_last_fault_address=0;
 static uint32_t x86_last_fault_size=0;
 static uint32_t x86_last_fault_kind=0;
