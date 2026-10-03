@@ -145,7 +145,25 @@ function xwasm_build {
             )
             return
         }
-        '^window(_test)?
+        '^window(_test)?$' {
+            Invoke-XWASM "xwasm_build_x86_window_input_audio_test.py" @(
+                "--output", (Join-Path $out "window_test")
+            )
+            return
+        }
+        '^pong(_test)?$' {
+            $runtime = Join-Path $root "dist\xwasm-runtime\runtime.xwasm"
+            if (!(Test-Path $runtime -PathType Leaf)) {
+                throw "XWASM runtime not found: $runtime. Run xwasm_build runtime first."
+            }
+            Invoke-XWASM "xwasm_build_x86_opengl_pong_test.py" @(
+                "--output", (Join-Path $out "pong_test"),
+                "--runtime", $runtime
+            )
+            Write-Host "XWASM Pong fixture ready: $(Join-Path $out 'pong_test')"
+            return
+        }
+        '^api(_test)?$' {
             Invoke-XWASM "xwasm_build_xapi.py" @(
                 "--output", (Join-Path $out "default.xapi")
             )
@@ -213,240 +231,6 @@ function xwasm_environment {
     Write-Host "  xwasm_build <game-folder>"
     Write-Host "  xwasm_build stress_test | C_test | CPP_test | SSE_test | x87_test"
     Write-Host "  xwasm_build integer_test | cpu_test | graphics_test | window_test | pong"
-    Write-Host "  xwasm_build api_test | all_tests"
-}
-
-Export-ModuleMember -Function xwasm_prep, xwasm_build, xwasm_environment
- {
-            Invoke-XWASM "xwasm_build_x86_window_input_audio_test.py" @(
-                "--output", (Join-Path $out "window_test")
-            )
-            return
-        }
-        '^pong(_test)?
-            Invoke-XWASM "xwasm_build_xapi.py" @(
-                "--output", (Join-Path $out "default.xapi")
-            )
-            return
-        }
-        '^all(_tests)?$' {
-            foreach ($k in @(
-                "cpu_test", "stress_test", "C_test", "CPP_test",
-                "SSE_test", "x87_test", "integer_test", "api_test"
-            )) {
-                xwasm_build $k -Clang $clangPath -LldLink $LldLink -OutputRoot $OutputRoot
-            }
-            return
-        }
-    }
-
-    $game = (Resolve-Path $Target -ErrorAction Stop).Path
-    if (!(Test-Path $game -PathType Container)) {
-        throw "Game target must be a directory or a supported keyword: $Target"
-    }
-
-    xwasm_prep
-
-    $runtime = Join-Path $root "dist\xwasm-runtime\runtime.xwasm"
-    $xapi = Join-Path $out "default.xapi"
-
-    Invoke-XWASM "xwasm_build_x86_runtime.py" @(
-        "--clang", $clangPath,
-        "--output", $runtime
-    )
-    Invoke-XWASM "xwasm_build_xapi.py" @("--output", $xapi)
-
-    $name = Split-Path $game -Leaf
-    $package = Join-Path $out $name
-
-    Invoke-XWASM "xwasm_pack_x86.py" @(
-        $game,
-        "--output", $package,
-        "--runtime", $runtime
-    )
-    Copy-Item $xapi (Join-Path $package "game.xapi") -Force
-
-    Write-Host "XWASM build complete: $package"
-    Write-Host "Runtime: $runtime"
-    Write-Host "API:     $(Join-Path $package 'game.xapi')"
-}
-
-function xwasm_environment {
-    [CmdletBinding()]
-    param(
-        [string]$Clang = "C:\Program Files\LLVM\bin\clang.exe",
-        [string]$LldLink = "C:\Program Files\LLVM\bin\lld-link.exe"
-    )
-
-    $python = Get-Command python -ErrorAction SilentlyContinue
-
-    Write-Host "XWASM environment: $script:XWASM_ROOT"
-    Write-Host "Python: $(if ($python) { $python.Source } else { '[MISSING]' })"
-    Write-Host "LLVM clang: $Clang $(if (Test-Path $Clang -PathType Leaf) { '[OK]' } else { '[MISSING]' })"
-    Write-Host "LLVM lld-link: $LldLink $(if (Test-Path $LldLink -PathType Leaf) { '[OK]' } else { '[MISSING]' })"
-    Write-Host "Commands:"
-    Write-Host "  xwasm_prep"
-    Write-Host "  xwasm_build prep"
-    Write-Host "  xwasm_build runtime"
-    Write-Host "  xwasm_build <game-folder>"
-    Write-Host "  xwasm_build stress_test | C_test | CPP_test | SSE_test | x87_test"
-    Write-Host "  xwasm_build integer_test | cpu_test | graphics_test | window_test"
-    Write-Host "  xwasm_build api_test | all_tests"
-}
-
-Export-ModuleMember -Function xwasm_prep, xwasm_build, xwasm_environment
- {
-            $runtime = Join-Path $root "dist\xwasm-runtime\runtime.xwasm"
-            if (!(Test-Path $runtime -PathType Leaf)) {
-                throw "XWASM runtime not found: $runtime. Run xwasm_build runtime first."
-            }
-            Invoke-XWASM "xwasm_build_x86_opengl_pong_test.py" @(
-                "--output", (Join-Path $out "pong_test"),
-                "--runtime", $runtime
-            )
-            Write-Host "XWASM Pong fixture ready: $(Join-Path $out 'pong_test')"
-            return
-        }
-        '^api(_test)?
-            Invoke-XWASM "xwasm_build_xapi.py" @(
-                "--output", (Join-Path $out "default.xapi")
-            )
-            return
-        }
-        '^all(_tests)?$' {
-            foreach ($k in @(
-                "cpu_test", "stress_test", "C_test", "CPP_test",
-                "SSE_test", "x87_test", "integer_test", "api_test"
-            )) {
-                xwasm_build $k -Clang $clangPath -LldLink $LldLink -OutputRoot $OutputRoot
-            }
-            return
-        }
-    }
-
-    $game = (Resolve-Path $Target -ErrorAction Stop).Path
-    if (!(Test-Path $game -PathType Container)) {
-        throw "Game target must be a directory or a supported keyword: $Target"
-    }
-
-    xwasm_prep
-
-    $runtime = Join-Path $root "dist\xwasm-runtime\runtime.xwasm"
-    $xapi = Join-Path $out "default.xapi"
-
-    Invoke-XWASM "xwasm_build_x86_runtime.py" @(
-        "--clang", $clangPath,
-        "--output", $runtime
-    )
-    Invoke-XWASM "xwasm_build_xapi.py" @("--output", $xapi)
-
-    $name = Split-Path $game -Leaf
-    $package = Join-Path $out $name
-
-    Invoke-XWASM "xwasm_pack_x86.py" @(
-        $game,
-        "--output", $package,
-        "--runtime", $runtime
-    )
-    Copy-Item $xapi (Join-Path $package "game.xapi") -Force
-
-    Write-Host "XWASM build complete: $package"
-    Write-Host "Runtime: $runtime"
-    Write-Host "API:     $(Join-Path $package 'game.xapi')"
-}
-
-function xwasm_environment {
-    [CmdletBinding()]
-    param(
-        [string]$Clang = "C:\Program Files\LLVM\bin\clang.exe",
-        [string]$LldLink = "C:\Program Files\LLVM\bin\lld-link.exe"
-    )
-
-    $python = Get-Command python -ErrorAction SilentlyContinue
-
-    Write-Host "XWASM environment: $script:XWASM_ROOT"
-    Write-Host "Python: $(if ($python) { $python.Source } else { '[MISSING]' })"
-    Write-Host "LLVM clang: $Clang $(if (Test-Path $Clang -PathType Leaf) { '[OK]' } else { '[MISSING]' })"
-    Write-Host "LLVM lld-link: $LldLink $(if (Test-Path $LldLink -PathType Leaf) { '[OK]' } else { '[MISSING]' })"
-    Write-Host "Commands:"
-    Write-Host "  xwasm_prep"
-    Write-Host "  xwasm_build prep"
-    Write-Host "  xwasm_build runtime"
-    Write-Host "  xwasm_build <game-folder>"
-    Write-Host "  xwasm_build stress_test | C_test | CPP_test | SSE_test | x87_test"
-    Write-Host "  xwasm_build integer_test | cpu_test | graphics_test | window_test"
-    Write-Host "  xwasm_build api_test | all_tests"
-}
-
-Export-ModuleMember -Function xwasm_prep, xwasm_build, xwasm_environment
- {
-            Invoke-XWASM "xwasm_build_xapi.py" @(
-                "--output", (Join-Path $out "default.xapi")
-            )
-            return
-        }
-        '^all(_tests)?$' {
-            foreach ($k in @(
-                "cpu_test", "stress_test", "C_test", "CPP_test",
-                "SSE_test", "x87_test", "integer_test", "api_test"
-            )) {
-                xwasm_build $k -Clang $clangPath -LldLink $LldLink -OutputRoot $OutputRoot
-            }
-            return
-        }
-    }
-
-    $game = (Resolve-Path $Target -ErrorAction Stop).Path
-    if (!(Test-Path $game -PathType Container)) {
-        throw "Game target must be a directory or a supported keyword: $Target"
-    }
-
-    xwasm_prep
-
-    $runtime = Join-Path $root "dist\xwasm-runtime\runtime.xwasm"
-    $xapi = Join-Path $out "default.xapi"
-
-    Invoke-XWASM "xwasm_build_x86_runtime.py" @(
-        "--clang", $clangPath,
-        "--output", $runtime
-    )
-    Invoke-XWASM "xwasm_build_xapi.py" @("--output", $xapi)
-
-    $name = Split-Path $game -Leaf
-    $package = Join-Path $out $name
-
-    Invoke-XWASM "xwasm_pack_x86.py" @(
-        $game,
-        "--output", $package,
-        "--runtime", $runtime
-    )
-    Copy-Item $xapi (Join-Path $package "game.xapi") -Force
-
-    Write-Host "XWASM build complete: $package"
-    Write-Host "Runtime: $runtime"
-    Write-Host "API:     $(Join-Path $package 'game.xapi')"
-}
-
-function xwasm_environment {
-    [CmdletBinding()]
-    param(
-        [string]$Clang = "C:\Program Files\LLVM\bin\clang.exe",
-        [string]$LldLink = "C:\Program Files\LLVM\bin\lld-link.exe"
-    )
-
-    $python = Get-Command python -ErrorAction SilentlyContinue
-
-    Write-Host "XWASM environment: $script:XWASM_ROOT"
-    Write-Host "Python: $(if ($python) { $python.Source } else { '[MISSING]' })"
-    Write-Host "LLVM clang: $Clang $(if (Test-Path $Clang -PathType Leaf) { '[OK]' } else { '[MISSING]' })"
-    Write-Host "LLVM lld-link: $LldLink $(if (Test-Path $LldLink -PathType Leaf) { '[OK]' } else { '[MISSING]' })"
-    Write-Host "Commands:"
-    Write-Host "  xwasm_prep"
-    Write-Host "  xwasm_build prep"
-    Write-Host "  xwasm_build runtime"
-    Write-Host "  xwasm_build <game-folder>"
-    Write-Host "  xwasm_build stress_test | C_test | CPP_test | SSE_test | x87_test"
-    Write-Host "  xwasm_build integer_test | cpu_test | graphics_test | window_test"
     Write-Host "  xwasm_build api_test | all_tests"
 }
 
