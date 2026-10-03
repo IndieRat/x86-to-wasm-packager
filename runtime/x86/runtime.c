@@ -116,7 +116,7 @@ static uint32_t x86_profile_hash(uint32_t map,uint32_t opcode,uint32_t modrm,uin
  if(!id)id="NONE"; for(uint32_t i=0;id[i];i++)h=(h^(uint8_t)id[i])*16777619u;
  return h;
 }
-static void x86_profile_reset(void){
+static void x86_profile_clear(void){
  for(uint32_t i=0;i<X86_PROFILE_SLOTS;i++)x86_profile[i]=(x86_profile_entry_t){0};
  x86_profile_count=0;
 }
@@ -1788,7 +1788,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 /* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
  * synthetic return address so C fixtures whose entrypoint is main() can RET cleanly. */
 if(!x86_stack_push32(X86_ENTRY_RETURN_SENTINEL)){loaded=0;load_error=16;return-7;}
-guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();x86_profile_reset();
+guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();x86_profile_clear();
  x87_count=0; xmm_reset();
  legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
@@ -1802,7 +1802,7 @@ __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  x86_fs_reset();
  x86_reg_reset();
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
- for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();x86_profile_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
+ for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();x86_profile_clear(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.9");
 loglit("PE32 + decoder CPU + guest memory regions + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
@@ -1845,7 +1845,7 @@ __attribute__((export_name("x86_get_last_decoded_modrm"))) uint32_t x86_get_last
 __attribute__((export_name("x86_get_last_decoded_has_modrm"))) uint32_t x86_get_last_decoded_has_modrm(void){return last_decoded_has_modrm;}
 __attribute__((export_name("x86_profile_set_enabled"))) void x86_profile_set_enabled(uint32_t enabled){x86_profile_enabled=enabled?1u:0u;}
 __attribute__((export_name("x86_get_profile_enabled"))) uint32_t x86_get_profile_enabled(void){return x86_profile_enabled;}
-__attribute__((export_name("x86_profile_reset"))) void x86_profile_reset(void){x86_profile_reset();}
+__attribute__((export_name("x86_profile_reset"))) void x86_profile_reset(void){x86_profile_clear();}
 __attribute__((export_name("x86_get_profile_count"))) uint32_t x86_get_profile_count(void){return x86_profile_count;}
 __attribute__((export_name("x86_get_profile_used"))) uint32_t x86_get_profile_used(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].used:0;}
 __attribute__((export_name("x86_get_profile_map"))) uint32_t x86_get_profile_map(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].map:0;}
