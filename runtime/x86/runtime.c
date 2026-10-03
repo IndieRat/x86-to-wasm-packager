@@ -1529,7 +1529,7 @@ static int cpu_step_x87(uint8_t op,uint32_t *ip){
    case 0xE0: if(!x87_need_top())return -61;x87_stack[0]=-x87_stack[0];return 0;
    case 0xE1: if(!x87_need_top())return -61;x87_stack[0]=x87_abs(x87_stack[0]);return 0;
    case 0xE4: if(!x87_need_top())return -61;x87_set_compare(x87_stack[0],0.0);return 0;
-   case 0xE5: if(!x87_need_top())return -61;return 0; /* FXAM: status classification is not needed by current guests */
+   case 0xE5: if(!x87_need_top())return -61;return 0; /* FXAM */
    case 0xE8: return x87_push(1.0)?0:-62;
    case 0xE9: return x87_push(3.32192809488736234787)?0:-62;
    case 0xEA: return x87_push(1.44269504088896340736)?0:-62;
@@ -1537,18 +1537,22 @@ static int cpu_step_x87(uint8_t op,uint32_t *ip){
    case 0xEC: return x87_push(0.30102999566398119521)?0:-62;
    case 0xED: return x87_push(0.69314718055994530942)?0:-62;
    case 0xEE: return x87_push(0.0)?0:-62;
-   case 0xF2: if(!x87_need_top())return -61;x87_stack[0]=x87_sqrt(x87_stack[0]);return 0;
-   case 0xF3: if(!x87_need_top())return -61;return 0; /* FPREM1 compatibility no-op */
-   case 0xF4: if(!x87_need_top())return -61;return 0; /* FPREM compatibility no-op */
-   case 0xF5: if(!x87_need_top())return -61;return 0; /* FPREM1/compat */
+   case 0xF0: if(!x87_need_top())return -61;x87_stack[0]=x87_exp2(x87_stack[0])-1.0;return 0; /* F2XM1 */
+   case 0xF1: if(!x87_valid_reg(1)||!x87_need_top())return -61;x87_stack[1]*=x87_log2(x87_stack[0]);return x87_pop()?0:-61; /* FYL2X */
+   case 0xF2: if(!x87_need_top())return -61;{double t=x87_sin(x87_stack[0])/x87_cos(x87_stack[0]);x87_stack[0]=t;return x87_push(1.0)?0:-62;} /* FPTAN */
+   case 0xF3: if(!x87_valid_reg(1)||!x87_need_top())return -61;x87_stack[1]=x87_atan(x87_stack[1]/x87_stack[0]);return x87_pop()?0:-61; /* FPATAN */
+   case 0xF4: if(!x87_need_top())return -61;{double v=x87_stack[0],av=x87_abs(v);int e=0;while(av>=2.0){av*=0.5;e++;}while(av>0.0&&av<1.0){av*=2.0;e--;}double sig=v;double scale=1.0;if(e>0)for(int i=0;i<e;i++)scale*=2.0;else for(int i=0;i>-e;i++)scale*=0.5;if(scale!=0.0)sig=v/scale;x87_stack[0]=(double)e;return x87_push(sig)?0:-62;} /* FXTRACT */
+   case 0xF5: if(!x87_valid_reg(1)||!x87_need_top())return -61;{double q=x87_stack[0]/x87_stack[1];int64_t n=(int64_t)q;x87_stack[0]-=x87_stack[1]*(double)n;x87_status&=~(X87_C0|X87_C1|X87_C2|X87_C3);x87_status|=(uint16_t)((n&4)?X87_C0:0)|((n&1)?X87_C1:0)|((n&2)?X87_C3:0);return 0;} /* FPREM1-compatible */
    case 0xF6: x87_rotate_top(-1);return 0; /* FDECSTP */
    case 0xF7: x87_rotate_top(+1);return 0; /* FINCSTP */
-   case 0xF8: x87_init_state();return 0; /* FWAIT/FNOP-compatible reset */
-   case 0xFB: x87_init_state();return 0; /* FINIT */
-   case 0xFC: if(!x87_need_top())return -61;x87_stack[0]=x87_log2(x87_stack[0]);return 0;
-   case 0xFD: if(!x87_valid_reg(1))return -61;x87_stack[0]*=x87_exp2(x87_stack[1]);return 0; /* FSCALE */
-   case 0xFE: if(!x87_need_top())return -61;x87_stack[0]=x87_cos(x87_stack[0]);return 0;
-   case 0xFF: if(!x87_need_top())return -61;x87_stack[0]=x87_sin(x87_stack[0]);return 0;
+   case 0xF8: if(!x87_valid_reg(1)||!x87_need_top())return -61;{double q=x87_stack[0]/x87_stack[1];int64_t n=(int64_t)q;x87_stack[0]-=x87_stack[1]*(double)n;x87_status&=~(X87_C0|X87_C1|X87_C2|X87_C3);x87_status|=(uint16_t)((n&4)?X87_C0:0)|((n&1)?X87_C1:0)|((n&2)?X87_C3:0);return 0;} /* FPREM */
+   case 0xF9: if(!x87_valid_reg(1)||!x87_need_top())return -61;x87_stack[0]=x87_stack[1]*x87_log2(1.0+x87_stack[0]);return x87_pop()?0:-61; /* FYL2XP1 */
+   case 0xFA: if(!x87_need_top())return -61;x87_stack[0]=x87_sqrt(x87_stack[0]);return 0; /* FSQRT */
+   case 0xFB: if(!x87_need_top())return -61;{double v=x87_stack[0],c=x87_cos(v),sn=x87_sin(v);x87_stack[0]=sn;return x87_push(c)?0:-62;} /* FSINCOS */
+   case 0xFC: if(!x87_need_top())return -61;x87_stack[0]=x87_round(x87_stack[0],0);return 0; /* FRNDINT */
+   case 0xFD: if(!x87_valid_reg(1)||!x87_need_top())return -61;x87_stack[0]*=x87_exp2(x87_round(x87_stack[1],1));return 0; /* FSCALE */
+   case 0xFE: if(!x87_need_top())return -61;x87_stack[0]=x87_sin(x87_stack[0]);return 0; /* FSIN */
+   case 0xFF: if(!x87_need_top())return -61;x87_stack[0]=x87_cos(x87_stack[0]);return 0; /* FCOS */
    default: break;
   }
   if((m&0xF8u)==0xD0u){if(!x87_need_top()||!x87_valid_reg(r))return -61;x87_stack[r]=x87_stack[0];return 0;}
