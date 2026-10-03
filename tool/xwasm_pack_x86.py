@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from xwasm.container import pack_file, unpack_bytes  # noqa: E402
-from xwasm.dll import convert_dll  # noqa: E402
+from xwasm.dll import convert_dll, pack_xapi_file  # noqa: E402
 
 def pe32_info(path: Path) -> dict:
     data=path.read_bytes()
@@ -71,13 +71,16 @@ def main()->int:
     for api_name in canonical_xapis:
         seed=seed_dir/api_name
         if seed.is_file():
-            shutil.copy2(seed,dll_api_dir/api_name)
+            pack_xapi_file(seed, dll_api_dir/api_name)
             dll_api_manifests.append("dll_apis/"+api_name)
 
     for dll in dll_files:
         try:
             api_name=dll.stem.lower()+".xapi"
-            convert_dll(dll,dll_api_dir/api_name)
+            json_manifest=dll_api_dir/(api_name+".json")
+            convert_dll(dll,json_manifest)
+            pack_xapi_file(json_manifest,dll_api_dir/api_name)
+            json_manifest.unlink()
             manifest_name="dll_apis/"+api_name
             if manifest_name not in dll_api_manifests:
                 dll_api_manifests.append(manifest_name)
@@ -107,6 +110,7 @@ def main()->int:
         "payload_format":"XPL","payload_architecture":"i386",
         "entry":{"init":"xwasm_init","tick":"xwasm_tick","shutdown":"xwasm_shutdown"},
         "pe":info,"resource_file_count":count,"bundled_dlls":bundled_dlls,
+        "dll_api_format":"XWSC01/XAPI",
         "dll_api_manifests":dll_api_manifests,
         "sha256":hashlib.sha256(exe.read_bytes()).hexdigest(),
         "execution_status":"x86_runtime_bundled" if runtime_source else "requires_x86_runtime",
@@ -119,7 +123,7 @@ def main()->int:
     print(f"Created XWASM x86 package: {out}")
     print(f"Payload: {payload.relative_to(out)}")
     print(f"Resources: {count}")
-    print(f"DLL API manifests: {len(dll_api_manifests)}")
+    print(f"DLL API manifests: {len(dll_api_manifests)} (XWSC01/XAPI)")
     print(f"Runtime: {'bundled as runtime.xwasm' if runtime_source else 'external/host-supplied'}")
     return 0
 if __name__=="__main__": raise SystemExit(main())
