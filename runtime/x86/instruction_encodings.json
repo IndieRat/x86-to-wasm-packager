@@ -380,6 +380,54 @@
       ]
     },
     {
+      "id": "SUB_RM8_R8",
+      "instruction": "SUB",
+      "opcode": [
+        "28"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MR",
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "reg8",
+          "access": "r",
+          "source": "modrm.reg"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "SUB_R8_RM8",
+      "instruction": "SUB",
+      "opcode": [
+        "2A"
+      ],
+      "opcode_map": "primary",
+      "encoding": "RM",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm8",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
       "id": "SUB_RM32_R32",
       "instruction": "SUB",
       "opcode": [
