@@ -40,22 +40,22 @@ def pe():
     code.extend(b"\x56"); call(0x3008); code.extend(b"\x89\xc3")
     push(0); push(0); call(0x3010)
     push(0); push(0); push(0); call(0x3014)
-    code.extend(b"\x53"); call(0x3018); code.extend(b"\x89\xc5")
-    code.extend(b"\x53\x55"); call(0x301c)
+    code.extend(b"\x53"); call(0x301c); code.extend(b"\x89\xc5")
+    code.extend(b"\x53\x55"); call(0x3020)
     for v in (360,640,0,0): push(v)
-    call(0x3020)
-    for bits in (0x00000000,0x00000000,0x00000000,0x3f800000): push(bits)
     call(0x3024)
-    push(0x00004000); call(0x3028)
+    for bits in (0x00000000,0x00000000,0x00000000,0x3f800000): push(bits)
+    call(0x3028)
+    push(0x00004000); call(0x302c)
 
     def color(r,g,b):
         for x in (b,g,r): push(x)
-        call(0x3034)
+        call(0x3030)
     def tri(x0,y0,x1,y1,x2,y2):
-        push(4); call(0x302c)
+        push(4); call(0x3034)
         for x,y in ((x0,y0),(x1,y1),(x2,y2)):
             push(y); push(x); call(0x3038)
-        call(0x3030)
+        call(0x303c)
     color(0x3f800000,0x3f800000,0x3f800000)
     tri(0xbf800000,0x3e800000,0xbf800000,0xbe800000,0xbf000000,0xbe800000)
     tri(0xbf000000,0xbe800000,0xbf000000,0x3e800000,0xbf800000,0x3e800000)
@@ -63,15 +63,15 @@ def pe():
     tri(0x3f000000,0x3e800000,0x3f800000,0x3e800000,0x3f000000,0xbe800000)
     color(0x3f000000,0x3f800000,0x3f000000)
     tri(0xbe800000,0xbe800000,0x00000000,0x3e800000,0x3e800000,0xbe800000)
-    call(0x3044)
-    push(90); push(660); call(0x3048)
+    call(0x3018)
+    push(90); push(660); call(0x3040)
     mov_edi(0x00900000)
     for v in (1,0,0,0,0x00900000): push(v)
     call(0x300c)
     code.extend(b"\xf4")
     b[SECTION_RAW:SECTION_RAW+len(code)]=code
 
-    desc=0x1800; oft=0x1900; iat=0x1a00; names_base=0x1b00
+    desc=0x1800; oft=0x1900; iat=0x3000; names_base=0x1b00
     dlls=[("USER32.dll",[("CreateWindowExA",0x3000),("ShowWindow",0x3004),("GetDC",0x3008),("PeekMessageA",0x300c)]),
           ("GDI32.dll",[("ChoosePixelFormat",0x3010),("SetPixelFormat",0x3014),("SwapBuffers",0x3044)]),
           ("OPENGL32.dll",[("wglCreateContext",0x3018),("wglMakeCurrent",0x301c),("glViewport",0x3020),("glClearColor",0x3024),("glClear",0x3028),("glBegin",0x302c),("glEnd",0x3030),("glColor3f",0x3034),("glVertex2f",0x3038)]),
