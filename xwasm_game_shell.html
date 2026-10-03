@@ -20,6 +20,7 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
 #overlay{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;color:#78818c;font:13px Consolas,monospace}
 #hud{position:absolute;left:10px;top:8px;font:11px Consolas,monospace;color:#aeb7c1;background:#0008;padding:5px 7px;border-radius:4px}
 #controls{position:absolute;right:10px;top:8px;display:flex;gap:5px}
+#packageDir,#packageFiles{display:none}
 #terminal{position:fixed;left:0;right:0;bottom:0;background:#090a0c;border-top:2px solid #b33;box-shadow:0 -12px 40px #000;max-height:36vh;z-index:20;display:none}
 #terminal.visible{display:block}
 .termHead{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#17191d}
@@ -34,12 +35,14 @@ input{display:none}
 <div id="app">
 <header>
 <strong>XWASM GAME SHELL</strong>
-<button id="load">Load package</button>
+<button id="selectPackage">Select game package</button>
+<button id="load">Load selected</button>
 <button id="start">Start</button>
+<input id="packageDir" type="file" webkitdirectory directory multiple>
+<input id="packageFiles" type="file" multiple accept=".xwasm,.xpl,.wasm,.bin,.json,.js">
 <button id="pause">Pause</button>
 <button id="fullscreen">Fullscreen</button>
-<label><button>Runtime</button><input id="runtime" type="file" accept=".xwasm"></label>
-<label><button>Payload</button><input id="payload" type="file" accept=".xpl"></label>
+<span id="packageName" class="small">No package selected</span>
 <div id="status" class="status">idle</div>
 </header>
 <div id="stage">
@@ -63,7 +66,7 @@ input{display:none}
 const $=id=>document.getElementById(id);
 const td=new TextDecoder();
 const state={
- runtime:null,payload:null,module:null,instance:null,exports:null,memory:null,
+ runtime:null,payload:null,bridge:null,manifest:null,files:[],packageName:"",module:null,instance:null,exports:null,memory:null,
  running:false,audio:null,muted:false,events:[],errors:[],
  gl:null,ctx:null,window:{width:1280,height:720,visible:true,title:"XWASM Game"}
 };
@@ -190,19 +193,46 @@ function buildImports(mod){
  }
  return {env};
 }
-async function load(){
- try{
-  const rf=$("runtime").files[0],pf=$("payload").files[0];
-  if(!rf||!pf)throw Error("select runtime.xwasm and payload.xpl");
-  state.runtime=await unpack(await rf.arrayBuffer(),"xwasm","runtime.xwasm");
-  state.payload=await unpack(await pf.arrayBuffer(),"xpl","payload.xpl");
-  validatePE(state.payload);
+function fileByNames(names){
+  const wanted=names.map(x=>x.toLowerCase());
+  return state.files.find(f=>wanted.includes(f.name.toLowerCase())||wanted.includes(f.webkitRelativePath.split("/").pop().toLowerCase()));
+}
+function selectPackage(){
+  const i=$("packageDir");
+  i.value="";
+  i.click();
+}
+function selectLooseFiles(){
+  const i=$("packageFiles");
+  i.value="";
+  i.click();
+}
+async function readSelectedPackage(){
+  try{
+   const files=state.files;
+   if(!files.length)throw Error("select an XWASM game package folder first");
+   const rf=fileByNames(["runtime.xwasm","runtime.wasm"]);
+   const pf=fileByNames(["payload.xpl","payload.bin"]);
+   const mf=fileByNames(["manifest.json"]);
+   const bf=fileByNames(["bridge.js"]);
+   if(!rf)throw Error("package is missing runtime.xwasm/runtime.wasm");
+   if(!pf)throw Error("package is missing payload.xpl/payload.bin");
+   state.runtime=rf.name.toLowerCase().endsWith(".xwasm")
+     ? await unpack(await rf.arrayBuffer(),"xwasm",rf.name)
+     : await rf.arrayBuffer();
+   state.payload=pf.name.toLowerCase().endsWith(".xpl")
+     ? await unpack(await pf.arrayBuffer(),"xpl",pf.name)
+     : await pf.arrayBuffer();
+   state.bridge=bf||null;
+   state.manifest=mf?JSON.parse(await mf.text()):null;
+   validatePE(state.payload);
   state.module=await WebAssembly.compile(state.runtime);
   state.instance=await WebAssembly.instantiate(state.module,buildImports(state.module));
   state.exports=state.instance.exports;
   if(typeof state.exports.xwasm_init==="function")state.exports.xwasm_init();
-  $("overlay").textContent="XWASM runtime loaded";
-  log("loaded");
+  $("overlay").textContent="XWASM package loaded";
+  $("packageName").textContent=state.packageName||"Package loaded";
+  log("loaded: "+(state.packageName||"package"));
  }catch(e){error("load failed",e)}
 }
 function start(){
@@ -230,6 +260,22 @@ function tick(){
  requestAnimationFrame(tick);
 }
 function pause(){state.running=false;log("paused")}
+
+$("selectPackage").onclick=selectPackage;
+$("packageDir").addEventListener("change",e=>{
+ const files=Array.from(e.target.files||[]);
+ state.files=files;
+ state.packageName=files[0]?.webkitRelativePath?.split("/")[0]||"selected package";
+ $("packageName").textContent=state.packageName+" ("+files.length+" files)";
+ log("package selected");
+});
+$("packageFiles").addEventListener("change",e=>{
+ const files=Array.from(e.target.files||[]);
+ state.files=files;
+ state.packageName="selected files";
+ $("packageName").textContent=files.map(f=>f.name).join(", ");
+ log("files selected");
+});
 $("load").onclick=load;$("start").onclick=start;$("pause").onclick=pause;
 $("fullscreen").onclick=()=>{$("gameFrame").requestFullscreen?.().catch(e=>error("fullscreen",e))};
 $("mute").onclick=()=>{state.muted=!state.muted;$("mute").textContent=state.muted?"Muted":"Audio"};
