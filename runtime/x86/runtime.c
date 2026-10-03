@@ -1310,6 +1310,44 @@ static int x86_stack_discard(uint32_t n){
 }
 
 static uint16_t x87_control=0x037Fu; /* 8087-compatible reset control word */
+#define X87_TRACE_DEPTH 128u
+static uint32_t x87_trace_count=0,x87_trace_head=0;
+static uint32_t x87_trace_eip[X87_TRACE_DEPTH],x87_trace_opcode[X87_TRACE_DEPTH],x87_trace_modrm[X87_TRACE_DEPTH];
+static uint32_t x87_trace_count_before[X87_TRACE_DEPTH],x87_trace_count_after[X87_TRACE_DEPTH];
+static uint16_t x87_trace_status_before[X87_TRACE_DEPTH],x87_trace_status_after[X87_TRACE_DEPTH];
+static uint32_t x87_last_eip=0,x87_last_opcode=0,x87_last_modrm=0;
+static uint32_t x87_last_count_before=0,x87_last_count_after=0;
+static uint16_t x87_last_status_before=0,x87_last_status_after=0;
+static uint32_t x87_last_fault_eip=0,x87_last_fault_opcode=0,x87_last_fault_modrm=0;
+static uint32_t x87_last_fault_count=0;
+static void x87_trace_reset(void){
+ x87_trace_count=0;x87_trace_head=0;
+ x87_last_eip=x87_last_opcode=x87_last_modrm=0;
+ x87_last_count_before=x87_last_count_after=0;
+ x87_last_status_before=x87_last_status_after=0;
+ x87_last_fault_eip=x87_last_fault_opcode=x87_last_fault_modrm=0;
+ x87_last_fault_count=0;
+}
+static void x87_trace_begin(uint32_t at,uint8_t op,uint8_t m){
+ uint32_t i=x87_trace_head%X87_TRACE_DEPTH;
+ x87_trace_eip[i]=at;x87_trace_opcode[i]=op;x87_trace_modrm[i]=m;
+ x87_trace_count_before[i]=x87_count;x87_trace_status_before[i]=x87_status;
+ x87_last_eip=at;x87_last_opcode=op;x87_last_modrm=m;
+ x87_last_count_before=x87_count;x87_last_status_before=x87_status;
+ x87_trace_head=(x87_trace_head+1u)%X87_TRACE_DEPTH;
+ if(x87_trace_count<X87_TRACE_DEPTH)x87_trace_count++;
+}
+static void x87_trace_end(int rc){
+ uint32_t i=(x87_trace_head+X87_TRACE_DEPTH-1u)%X87_TRACE_DEPTH;
+ x87_trace_count_after[i]=x87_count;x87_trace_status_after[i]=x87_status;
+ x87_last_count_after=x87_count;x87_last_status_after=x87_status;
+ if(rc<0){
+  x87_last_fault_eip=x87_last_eip;x87_last_fault_opcode=x87_last_opcode;
+  x87_last_fault_modrm=x87_last_modrm;x87_last_fault_count=x87_last_count_before;
+ }
+}
+
+
 static uint16_t x87_status=0;
 #define X87_C0 0x0100u
 #define X87_C1 0x0200u
@@ -1447,10 +1485,13 @@ static uint16_t x87_status_word(void){
 }
 static void x87_init_state(void){
  x87_count=0;x87_status=0;x87_control=0x037Fu;
+ x87_trace_reset();
  for(uint32_t i=0;i<8u;i++)x87_stack[i]=0.0;
 }
 static int cpu_step_x87(uint8_t op,uint32_t *ip){
+ uint32_t x87_eip=*ip-1u;
  uint8_t m=MEM8((*ip)++),mod=(m>>6)&3u,sub=(m>>3)&7u,r=m&7u;uint32_t ea=0;
+ x87_trace_begin(x87_eip,op,m);
  if(mod!=3u&&!x87_modrm_ea(m,ip,&ea))return -60;
 
  /* D8/DC: floating memory/register arithmetic and compare. */
@@ -2125,6 +2166,26 @@ uint32_t x86_get_stack_dword(uint32_t index){
 }
 __attribute__((export_name("x86_get_x87_count")))
 uint32_t x86_get_x87_count(void){return x87_count;}
+__attribute__((export_name("x86_get_x87_control"))) uint32_t x86_get_x87_control(void){return x87_control;}
+__attribute__((export_name("x86_get_x87_status"))) uint32_t x86_get_x87_status(void){return x87_status;}
+__attribute__((export_name("x86_get_x87_trace_count"))) uint32_t x86_get_x87_trace_count(void){return x87_trace_count;}
+__attribute__((export_name("x86_get_x87_trace_index"))) uint32_t x86_get_x87_trace_index(uint32_t n){if(n>=x87_trace_count)return 0xFFFFFFFFu;return (x87_trace_head+X87_TRACE_DEPTH-x87_trace_count+n)%X87_TRACE_DEPTH;}
+__attribute__((export_name("x86_get_x87_trace_eip"))) uint32_t x86_get_x87_trace_eip(uint32_t i){return i<X87_TRACE_DEPTH?x87_trace_eip[i]:0;}
+__attribute__((export_name("x86_get_x87_trace_opcode"))) uint32_t x86_get_x87_trace_opcode(uint32_t i){return i<X87_TRACE_DEPTH?x87_trace_opcode[i]:0;}
+__attribute__((export_name("x86_get_x87_trace_modrm"))) uint32_t x86_get_x87_trace_modrm(uint32_t i){return i<X87_TRACE_DEPTH?x87_trace_modrm[i]:0;}
+__attribute__((export_name("x86_get_x87_trace_count_before"))) uint32_t x86_get_x87_trace_count_before(uint32_t i){return i<X87_TRACE_DEPTH?x87_trace_count_before[i]:0;}
+__attribute__((export_name("x86_get_x87_trace_count_after"))) uint32_t x86_get_x87_trace_count_after(uint32_t i){return i<X87_TRACE_DEPTH?x87_trace_count_after[i]:0;}
+__attribute__((export_name("x86_get_x87_trace_status_before"))) uint32_t x86_get_x87_trace_status_before(uint32_t i){return i<X87_TRACE_DEPTH?x87_trace_status_before[i]:0;}
+__attribute__((export_name("x86_get_x87_trace_status_after"))) uint32_t x86_get_x87_trace_status_after(uint32_t i){return i<X87_TRACE_DEPTH?x87_trace_status_after[i]:0;}
+__attribute__((export_name("x86_get_x87_last_eip"))) uint32_t x86_get_x87_last_eip(void){return x87_last_eip;}
+__attribute__((export_name("x86_get_x87_last_opcode"))) uint32_t x86_get_x87_last_opcode(void){return x87_last_opcode;}
+__attribute__((export_name("x86_get_x87_last_modrm"))) uint32_t x86_get_x87_last_modrm(void){return x87_last_modrm;}
+__attribute__((export_name("x86_get_x87_last_count_before"))) uint32_t x86_get_x87_last_count_before(void){return x87_last_count_before;}
+__attribute__((export_name("x86_get_x87_last_count_after"))) uint32_t x86_get_x87_last_count_after(void){return x87_last_count_after;}
+__attribute__((export_name("x86_get_x87_last_fault_eip"))) uint32_t x86_get_x87_last_fault_eip(void){return x87_last_fault_eip;}
+__attribute__((export_name("x86_get_x87_last_fault_opcode"))) uint32_t x86_get_x87_last_fault_opcode(void){return x87_last_fault_opcode;}
+__attribute__((export_name("x86_get_x87_last_fault_modrm"))) uint32_t x86_get_x87_last_fault_modrm(void){return x87_last_fault_modrm;}
+__attribute__((export_name("x86_get_x87_last_fault_count"))) uint32_t x86_get_x87_last_fault_count(void){return x87_last_fault_count;}
 __attribute__((export_name("x86_get_xmm_dword")))
 uint32_t x86_get_xmm_dword(uint32_t reg,uint32_t lane){if(reg>=8u||lane>=4u)return 0xFFFFFFFFu;uint32_t p=lane*4u;return (uint32_t)xmm[reg][p]|((uint32_t)xmm[reg][p+1u]<<8)|((uint32_t)xmm[reg][p+2u]<<16)|((uint32_t)xmm[reg][p+3u]<<24);}
 __attribute__((export_name("x86_get_memory_faults")))
