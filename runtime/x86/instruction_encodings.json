@@ -3401,7 +3401,7 @@
     },
     {
       "id": "SAL_RM8_IMM8",
-      "instruction": "SAL",
+      "instruction": "SHL",
       "opcode": [
         "C0"
       ],
@@ -3451,7 +3451,7 @@
     },
     {
       "id": "SAL_RM32_IMM8",
-      "instruction": "SAL",
+      "instruction": "SHL",
       "opcode": [
         "C1"
       ],
@@ -3596,7 +3596,7 @@
     },
     {
       "id": "SAL_RM8_1",
-      "instruction": "SAL",
+      "instruction": "SHL",
       "opcode": [
         "D0"
       ],
@@ -3636,7 +3636,7 @@
     },
     {
       "id": "SAL_RM32_1",
-      "instruction": "SAL",
+      "instruction": "SHL",
       "opcode": [
         "D1"
       ],
@@ -3806,7 +3806,7 @@
     },
     {
       "id": "SAL_RM8_CL",
-      "instruction": "SAL",
+      "instruction": "SHL",
       "opcode": [
         "D2"
       ],
@@ -3981,7 +3981,7 @@
     },
     {
       "id": "SAL_RM32_CL",
-      "instruction": "SAL",
+      "instruction": "SHL",
       "opcode": [
         "D3"
       ],
