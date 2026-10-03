@@ -104,6 +104,25 @@ enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_
 #define API_USER32_RELEASEDC (API_BASE+0x0000400Cu)
 #define API_GDI32_SETPIXEL (API_BASE+0x00005000u)
 #define API_GDI32_RECTANGLE (API_BASE+0x00005004u)
+#define API_GDI32_SWAPBUFFERS (API_BASE+0x00005008u)
+#define API_GDI32_CHOOSEPIXELFORMAT (API_BASE+0x0000500Cu)
+#define API_GDI32_SETPIXELFORMAT (API_BASE+0x00005010u)
+#define API_OPENGL32_WGLCREATECONTEXT (API_BASE+0x0000A000u)
+#define API_OPENGL32_WGLDELETECONTEXT (API_BASE+0x0000A004u)
+#define API_OPENGL32_WGLMAKECURRENT (API_BASE+0x0000A008u)
+#define API_OPENGL32_WGLGETCURRENTCONTEXT (API_BASE+0x0000A00Cu)
+#define API_OPENGL32_GLCLEARCOLOR (API_BASE+0x0000A010u)
+#define API_OPENGL32_GLCLEAR (API_BASE+0x0000A014u)
+#define API_OPENGL32_GLVIEWPORT (API_BASE+0x0000A018u)
+#define API_OPENGL32_GLBEGIN (API_BASE+0x0000A01Cu)
+#define API_OPENGL32_GLEND (API_BASE+0x0000A020u)
+#define API_OPENGL32_GLCOLOR3F (API_BASE+0x0000A024u)
+#define API_OPENGL32_GLCOLOR4F (API_BASE+0x0000A028u)
+#define API_OPENGL32_GLVERTEX2F (API_BASE+0x0000A02Cu)
+#define API_OPENGL32_GLVERTEX3F (API_BASE+0x0000A030u)
+#define API_OPENGL32_GLFLUSH (API_BASE+0x0000A034u)
+#define API_OPENGL32_GLFINISH (API_BASE+0x0000A038u)
+#define API_OPENGL32_GLGETSTRING (API_BASE+0x0000A03Cu)
 #define API_USER32_GETMESSAGEA (API_BASE+0x00006000u)
 #define API_USER32_PEEKMESSAGEA (API_BASE+0x00006004u)
 #define API_USER32_TRANSLATEMESSAGE (API_BASE+0x00006008u)
@@ -694,6 +713,13 @@ static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t import_resolved=0,import_failed=0;
 static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0,mouse_right_clicks=0,mouse_middle_clicks=0,mouse_moves=0;
 static uint32_t surface_width=640,surface_height=360;
+static uint32_t gl_context=1,gl_current_context=0,gl_mode=0;
+static int32_t gl_viewport_x=0,gl_viewport_y=0,gl_viewport_w=640,gl_viewport_h=360;
+static float gl_clear_r=0.0f,gl_clear_g=0.0f,gl_clear_b=0.0f,gl_clear_a=1.0f;
+static float gl_color_r=1.0f,gl_color_g=1.0f,gl_color_b=1.0f,gl_color_a=1.0f;
+static float gl_vertices[64][3];
+static uint32_t gl_vertex_count=0;
+static uint32_t gl_begin_mode=0;
 static uint32_t last_import_dll=0,last_import_func=0,last_import_thunk=0,last_import_target=0;
 static uint32_t last_failed_import_dll=0,last_failed_import_func=0;
 
@@ -731,6 +757,25 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"SetPixel"))return API_GDI32_SETPIXEL;
   if(streq_ascii(name,"Rectangle"))return API_GDI32_RECTANGLE;
  }
+ if(streq_ascii(dll,"OPENGL32.dll")||streq_ascii(dll,"opengl32.dll")){
+  if(streq_ascii(name,"wglCreateContext"))return API_OPENGL32_WGLCREATECONTEXT;
+  if(streq_ascii(name,"wglDeleteContext"))return API_OPENGL32_WGLDELETECONTEXT;
+  if(streq_ascii(name,"wglMakeCurrent"))return API_OPENGL32_WGLMAKECURRENT;
+  if(streq_ascii(name,"wglGetCurrentContext"))return API_OPENGL32_WGLGETCURRENTCONTEXT;
+  if(streq_ascii(name,"glClearColor"))return API_OPENGL32_GLCLEARCOLOR;
+  if(streq_ascii(name,"glClear"))return API_OPENGL32_GLCLEAR;
+  if(streq_ascii(name,"glViewport"))return API_OPENGL32_GLVIEWPORT;
+  if(streq_ascii(name,"glBegin"))return API_OPENGL32_GLBEGIN;
+  if(streq_ascii(name,"glEnd"))return API_OPENGL32_GLEND;
+  if(streq_ascii(name,"glColor3f"))return API_OPENGL32_GLCOLOR3F;
+  if(streq_ascii(name,"glColor4f"))return API_OPENGL32_GLCOLOR4F;
+  if(streq_ascii(name,"glVertex2f"))return API_OPENGL32_GLVERTEX2F;
+  if(streq_ascii(name,"glVertex3f"))return API_OPENGL32_GLVERTEX3F;
+  if(streq_ascii(name,"glFlush"))return API_OPENGL32_GLFLUSH;
+  if(streq_ascii(name,"glFinish"))return API_OPENGL32_GLFINISH;
+  if(streq_ascii(name,"glGetString"))return API_OPENGL32_GLGETSTRING;
+ }
+
  if(streq_ascii(dll,"USER32.dll")||streq_ascii(dll,"user32.dll")){
   if(streq_ascii(name,"GetMessageA"))return API_USER32_GETMESSAGEA;
   if(streq_ascii(name,"PeekMessageA"))return API_USER32_PEEKMESSAGEA;
@@ -772,6 +817,47 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
  }
  return 0;
 }
+static uint32_t gl_color_u32(void){
+ uint32_t r=(uint32_t)(gl_color_r<0?0:(gl_color_r>1?255:gl_color_r*255.0f));
+ uint32_t g=(uint32_t)(gl_color_g<0?0:(gl_color_g>1?255:gl_color_g*255.0f));
+ uint32_t b=(uint32_t)(gl_color_b<0?0:(gl_color_b>1?255:gl_color_b*255.0f));
+ return r|(g<<8)|(b<<16);
+}
+static uint32_t gl_clear_u32(void){
+ uint32_t r=(uint32_t)(gl_clear_r<0?0:(gl_clear_r>1?255:gl_clear_r*255.0f));
+ uint32_t g=(uint32_t)(gl_clear_g<0?0:(gl_clear_g>1?255:gl_clear_g*255.0f));
+ uint32_t b=(uint32_t)(gl_clear_b<0?0:(gl_clear_b>1?255:gl_clear_b*255.0f));
+ return r|(g<<8)|(b<<16);
+}
+static int gl_project(float x,float y,int32_t *px,int32_t *py){
+ if(!px||!py||gl_viewport_w<=0||gl_viewport_h<=0)return 0;
+ *px=gl_viewport_x+(int32_t)(((x+1.0f)*0.5f)*(float)gl_viewport_w);
+ *py=gl_viewport_y+(int32_t)(((1.0f-y)*0.5f)*(float)gl_viewport_h);
+ return 1;
+}
+static void gl_draw_triangle(void){
+ if(gl_vertex_count<3u)return;
+ int32_t x0,y0,x1,y1,x2,y2;
+ if(!gl_project(gl_vertices[0][0],gl_vertices[0][1],&x0,&y0))return;
+ if(!gl_project(gl_vertices[1][0],gl_vertices[1][1],&x1,&y1))return;
+ if(!gl_project(gl_vertices[2][0],gl_vertices[2][1],&x2,&y2))return;
+ int32_t minx=x0,maxx=x0,miny=y0,maxy=y0;
+ if(x1<minx)minx=x1;if(x2<minx)minx=x2;if(x1>maxx)maxx=x1;if(x2>maxx)maxx=x2;
+ if(y1<miny)miny=y1;if(y2<miny)miny=y2;if(y1>maxy)maxy=y1;if(y2>maxy)maxy=y2;
+ if(minx<gl_viewport_x)minx=gl_viewport_x;if(miny<gl_viewport_y)miny=gl_viewport_y;
+ if(maxx>=gl_viewport_x+gl_viewport_w)maxx=gl_viewport_x+gl_viewport_w-1;
+ if(maxy>=gl_viewport_y+gl_viewport_h)maxy=gl_viewport_y+gl_viewport_h-1;
+ int32_t area=(x1-x0)*(y2-y0)-(y1-y0)*(x2-x0);
+ if(!area)return;
+ uint32_t color=gl_color_u32();
+ for(int32_t y=miny;y<=maxy;y++)for(int32_t x=minx;x<=maxx;x++){
+  int32_t w0=(x1-x0)*(y-y0)-(y1-y0)*(x-x0);
+  int32_t w1=(x2-x1)*(y-y1)-(y2-y1)*(x-x1);
+  int32_t w2=(x0-x2)*(y-y2)-(y0-y2)*(x-x2);
+  if((area>0&&w0>=0&&w1>=0&&w2>=0)||(area<0&&w0<=0&&w1<=0&&w2<=0))xwasm_gfx_pixel(x,y,(int32_t)color);
+ }
+}
+
 static uint32_t x86_crt_strlen(uint32_t s);
 static uint32_t call_builtin(uint32_t target){
  if(target==API_C5_MALLOC){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_malloc_impl(rd32(sp+4u));return 1;}
@@ -819,6 +905,22 @@ static uint32_t call_builtin(uint32_t target){
   uint32_t sp=regs[R_ESP]; uint32_t hdc=rd32(sp+4u),x=rd32(sp+8u),y=rd32(sp+12u),color=rd32(sp+16u);
   if(hdc) xwasm_gfx_pixel((int32_t)x,(int32_t)y,(int32_t)color); xwasm_gfx_present(); regs[R_EAX]=color; regs[R_ESP]+=16u; return 1;
  }
+ if(target==API_OPENGL32_WGLCREATECONTEXT){regs[R_EAX]=gl_context;regs[R_ESP]+=4u;return 1;}
+ if(target==API_OPENGL32_WGLDELETECONTEXT){uint32_t sp=regs[R_ESP];if(rd32(sp+4u)==gl_current_context)gl_current_context=0;regs[R_EAX]=1u;regs[R_ESP]+=4u;return 1;}
+ if(target==API_OPENGL32_WGLMAKECURRENT){uint32_t sp=regs[R_ESP];uint32_t hdc=rd32(sp+4u),ctx=rd32(sp+8u);gl_current_context=ctx?ctx:0;if(hdc&&ctx)xwasm_gfx_create((int32_t)surface_width,(int32_t)surface_height);regs[R_EAX]=1u;regs[R_ESP]+=8u;return 1;}
+ if(target==API_OPENGL32_WGLGETCURRENTCONTEXT){regs[R_EAX]=gl_current_context;return 1;}
+ if(target==API_OPENGL32_GLCLEARCOLOR){uint32_t sp=regs[R_ESP];union{uint32_t u;float f;}a,b,d,e;a.u=rd32(sp+4u);b.u=rd32(sp+8u);d.u=rd32(sp+12u);e.u=rd32(sp+16u);gl_clear_r=a.f;gl_clear_g=b.f;gl_clear_b=d.f;gl_clear_a=e.f;regs[R_ESP]+=16u;return 1;}
+ if(target==API_OPENGL32_GLCLEAR){uint32_t sp=regs[R_ESP];if(rd32(sp+4u)&0x00004000u)xwasm_gfx_clear((int32_t)gl_clear_u32());regs[R_ESP]+=4u;return 1;}
+ if(target==API_OPENGL32_GLVIEWPORT){uint32_t sp=regs[R_ESP];gl_viewport_x=(int32_t)rd32(sp+4u);gl_viewport_y=(int32_t)rd32(sp+8u);gl_viewport_w=(int32_t)rd32(sp+12u);gl_viewport_h=(int32_t)rd32(sp+16u);regs[R_ESP]+=16u;return 1;}
+ if(target==API_OPENGL32_GLBEGIN){uint32_t sp=regs[R_ESP];gl_begin_mode=rd32(sp+4u);gl_vertex_count=0;gl_mode=1;regs[R_ESP]+=4u;return 1;}
+ if(target==API_OPENGL32_GLEND){gl_mode=0;if(gl_begin_mode==0x0004u)gl_draw_triangle();xwasm_gfx_present();return 1;}
+ if(target==API_OPENGL32_GLCOLOR3F||target==API_OPENGL32_GLCOLOR4F){uint32_t sp=regs[R_ESP];union{uint32_t u;float f;}a,b,d,e;a.u=rd32(sp+4u);b.u=rd32(sp+8u);d.u=rd32(sp+12u);gl_color_r=a.f;gl_color_g=b.f;gl_color_b=d.f;if(target==API_OPENGL32_GLCOLOR4F){e.u=rd32(sp+16u);gl_color_a=e.f;regs[R_ESP]+=16u;}else regs[R_ESP]+=12u;return 1;}
+ if(target==API_OPENGL32_GLVERTEX2F||target==API_OPENGL32_GLVERTEX3F){uint32_t sp=regs[R_ESP];if(gl_mode&&gl_vertex_count<64u){union{uint32_t u;float f;}a,b,d;a.u=rd32(sp+4u);b.u=rd32(sp+8u);d.u=(target==API_OPENGL32_GLVERTEX3F)?rd32(sp+12u):0;gl_vertices[gl_vertex_count][0]=a.f;gl_vertices[gl_vertex_count][1]=b.f;gl_vertices[gl_vertex_count][2]=d.f;gl_vertex_count++;}regs[R_ESP]+=(target==API_OPENGL32_GLVERTEX3F?12u:8u);return 1;}
+ if(target==API_OPENGL32_GLFLUSH||target==API_OPENGL32_GLFINISH){xwasm_gfx_present();return 1;}
+ if(target==API_OPENGL32_GLGETSTRING){uint32_t sp=regs[R_ESP],name=rd32(sp+4u);const char *s="XWASM OpenGL";if(name==0x1F00u)s="XWASM";else if(name==0x1F01u)s="XWASM WebGL-compatible renderer";else if(name==0x1F02u)s="1.1 XWASM compatibility";uint32_t p=guest_alloc_raw(64u);if(p){uint32_t i=0;while(s[i]){wr8(p+i,(uint8_t)s[i]);i++;}wr8(p+i,0);}regs[R_EAX]=p;regs[R_ESP]+=4u;return 1;}
+ if(target==API_GDI32_SWAPBUFFERS){xwasm_gfx_present();regs[R_EAX]=1u;regs[R_ESP]+=4u;return 1;}
+ if(target==API_GDI32_CHOOSEPIXELFORMAT){regs[R_EAX]=1u;regs[R_ESP]+=8u;return 1;}
+ if(target==API_GDI32_SETPIXELFORMAT){regs[R_EAX]=1u;regs[R_ESP]+=12u;return 1;}
  if(target==API_GDI32_RECTANGLE){
   uint32_t sp=regs[R_ESP]; uint32_t hdc=rd32(sp+4u),left=rd32(sp+8u),top=rd32(sp+12u),right=rd32(sp+16u),bottom=rd32(sp+20u);
   if(hdc) xwasm_gfx_rect((int32_t)left,(int32_t)top,(int32_t)right,(int32_t)bottom,0x00FFFFFF); xwasm_gfx_present(); regs[R_EAX]=1u; regs[R_ESP]+=20u; return 1;

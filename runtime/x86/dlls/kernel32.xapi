@@ -1,0 +1,22 @@
+{
+  "format": "xwasm-xapi",
+  "version": 1,
+  "libraries": {
+    "KERNEL32.dll": {
+      "functions": {
+        "GetTickCount": {"id": 4097, "abi": "stdcall", "args": [], "return": "u32", "bridge": "xw.kernel32.GetTickCount"},
+        "Beep": {"id": 4098, "abi": "stdcall", "args": ["u32", "u32"], "return": "u32", "bridge": "xw.kernel32.Beep"},
+        "VirtualAlloc": {"id": 4099, "abi": "stdcall", "args": ["ptr", "u32", "u32", "u32"], "return": "ptr", "bridge": "xw.kernel32.VirtualAlloc"},
+        "VirtualFree": {"id": 4100, "abi": "stdcall", "args": ["ptr", "u32", "u32"], "return": "u32", "bridge": "xw.kernel32.VirtualFree"},
+        "CreateFileA": {"id": 4101, "abi": "stdcall", "args": ["ptr", "u32", "u32", "ptr", "u32", "u32", "u32"], "return": "u32", "bridge": "xw.kernel32.CreateFileA"},
+        "ReadFile": {"id": 4102, "abi": "stdcall", "args": ["u32", "ptr", "u32", "ptr", "ptr"], "return": "u32", "bridge": "xw.kernel32.ReadFile"},
+        "WriteFile": {"id": 4103, "abi": "stdcall", "args": ["u32", "ptr", "u32", "ptr", "ptr"], "return": "u32", "bridge": "xw.kernel32.WriteFile"},
+        "CloseHandle": {"id": 4104, "abi": "stdcall", "args": ["u32"], "return": "u32", "bridge": "xw.kernel32.CloseHandle"},
+        "SetFilePointer": {"id": 4105, "abi": "stdcall", "args": ["u32", "i32", "ptr", "u32"], "return": "u32", "bridge": "xw.kernel32.SetFilePointer"},
+        "GetFileSize": {"id": 4106, "abi": "stdcall", "args": ["u32", "ptr"], "return": "u32", "bridge": "xw.kernel32.GetFileSize"},
+        "GetLastError": {"id": 4107, "abi": "stdcall", "args": [], "return": "u32", "bridge": "xw.kernel32.GetLastError"},
+        "SetLastError": {"id": 4108, "abi": "stdcall", "args": ["u32"], "return": "void", "bridge": "xw.kernel32.SetLastError"}
+      }
+    }
+  }
+}

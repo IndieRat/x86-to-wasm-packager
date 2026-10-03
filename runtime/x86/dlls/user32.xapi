@@ -1,0 +1,23 @@
+{
+  "format": "xwasm-xapi",
+  "version": 1,
+  "libraries": {
+    "USER32.dll": {
+      "functions": {
+        "CreateWindowExA": {"id": 8193, "abi": "stdcall", "args": ["u32", "ptr", "ptr", "u32", "i32", "i32", "i32", "i32", "u32", "u32", "u32", "ptr"], "return": "u32", "bridge": "xw.user32.CreateWindowExA"},
+        "ShowWindow": {"id": 8194, "abi": "stdcall", "args": ["u32", "i32"], "return": "u32", "bridge": "xw.user32.ShowWindow"},
+        "GetDC": {"id": 8195, "abi": "stdcall", "args": ["u32"], "return": "u32", "bridge": "xw.user32.GetDC"},
+        "ReleaseDC": {"id": 8196, "abi": "stdcall", "args": ["u32", "u32"], "return": "i32", "bridge": "xw.user32.ReleaseDC"},
+        "GetMessageA": {"id": 8197, "abi": "stdcall", "args": ["ptr", "u32", "u32", "u32"], "return": "i32", "bridge": "xw.user32.GetMessageA"},
+        "PeekMessageA": {"id": 8198, "abi": "stdcall", "args": ["ptr", "u32", "u32", "u32", "u32"], "return": "u32", "bridge": "xw.user32.PeekMessageA"},
+        "TranslateMessage": {"id": 8199, "abi": "stdcall", "args": ["ptr"], "return": "u32", "bridge": "xw.user32.TranslateMessage"},
+        "DispatchMessageA": {"id": 8200, "abi": "stdcall", "args": ["ptr"], "return": "u32", "bridge": "xw.user32.DispatchMessageA"},
+        "DefWindowProcA": {"id": 8201, "abi": "stdcall", "args": ["u32", "u32", "u32", "u32"], "return": "u32", "bridge": "xw.user32.DefWindowProcA"},
+        "PostQuitMessage": {"id": 8202, "abi": "stdcall", "args": ["i32"], "return": "void", "bridge": "xw.user32.PostQuitMessage"},
+        "GetClientRect": {"id": 8203, "abi": "stdcall", "args": ["u32", "ptr"], "return": "u32", "bridge": "xw.user32.GetClientRect"},
+        "InvalidateRect": {"id": 8204, "abi": "stdcall", "args": ["u32", "ptr", "u32"], "return": "u32", "bridge": "xw.user32.InvalidateRect"},
+        "UpdateWindow": {"id": 8205, "abi": "stdcall", "args": ["u32"], "return": "u32", "bridge": "xw.user32.UpdateWindow"}
+      }
+    }
+  }
+}
