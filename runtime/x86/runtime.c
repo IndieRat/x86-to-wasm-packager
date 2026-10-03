@@ -6,7 +6,29 @@ extern void xwasm_log(int32_t level,int32_t ptr,int32_t len);
 extern unsigned char __heap_base[];
 #define IMAGE_BASE 0x00400000u
 #define X86_STRESS_REPORT_BASE 0x00401900u
-#define MEM8(p) (*(volatile uint8_t *)(uintptr_t)(p))
+/* Raw WASM access is now bounded independently of the guest-region layer.  This is
+ * the final safety net for the C++/CPU stage: malformed guest pointers must become
+ * XWASM memory faults, never browser-level WebAssembly OOB traps. */
+/* x86_mem_faults is declared with the raw WASM safety net above. */
+static uint32_t x86_last_fault_address=0;
+static uint32_t x86_last_fault_size=0;
+static uint32_t x86_last_fault_kind=0;
+static uint8_t x86_memory_fault_byte=0;
+static uint8_t *x86_wasm_byte_ptr(uint32_t p,uint32_t size,uint32_t kind){
+ uint32_t pages=__builtin_wasm_memory_size(0u);
+ uint32_t have=pages*65536u;
+ uint32_t end=p+size;
+ if(end<p||end>have){
+  x86_mem_faults++;
+  x86_last_fault_address=p;
+  x86_last_fault_size=size;
+  x86_last_fault_kind=kind;
+  cpu_error=0xE100u|kind;
+  return &x86_memory_fault_byte;
+ }
+ return (uint8_t *)(uintptr_t)p;
+}
+#define MEM8(p) (*x86_wasm_byte_ptr((uint32_t)(p),1u,1u))
 
 /* 32-bit x86 register order: EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI. */
 enum { R_EAX=0,R_ECX,R_EDX,R_EBX,R_ESP,R_EBP,R_ESI,R_EDI };
@@ -186,7 +208,7 @@ extern void xwasm_gfx_present(void);
 
 /* v0.9 memory allocator state must precede the region helpers that use it. */
 static uint32_t guest_vm=0x02000000u;
-static uint32_t guest_vm_limit=0x06000000u;
+static uint32_t guest_vm_limit=0x0F000000u;
 static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_count=0;
 static uint32_t al4(uint32_t x);
 static uint32_t rd32(uint32_t p);
@@ -1843,6 +1865,12 @@ __attribute__((export_name("x86_get_xmm_dword")))
 uint32_t x86_get_xmm_dword(uint32_t reg,uint32_t lane){if(reg>=8u||lane>=4u)return 0xFFFFFFFFu;uint32_t p=lane*4u;return (uint32_t)xmm[reg][p]|((uint32_t)xmm[reg][p+1u]<<8)|((uint32_t)xmm[reg][p+2u]<<16)|((uint32_t)xmm[reg][p+3u]<<24);}
 __attribute__((export_name("x86_get_memory_faults")))
 uint32_t x86_get_memory_faults(void){return x86_mem_faults;}
+__attribute__((export_name("x86_get_last_memory_fault_address")))
+uint32_t x86_get_last_memory_fault_address(void){return x86_last_fault_address;}
+__attribute__((export_name("x86_get_last_memory_fault_size")))
+uint32_t x86_get_last_memory_fault_size(void){return x86_last_fault_size;}
+__attribute__((export_name("x86_get_last_memory_fault_kind")))
+uint32_t x86_get_last_memory_fault_kind(void){return x86_last_fault_kind;}
 __attribute__((export_name("x86_get_current_imm32")))
 uint32_t x86_get_current_imm32(void){
  if(!loaded||!x86_mem_region_find(eip+1u,4u,X86_MEM_READ))return 0xFFFFFFFFu;
