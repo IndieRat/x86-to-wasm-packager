@@ -261,7 +261,7 @@ $("clearInput").onclick=()=>{state.input.length=0;renderInput()};
 $("xapis").onchange=async()=>{
  const files=[...$("xapis").files];const expected=["kernel32.xapi","user32.xapi","gdi32.xapi","opengl32.xapi","advapi32.xapi"];let out="=== XAPI MANIFESTS ===\n";
  for(const f of files){try{const j=JSON.parse(await f.text());const libs=Object.keys(j.libraries||{});out+="\n"+f.name+": "+libs.join(", ");for(const l of libs)out+="\n  "+l+": "+Object.keys(j.libraries[l].functions||{}).length+" functions";}catch(e){out+="\n"+f.name+": INVALID ("+e+")"}}
- out+="\n\n=== CANONICAL FAMILIES ===\n"+expected.map(n=>n+" -> "+files.some(f=>f.name.toLowerCase()===n)?"PRESENT":"MISSING").join("\n");$("abiOut").textContent=out;
+ out+="\n\n=== CANONICAL FAMILIES ===\n"+expected.map(n=>n+" -> "+(files.some(f=>f.name.toLowerCase()===n)?"PRESENT":"MISSING")).join("\n");$("abiOut").textContent=out;
 };
 renderInput();
 })();
