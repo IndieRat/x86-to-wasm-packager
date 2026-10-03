@@ -43,7 +43,9 @@ def main() -> int:
             args.clang, "--target=wasm32", "-O1", "-nostdlib", "-fno-builtin",
             str(src), "-o", str(raw_wasm),
             "-Wl,--no-entry", "-Wl,--export-all", "-Wl,--import-memory",
-            "-Wl,--initial-memory=67108864", "-Wl,--max-memory=268435456",
+            # Keep the guest address space below the 128 MiB initial WASM
+            # backing store, while retaining room for runtime growth.
+            "-Wl,--initial-memory=134217728", "-Wl,--max-memory=268435456",
             "-Wl,--allow-undefined",
         ]
         print("Compiling XWASM runtime WASM:")
