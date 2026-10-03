@@ -301,7 +301,8 @@ function renderDiagnostics(reason){
  $("diagText").textContent=s;
  $("diagCount").textContent=keys.length+" exported diagnostics";
  return d;
-}\nfunction pause(){state.running=false;log("paused")}
+}
+function pause(){state.running=false;log("paused")}
 
 $("selectPackage").onclick=selectPackage;
 $("packageDir").addEventListener("change",e=>{
