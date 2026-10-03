@@ -1310,6 +1310,7 @@ static int x86_stack_discard(uint32_t n){
 }
 
 static uint16_t x87_control=0x037Fu; /* 8087-compatible reset control word */
+static uint16_t x87_status=0;
 #define X87_TRACE_DEPTH 128u
 static uint32_t x87_trace_count=0,x87_trace_head=0;
 static uint32_t x87_trace_eip[X87_TRACE_DEPTH],x87_trace_opcode[X87_TRACE_DEPTH],x87_trace_modrm[X87_TRACE_DEPTH];
@@ -1355,7 +1356,6 @@ static void x87_trace_end(int rc){
 }
 
 
-static uint16_t x87_status=0;
 #define X87_C0 0x0100u
 #define X87_C1 0x0200u
 #define X87_C2 0x0400u
