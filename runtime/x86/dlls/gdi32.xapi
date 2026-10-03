@@ -1,0 +1,15 @@
+{
+  "format": "xwasm-xapi",
+  "version": 1,
+  "libraries": {
+    "GDI32.dll": {
+      "functions": {
+        "SetPixel": {"id": 20481, "abi": "stdcall", "args": ["u32", "i32", "i32", "u32"], "return": "u32", "bridge": "xw.gdi32.SetPixel"},
+        "Rectangle": {"id": 20482, "abi": "stdcall", "args": ["u32", "i32", "i32", "i32", "i32"], "return": "u32", "bridge": "xw.gdi32.Rectangle"},
+        "SwapBuffers": {"id": 20483, "abi": "stdcall", "args": ["u32"], "return": "u32", "bridge": "xw.gdi32.SwapBuffers"},
+        "ChoosePixelFormat": {"id": 20484, "abi": "stdcall", "args": ["u32", "ptr"], "return": "i32", "bridge": "xw.gdi32.ChoosePixelFormat"},
+        "SetPixelFormat": {"id": 20485, "abi": "stdcall", "args": ["u32", "i32", "ptr"], "return": "u32", "bridge": "xw.gdi32.SetPixelFormat"}
+      }
+    }
+  }
+}
