@@ -1329,6 +1329,13 @@ static void x87_trace_reset(void){
  x87_last_fault_count=0;
 }
 static void x87_trace_begin(uint32_t at,uint8_t op,uint8_t m){
+ if(x87_trace_count){
+  uint32_t prev=(x87_trace_head+X87_TRACE_DEPTH-1u)%X87_TRACE_DEPTH;
+  x87_trace_count_after[prev]=x87_count;
+  x87_trace_status_after[prev]=x87_status;
+  x87_last_count_after=x87_count;
+  x87_last_status_after=x87_status;
+ }
  uint32_t i=x87_trace_head%X87_TRACE_DEPTH;
  x87_trace_eip[i]=at;x87_trace_opcode[i]=op;x87_trace_modrm[i]=m;
  x87_trace_count_before[i]=x87_count;x87_trace_status_before[i]=x87_status;
