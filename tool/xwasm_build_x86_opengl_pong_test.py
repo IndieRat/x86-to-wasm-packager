@@ -86,9 +86,13 @@ def pe():
           ("OPENGL32.dll",[("wglCreateContext",0x3018),("wglMakeCurrent",0x301c),("glViewport",0x3020),("glClearColor",0x3024),("glClear",0x3028),("glBegin",0x302c),("glEnd",0x3030),("glColor3f",0x3034),("glVertex2f",0x3038)]),
           ("KERNEL32.dll",[("Beep",0x3048)])]
     rva=names_base
+    thunk_cursor=0
     for di,(dll,entries) in enumerate(dlls):
         d=SECTION_RAW+(desc-SECTION_RVA)+di*20
-        ot=oft+di*0x100; it=iat+di*0x100
+        # Keep descriptor thunk tables contiguous with the IAT slots used by
+        # the generated code. The old per-DLL stride left calls at 0x3000...
+        # while descriptors pointed at 0x3100/0x3200/etc.
+        ot=oft+thunk_cursor; it=iat+thunk_cursor
         struct.pack_into("<IIIII",b,d,ot,0,0,rva,it)
         for j,(name,_) in enumerate(entries):
             struct.pack_into("<I",b,SECTION_RAW+(ot-SECTION_RVA)+j*4,rva)
@@ -97,6 +101,7 @@ def pe():
             rva += 0x40
         struct.pack_into("<I",b,SECTION_RAW+(ot-SECTION_RVA)+len(entries)*4,0)
         struct.pack_into("<I",b,SECTION_RAW+(it-SECTION_RVA)+len(entries)*4,0)
+        thunk_cursor += (len(entries)+1)*4
         dll_name_rva=rva
         db=SECTION_RAW+(dll_name_rva-SECTION_RVA); dbs=dll.encode()+b"\0"; b[db:db+len(dbs)]=dbs; rva+=0x40
         struct.pack_into("<I",b,d+12,dll_name_rva)
