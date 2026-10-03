@@ -1376,7 +1376,14 @@ static void x87_set_compare(double a,double b){
  else if(a<b)x87_status|=X87_C0;
 }
 static int x87_valid_reg(uint8_t r){
- if(r>=x87_count){cpu_error=0xD802u;return 0;}
+ if(r>=x87_count){
+  cpu_error=0xD802u;
+  x87_last_fault_eip=x87_last_eip;
+  x87_last_fault_opcode=x87_last_opcode;
+  x87_last_fault_modrm=x87_last_modrm;
+  x87_last_fault_count=x87_last_count_before;
+  return 0;
+ }
  return 1;
 }
 static int x87_need_top(void){return x87_valid_reg(0);}
@@ -1386,7 +1393,14 @@ static int x87_push(double v){
  x87_stack[0]=v;x87_count++;x87_status&=~X87_C1;return 1;
 }
 static int x87_pop(void){
- if(!x87_count){cpu_error=0xD802u;x87_status|=X87_C1;return 0;}
+ if(!x87_count){
+  cpu_error=0xD802u;x87_status|=X87_C1;
+  x87_last_fault_eip=x87_last_eip;
+  x87_last_fault_opcode=x87_last_opcode;
+  x87_last_fault_modrm=x87_last_modrm;
+  x87_last_fault_count=x87_last_count_before;
+  return 0;
+ }
  for(uint32_t i=1;i<x87_count;i++)x87_stack[i-1u]=x87_stack[i];
  x87_count--;x87_status&=~X87_C1;return 1;
 }
