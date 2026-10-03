@@ -140,12 +140,17 @@ async function unpack(buf,kind,name){
  for(let i=0;i<32;i++)if(h[i]!==want[i])throw Error(name+": SHA-256 mismatch");
  log("[PASS] "+name+" XWSC01 verified","pass"); return raw.buffer;
 }
-function validatePE(b){
- if(b.length<64||b[0]!==0x4d||b[1]!==0x5a)throw Error("payload.xpl is not MZ");
- const v=new DataView(b),p=v.getUint32(0x3c,true);
- if(td.decode(b.slice(p,p+4))!=="PE\0\0")throw Error("payload PE signature invalid");
+function validatePE(input){
+ const b=input instanceof Uint8Array ? input : new Uint8Array(input);
+ if(b.byteLength<64)throw Error("payload.xpl is truncated before DOS header");
+ if(b[0]!==0x4d||b[1]!==0x5a)throw Error("payload.xpl is not MZ");
+ const v=new DataView(b.buffer,b.byteOffset,b.byteLength);
+ const p=v.getUint32(0x3c,true);
+ if(p+4>b.byteLength)throw Error("payload PE header is outside payload");
+ if(td.decode(b.subarray(p,p+4))!=="PE\0\0")throw Error("payload PE signature invalid");
+ if(p+24+2>b.byteLength)throw Error("payload PE COFF header is truncated");
  if(v.getUint16(p+4,true)!==0x14c)throw Error("payload is not i386");
- if(v.getUint16(p+24,true)!==0x10b)throw Error("payload is not PE32");
+ if(p+24+2>b.byteLength||v.getUint16(p+24,true)!==0x10b)throw Error("payload is not PE32");
  log("[PASS] payload.xpl is valid PE32/i386","pass");
 }
 function hostBridge(){
