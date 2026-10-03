@@ -45,6 +45,7 @@ static uint32_t halted=0,cpu_error=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
 static uint32_t last_dispatch_id=0,last_dispatch_count=0,legacy_execution_count=0;
+static uint32_t last_indirect_slot=0,last_indirect_target=0;
 #define X86_SEMANTIC_ID_MAX 64u
 static char last_decoded_semantic_id[X86_SEMANTIC_ID_MAX];
 #define X86_TRACE_DEPTH 32u
@@ -1573,8 +1574,11 @@ static int cpu_step_legacy(void){
    uint8_t m=MEM8(ip++);
    uint8_t sub=(m>>3)&7;
    if(sub!=2&&sub!=4){cpu_error=0xFF00u|sub;return -12;}
-   uint32_t target=modrm_read32(m,&ip);
+   uint32_t ea=0,target;
+   if(modrm_ea(m,&ip,&ea))target=rd32(ea);else{ea=0;target=regs[m&7u];}
    uint32_t next=ip;
+   last_indirect_slot=ea;last_indirect_target=target;
+   if(!target){cpu_error=0xFF10u;return -58;} /* indirect call/jmp through a null pointer (unpatched IAT slot) */
    if(sub==2){
     if(!x86_stack_push32(next))return -57;
     if(call_builtin(target)){eip=next;regs[R_ESP]+=4u;return 0;}
@@ -1678,7 +1682,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 /* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
  * synthetic return address so C fixtures whose entrypoint is main() can RET cleanly. */
 if(!x86_stack_push32(X86_ENTRY_RETURN_SENTINEL)){loaded=0;load_error=16;return-7;}
-guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset();
+guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();
  x87_count=0; xmm_reset();
  legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
@@ -1692,7 +1696,7 @@ __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  x86_fs_reset();
  x86_reg_reset();
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
- for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;x86_trace_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
+ for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.9");
 loglit("PE32 + decoder CPU + guest memory regions + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
@@ -1778,12 +1782,12 @@ __attribute__((export_name("x86_get_trace_dispatch"))) uint32_t x86_get_trace_di
 __attribute__((export_name("x86_get_trace_failure_index"))) uint32_t x86_get_trace_failure_index(void){return trace_failure_index;}
 __attribute__((export_name("x86_get_current_opcode")))
 uint32_t x86_get_current_opcode(void){
- if(!loaded)return 0xFFFFFFFFu;
+ if(!loaded||!x86_mem_region_find(eip,1u,X86_MEM_READ))return 0xFFFFFFFFu;
  return (uint32_t)MEM8(eip);
 }
 __attribute__((export_name("x86_get_current_byte")))
 uint32_t x86_get_current_byte(uint32_t index){
- if(!loaded||index>=32u)return 0xFFFFFFFFu;
+ if(!loaded||index>=32u||!x86_mem_region_find(eip+index,1u,X86_MEM_READ))return 0xFFFFFFFFu;
  return (uint32_t)MEM8(eip+index);
 }
 __attribute__((export_name("x86_get_stack_dword")))
@@ -1801,9 +1805,11 @@ __attribute__((export_name("x86_get_memory_faults")))
 uint32_t x86_get_memory_faults(void){return x86_mem_faults;}
 __attribute__((export_name("x86_get_current_imm32")))
 uint32_t x86_get_current_imm32(void){
- if(!loaded)return 0xFFFFFFFFu;
+ if(!loaded||!x86_mem_region_find(eip+1u,4u,X86_MEM_READ))return 0xFFFFFFFFu;
  return rd32(eip+1u);
 }
+__attribute__((export_name("x86_get_last_indirect_slot"))) uint32_t x86_get_last_indirect_slot(void){return last_indirect_slot;}
+__attribute__((export_name("x86_get_last_indirect_target"))) uint32_t x86_get_last_indirect_target(void){return last_indirect_target;}
 __attribute__((export_name("x86_get_requested_image_base"))) uint32_t x86_get_requested_image_base(void){return requested_image_base;}
 __attribute__((export_name("x86_get_image_base"))) uint32_t x86_get_image_base(void){return image_base;}
 __attribute__((export_name("x86_get_image_size"))) uint32_t x86_get_image_size(void){return image_size;}
@@ -1984,7 +1990,3 @@ __attribute__((export_name("x86_crt_exit"))) uint32_t x86_crt_exit(uint32_t code
 __attribute__((export_name("x86_crt_get_last_atexit_result"))) uint32_t x86_crt_get_last_atexit_result(void){return crt_last_atexit_result;}
 __attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback,0);}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
-
-
-
-
