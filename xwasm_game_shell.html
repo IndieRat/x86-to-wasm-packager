@@ -276,7 +276,7 @@ $("packageFiles").addEventListener("change",e=>{
  $("packageName").textContent=files.map(f=>f.name).join(", ");
  log("files selected");
 });
-$("load").onclick=load;$("start").onclick=start;$("pause").onclick=pause;
+$("load").onclick=readSelectedPackage;$("start").onclick=start;$("pause").onclick=pause;
 $("fullscreen").onclick=()=>{$("gameFrame").requestFullscreen?.().catch(e=>error("fullscreen",e))};
 $("mute").onclick=()=>{state.muted=!state.muted;$("mute").textContent=state.muted?"Muted":"Audio"};
 $("showErrors").onclick=()=>$("terminal").classList.add("visible");
