@@ -3135,6 +3135,119 @@
         "required": true,
         "reg_extension": 2
       }
+    },
+    {
+      "id": "PUSHAD",
+      "instruction": "PUSH",
+      "opcode": [
+        "60"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "POPAD",
+      "instruction": "POP",
+      "opcode": [
+        "61"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "CWDE",
+      "instruction": "CWDE",
+      "opcode": [
+        "98"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "CDQ",
+      "instruction": "CDQ",
+      "opcode": [
+        "99"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "PUSHFD",
+      "instruction": "PUSH",
+      "opcode": [
+        "9C"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "POPFD",
+      "instruction": "POP",
+      "opcode": [
+        "9D"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "XCHG_R32_RM32",
+      "instruction": "XCHG",
+      "opcode": [
+        "87"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MR",
+      "modrm": {
+        "required": true
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "reg32",
+          "access": "rw",
+          "source": "modrm.reg"
+        }
+      ]
+    },
+    {
+      "id": "XCHG_R32_EAX",
+      "instruction": "XCHG",
+      "opcode": [
+        "90",
+        "91",
+        "92",
+        "93",
+        "94",
+        "95",
+        "96",
+        "97"
+      ],
+      "opcode_map": "primary",
+      "encoding": "O",
+      "opcode_reg": "low3",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "rw",
+          "source": "opcode.low3"
+        },
+        {
+          "kind": "reg32",
+          "access": "rw",
+          "fixed": "EAX"
+        }
+      ]
     }
   ]
 }
