@@ -64,10 +64,17 @@ def pe():
     color(0x3f000000,0x3f800000,0x3f000000)
     tri(0xbe800000,0xbe800000,0x00000000,0x3e800000,0x3e800000,0xbe800000)
     call(0x3108)
+    # Exercise a real IA-32 LOOP instruction around the render/poll body.
+    # ECX is the compiler-friendly loop counter; E2 uses ECX-- and a short
+    # backward branch, so this fixture covers repeated control flow rather
+    # than only proving that one frame can reach HLT.
+    code.extend(b"\xb9\x03\x00\x00\x00")  # mov ecx, 3
+    loop_start = len(code)
     push(90); push(660); call(0x3300)
     mov_edi(0x00900000)
     for v in (1,0,0,0,0x00900000): push(v)
     call(0x300c)
+    code.extend(b"\xe2" + bytes([(loop_start - (len(code) + 2)) & 0xff]))
     code.extend(b"\xf4")
     b[SECTION_RAW:SECTION_RAW+len(code)]=code
 
