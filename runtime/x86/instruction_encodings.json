@@ -790,6 +790,32 @@
       }
     },
     {
+      "id": "OR_RM32_IMM8",
+      "instruction": "OR",
+      "opcode": [
+        "83"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 1
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "sign_extend": true,
+          "source": "next1"
+        }
+      ]
+    },
+    {
       "id": "XOR_RM32_R32",
       "instruction": "XOR",
       "opcode": [
