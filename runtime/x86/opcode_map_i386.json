@@ -35,8 +35,10 @@
       },
       {
         "byte": "04",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADD_AL_IMM8"
+        ]
       },
       {
         "byte": "05",
@@ -81,8 +83,10 @@
       },
       {
         "byte": "0C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "OR_AL_IMM8"
+        ]
       },
       {
         "byte": "0D",
@@ -123,8 +127,10 @@
       },
       {
         "byte": "14",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADC_AL_IMM8"
+        ]
       },
       {
         "byte": "15",
@@ -165,8 +171,10 @@
       },
       {
         "byte": "1C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SBB_AL_IMM8"
+        ]
       },
       {
         "byte": "1D",
@@ -209,8 +217,10 @@
       },
       {
         "byte": "24",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "AND_AL_IMM8"
+        ]
       },
       {
         "byte": "25",
@@ -253,8 +263,10 @@
       },
       {
         "byte": "2C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SUB_AL_IMM8"
+        ]
       },
       {
         "byte": "2D",
@@ -299,8 +311,10 @@
       },
       {
         "byte": "34",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XOR_AL_IMM8"
+        ]
       },
       {
         "byte": "35",
@@ -345,8 +359,10 @@
       },
       {
         "byte": "3C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CMP_AL_IMM8"
+        ]
       },
       {
         "byte": "3D",
@@ -591,13 +607,17 @@
       },
       {
         "byte": "60",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSHAD"
+        ]
       },
       {
         "byte": "61",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POPAD"
+        ]
       },
       {
         "byte": "62",
@@ -631,23 +651,31 @@
       },
       {
         "byte": "68",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_IMM32"
+        ]
       },
       {
         "byte": "69",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "IMUL_R32_RM32_IMM32"
+        ]
       },
       {
         "byte": "6A",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSH_IMM8"
+        ]
       },
       {
         "byte": "6B",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "IMUL_R32_RM32_IMM8"
+        ]
       },
       {
         "byte": "6C",
@@ -813,8 +841,10 @@
       },
       {
         "byte": "84",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "TEST_RM8_R8"
+        ]
       },
       {
         "byte": "85",
@@ -830,13 +860,17 @@
       },
       {
         "byte": "87",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XCHG_R32_RM32"
+        ]
       },
       {
         "byte": "88",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_RM8_R8"
+        ]
       },
       {
         "byte": "89",
@@ -847,8 +881,10 @@
       },
       {
         "byte": "8A",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_R8_RM8"
+        ]
       },
       {
         "byte": "8B",
@@ -881,53 +917,73 @@
       },
       {
         "byte": "90",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XCHG_R32_EAX"
+        ]
       },
       {
         "byte": "91",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XCHG_R32_EAX"
+        ]
       },
       {
         "byte": "92",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XCHG_R32_EAX"
+        ]
       },
       {
         "byte": "93",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XCHG_R32_EAX"
+        ]
       },
       {
         "byte": "94",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XCHG_R32_EAX"
+        ]
       },
       {
         "byte": "95",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XCHG_R32_EAX"
+        ]
       },
       {
         "byte": "96",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XCHG_R32_EAX"
+        ]
       },
       {
         "byte": "97",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XCHG_R32_EAX"
+        ]
       },
       {
         "byte": "98",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CWDE"
+        ]
       },
       {
         "byte": "99",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CDQ"
+        ]
       },
       {
         "byte": "9A",
@@ -941,13 +997,17 @@
       },
       {
         "byte": "9C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "PUSHFD"
+        ]
       },
       {
         "byte": "9D",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POPFD"
+        ]
       },
       {
         "byte": "9E",
@@ -1161,8 +1221,17 @@
       },
       {
         "byte": "C0",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ROL_RM8_IMM8",
+          "ROR_RM8_IMM8",
+          "RCL_RM8_IMM8",
+          "RCR_RM8_IMM8",
+          "SHL_RM8_IMM8",
+          "SHR_RM8_IMM8",
+          "SAL_RM8_IMM8",
+          "SAR_RM8_IMM8"
+        ]
       },
       {
         "byte": "C1",
@@ -1174,7 +1243,8 @@
           "ROL_RM32_IMM8",
           "ROR_RM32_IMM8",
           "RCL_RM32_IMM8",
-          "RCR_RM32_IMM8"
+          "RCR_RM32_IMM8",
+          "SAL_RM32_IMM8"
         ]
       },
       {
@@ -1259,8 +1329,17 @@
       },
       {
         "byte": "D0",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ROL_RM8_1",
+          "ROR_RM8_1",
+          "RCL_RM8_1",
+          "RCR_RM8_1",
+          "SHL_RM8_1",
+          "SHR_RM8_1",
+          "SAL_RM8_1",
+          "SAR_RM8_1"
+        ]
       },
       {
         "byte": "D1",
@@ -1272,19 +1351,36 @@
           "ROL_RM32_1",
           "ROR_RM32_1",
           "RCL_RM32_1",
-          "RCR_RM32_1"
+          "RCR_RM32_1",
+          "SAL_RM32_1"
         ]
       },
       {
         "byte": "D2",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ROL_RM8_CL",
+          "ROR_RM8_CL",
+          "RCL_RM8_CL",
+          "RCR_RM8_CL",
+          "SHL_RM8_CL",
+          "SHR_RM8_CL",
+          "SAL_RM8_CL",
+          "SAR_RM8_CL"
+        ]
       },
       {
         "byte": "D3",
         "status": "MAPPED",
         "encoding_ids": [
-          "RCR_RM32_CL"
+          "RCR_RM32_CL",
+          "ROL_RM32_CL",
+          "ROR_RM32_CL",
+          "RCL_RM32_CL",
+          "SHL_RM32_CL",
+          "SHR_RM32_CL",
+          "SAL_RM32_CL",
+          "SAR_RM32_CL"
         ]
       },
       {
@@ -1370,7 +1466,8 @@
           "FSUBRP_STI_ST0",
           "FSUBP_STI_ST0",
           "FDIVRP_STI_ST0",
-          "FDIVP_STI_ST0"
+          "FDIVP_STI_ST0",
+          "FCOMPP"
         ]
       },
       {
@@ -1558,8 +1655,10 @@
       },
       {
         "byte": "FF",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CALL_RM32"
+        ]
       }
     ],
     "escape_0f": [
