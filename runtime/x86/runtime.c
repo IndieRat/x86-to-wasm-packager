@@ -67,6 +67,7 @@ static uint8_t xmm[8][16];
 static uint32_t halted=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
+static uint32_t last_decoded_modrm=0,last_decoded_has_modrm=0;
 static uint32_t last_dispatch_id=0,last_dispatch_count=0,legacy_execution_count=0;
 static uint32_t last_indirect_slot=0,last_indirect_target=0;
 #define X86_SEMANTIC_ID_MAX 64u
@@ -98,6 +99,48 @@ static double xmm_get_f64(uint8_t r){union{uint64_t u;double f;}v;v.u=xmm_get_u6
 static void xmm_set_f64(uint8_t r,double v){union{uint64_t u;double f;}x;x.f=v;xmm_set_u64(r,x.u);}
 static void xmm_reset(void){for(uint32_t r=0;r<8u;r++)for(uint32_t b=0;b<16u;b++)xmm[r][b]=0;}
 static void x86_copy_semantic_id(char *dst,const char *src){uint32_t i=0;if(!src)src="NONE";for(;i+1u<X86_SEMANTIC_ID_MAX&&src[i];++i)dst[i]=src[i];dst[i]=0;}
+static int x86_profile_str_eq(const char *a,const char *b){
+ if(!a)a="NONE"; if(!b)b="NONE";
+ while(*a&&*b){if(*a++!=*b++)return 0;} return *a==0&&*b==0;
+}
+#define X86_PROFILE_SLOTS 1024u
+typedef struct {
+ uint32_t used,map,opcode,modrm,has_modrm,dispatch,count,first_eip,last_eip,min_length,max_length;
+ char semantic[X86_SEMANTIC_ID_MAX];
+} x86_profile_entry_t;
+static x86_profile_entry_t x86_profile[X86_PROFILE_SLOTS];
+static uint32_t x86_profile_count=0,x86_profile_enabled=1;
+static uint32_t x86_profile_hash(uint32_t map,uint32_t opcode,uint32_t modrm,uint32_t has_modrm,const char *id){
+ uint32_t h=2166136261u;
+ h=(h^map)*16777619u;h=(h^opcode)*16777619u;h=(h^modrm)*16777619u;h=(h^has_modrm)*16777619u;
+ if(!id)id="NONE"; for(uint32_t i=0;id[i];i++)h=(h^(uint8_t)id[i])*16777619u;
+ return h;
+}
+static void x86_profile_reset(void){
+ for(uint32_t i=0;i<X86_PROFILE_SLOTS;i++)x86_profile[i]=(x86_profile_entry_t){0};
+ x86_profile_count=0;
+}
+static void x86_profile_record(uint32_t ip){
+ if(!x86_profile_enabled)return;
+ const char *id=last_decoded_semantic_id[0]?last_decoded_semantic_id:"NONE";
+ uint32_t h=x86_profile_hash(last_decoded_map,last_decoded_opcode,last_decoded_modrm,last_decoded_has_modrm,id);
+ for(uint32_t probe=0;probe<X86_PROFILE_SLOTS;probe++){
+  uint32_t i=(h+probe)%X86_PROFILE_SLOTS; x86_profile_entry_t *p=&x86_profile[i];
+  if(!p->used){
+   p->used=1;p->map=last_decoded_map;p->opcode=last_decoded_opcode;p->modrm=last_decoded_modrm;
+   p->has_modrm=last_decoded_has_modrm;p->dispatch=last_dispatch_id;p->count=1;
+   p->first_eip=ip;p->last_eip=ip;p->min_length=last_decoded_length;p->max_length=last_decoded_length;
+   x86_copy_semantic_id(p->semantic,id);x86_profile_count++;return;
+  }
+  if(p->map==last_decoded_map&&p->opcode==last_decoded_opcode&&p->modrm==last_decoded_modrm&&
+     p->has_modrm==last_decoded_has_modrm&&x86_profile_str_eq(p->semantic,id)){
+   p->count++;p->last_eip=ip;
+   if(last_decoded_length<p->min_length)p->min_length=last_decoded_length;
+   if(last_decoded_length>p->max_length)p->max_length=last_decoded_length;
+   return;
+  }
+ }
+}
 static void x86_trace_reset(void){trace_count=0;trace_head=0;trace_failure_index=0;last_decoded_semantic_id[0]=0;}
 static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t before_eax,uint32_t before_ecx,uint32_t before_edx,uint32_t before_ebx,uint32_t before_opcode,uint32_t dispatch){
  uint32_t i=trace_head%X86_TRACE_DEPTH;
@@ -109,6 +152,7 @@ static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t 
  trace_post_flags[i]=eflags;
  x86_copy_semantic_id(trace_semantic_id[i],last_decoded_semantic_id);
  trace_head=(trace_head+1u)%X86_TRACE_DEPTH; if(trace_count<X86_TRACE_DEPTH)trace_count++;
+ x86_profile_record(before_eip);
  if(regs[R_EAX]==0xDEADC0DEu && before_eax!=0xDEADC0DEu) trace_failure_index=i+1u;
 }
 enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_DISPATCH_RCR=3, X86_DISPATCH_MOV_R8_IMM8=4, X86_DISPATCH_MOV_R16_IMM16=5, X86_DISPATCH_CMP_R16_IMM16=6, X86_DISPATCH_MOV_R32_IMM32=7, X86_DISPATCH_ADD_EAX_IMM=8, X86_DISPATCH_SUB_EAX_IMM=9, X86_DISPATCH_CMP_EAX_IMM=10, X86_DISPATCH_MOV_R32_RM32=11, X86_DISPATCH_MOV_RM32_R32=12, X86_DISPATCH_CMP_R32_RM32=13, X86_DISPATCH_CMP_RM32_R32=14, X86_DISPATCH_JCC=15, X86_DISPATCH_GROUP2=16, X86_DISPATCH_F7=17, X86_DISPATCH_HLT=18, X86_DISPATCH_BT=19, X86_DISPATCH_BTS=20, X86_DISPATCH_BTR=21, X86_DISPATCH_BTC=22, X86_DISPATCH_X87=23, X86_DISPATCH_XOR_RM32_IMM32=24, X86_DISPATCH_SSE_SCALAR=25 };
@@ -1744,7 +1788,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 /* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
  * synthetic return address so C fixtures whose entrypoint is main() can RET cleanly. */
 if(!x86_stack_push32(X86_ENTRY_RETURN_SENTINEL)){loaded=0;load_error=16;return-7;}
-guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();
+guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();x86_profile_reset();
  x87_count=0; xmm_reset();
  legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
@@ -1758,7 +1802,7 @@ __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  x86_fs_reset();
  x86_reg_reset();
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
- for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
+ for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();x86_profile_reset(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.9");
 loglit("PE32 + decoder CPU + guest memory regions + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
@@ -1797,6 +1841,25 @@ __attribute__((export_name("x86_get_cpu_error"))) uint32_t x86_get_cpu_error(voi
 __attribute__((export_name("x86_get_last_decoded_map"))) uint32_t x86_get_last_decoded_map(void){return last_decoded_map;}
 __attribute__((export_name("x86_get_last_decoded_opcode"))) uint32_t x86_get_last_decoded_opcode(void){return last_decoded_opcode;}
 __attribute__((export_name("x86_get_last_decoded_length"))) uint32_t x86_get_last_decoded_length(void){return last_decoded_length;}
+__attribute__((export_name("x86_get_last_decoded_modrm"))) uint32_t x86_get_last_decoded_modrm(void){return last_decoded_modrm;}
+__attribute__((export_name("x86_get_last_decoded_has_modrm"))) uint32_t x86_get_last_decoded_has_modrm(void){return last_decoded_has_modrm;}
+__attribute__((export_name("x86_profile_set_enabled"))) void x86_profile_set_enabled(uint32_t enabled){x86_profile_enabled=enabled?1u:0u;}
+__attribute__((export_name("x86_get_profile_enabled"))) uint32_t x86_get_profile_enabled(void){return x86_profile_enabled;}
+__attribute__((export_name("x86_profile_reset"))) void x86_profile_reset(void){x86_profile_reset();}
+__attribute__((export_name("x86_get_profile_count"))) uint32_t x86_get_profile_count(void){return x86_profile_count;}
+__attribute__((export_name("x86_get_profile_used"))) uint32_t x86_get_profile_used(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].used:0;}
+__attribute__((export_name("x86_get_profile_map"))) uint32_t x86_get_profile_map(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].map:0;}
+__attribute__((export_name("x86_get_profile_opcode"))) uint32_t x86_get_profile_opcode(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].opcode:0;}
+__attribute__((export_name("x86_get_profile_modrm"))) uint32_t x86_get_profile_modrm(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].modrm:0;}
+__attribute__((export_name("x86_get_profile_has_modrm"))) uint32_t x86_get_profile_has_modrm(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].has_modrm:0;}
+__attribute__((export_name("x86_get_profile_dispatch"))) uint32_t x86_get_profile_dispatch(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].dispatch:0;}
+__attribute__((export_name("x86_get_profile_count_at"))) uint32_t x86_get_profile_count_at(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].count:0;}
+__attribute__((export_name("x86_get_profile_first_eip"))) uint32_t x86_get_profile_first_eip(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].first_eip:0;}
+__attribute__((export_name("x86_get_profile_last_eip"))) uint32_t x86_get_profile_last_eip(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].last_eip:0;}
+__attribute__((export_name("x86_get_profile_min_length"))) uint32_t x86_get_profile_min_length(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].min_length:0;}
+__attribute__((export_name("x86_get_profile_max_length"))) uint32_t x86_get_profile_max_length(uint32_t i){return i<X86_PROFILE_SLOTS?x86_profile[i].max_length:0;}
+__attribute__((export_name("x86_get_profile_semantic_id_len"))) uint32_t x86_get_profile_semantic_id_len(uint32_t i){uint32_t n=0;if(i>=X86_PROFILE_SLOTS)return 0;while(n<X86_SEMANTIC_ID_MAX&&x86_profile[i].semantic[n])n++;return n;}
+__attribute__((export_name("x86_get_profile_semantic_id_char"))) uint32_t x86_get_profile_semantic_id_char(uint32_t i,uint32_t n){return i<X86_PROFILE_SLOTS&&n<X86_SEMANTIC_ID_MAX?(uint8_t)x86_profile[i].semantic[n]:0;}
 __attribute__((export_name("x86_get_last_dispatch_id"))) uint32_t x86_get_last_dispatch_id(void){return last_dispatch_id;}
 __attribute__((export_name("x86_get_last_dispatch_count"))) uint32_t x86_get_last_dispatch_count(void){return last_dispatch_count;}
 __attribute__((export_name("x86_get_last_semantic_id_ptr"))) uint32_t x86_get_last_semantic_id_ptr(void){return (uint32_t)(uintptr_t)last_decoded_semantic_id;}
