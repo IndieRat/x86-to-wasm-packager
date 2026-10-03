@@ -271,6 +271,22 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {0,0x83,1,2,"ADC_RM32_IMM8",0,0},
   {0,0x83,1,3,"SBB_RM32_IMM8",0,0},
   {0,0x83,1,6,"XOR_RM32_IMM8",0,0},
+  {1,0x80,0,-1,"JO_REL32",0,0},
+  {1,0x81,0,-1,"JNO_REL32",0,0},
+  {1,0x82,0,-1,"JB_REL32",0,0},
+  {1,0x83,0,-1,"JAE_REL32",0,0},
+  {1,0x84,0,-1,"JE_REL32",0,0},
+  {1,0x85,0,-1,"JNE_REL32",0,0},
+  {1,0x86,0,-1,"JBE_REL32",0,0},
+  {1,0x87,0,-1,"JA_REL32",0,0},
+  {1,0x88,0,-1,"JS_REL32",0,0},
+  {1,0x89,0,-1,"JNS_REL32",0,0},
+  {1,0x8A,0,-1,"JP_REL32",0,0},
+  {1,0x8B,0,-1,"JNP_REL32",0,0},
+  {1,0x8C,0,-1,"JL_REL32",0,0},
+  {1,0x8D,0,-1,"JGE_REL32",0,0},
+  {1,0x8E,0,-1,"JLE_REL32",0,0},
+  {1,0x8F,0,-1,"JG_REL32",0,0},
 };
 #define X86_DECODE_TABLE_COUNT (sizeof(x86_decode_table)/sizeof(x86_decode_table[0]))
 #endif
