@@ -92,9 +92,9 @@ def pe():
             rva += 0x40
         struct.pack_into("<I",b,SECTION_RAW+(ot-SECTION_RVA)+len(entries)*4,0)
         struct.pack_into("<I",b,SECTION_RAW+(it-SECTION_RVA)+len(entries)*4,0)
-        db=SECTION_RAW+(rva-SECTION_RVA); dbs=dll.encode()+b"\0"; b[db:db+len(dbs)]=dbs; rva+=0x40
-        struct.pack_into("<I",b,d+12,rva-0x40)
-    struct.pack_into("<II",b,oh+96+8,desc,20*len(dlls)+20)
+        dll_name_rva=rva
+        db=SECTION_RAW+(dll_name_rva-SECTION_RVA); dbs=dll.encode()+b"\0"; b[db:db+len(dbs)]=dbs; rva+=0x40
+        struct.pack_into("<I",b,d+12,dll_name_rva)
     return bytes(b)
 
 
