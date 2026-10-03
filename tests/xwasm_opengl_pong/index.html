@@ -8,8 +8,8 @@ button,input{font:inherit;margin:4px}canvas{display:block;width:640px;height:360
 </style>
 <header>
 <strong>XWASM OpenGL Pong</strong>
-<input id="runtime" type="file" accept=".xwasm,.wasm">
-<input id="payload" type="file" accept=".xpl,.exe">
+<input id="runtime" type="file" accept=".xwasm">
+<input id="payload" type="file" accept=".xpl">
 <button id="run">Run</button>
 </header>
 <canvas id="screen" width="640" height="360"></canvas><pre id="log"></pre>
@@ -36,22 +36,26 @@ canvas.addEventListener("contextmenu",e=>e.preventDefault());
 
 async function unpack(buf,expectedKind){
   const u=new Uint8Array(buf),dv=new DataView(buf);
-  if(u.byteLength<60)throw Error("XWSC01 container is truncated");
+  const HEADER_SIZE=62;
+  if(u.byteLength<HEADER_SIZE)throw Error("XWSC01 container is truncated");
   const magic=new TextDecoder().decode(u.subarray(0,6));
   if(magic!=="XWSC01")throw Error("Expected XWSC01 "+expectedKind+" container");
   const version=dv.getUint16(6,true),kind=dv.getUint8(8),compression=dv.getUint8(9);
-  const raw=dv.getBigUint64(16,true),stored=u.subarray(60);
+  const flags=dv.getUint32(10,true);
+  const raw=dv.getBigUint64(14,true);
+  const storedSize=dv.getBigUint64(22,true);
+  const stored=u.subarray(HEADER_SIZE);
   const kinds={1:"xwasm",2:"xpl",3:"xpak",4:"xapi"};
   if(version!==1)throw Error("Unsupported XWSC01 version: "+version);
+  if(flags!==0)throw Error("Unsupported XWSC01 flags: 0x"+flags.toString(16));
   if(kinds[kind]!==expectedKind)throw Error("Expected "+expectedKind+", got "+(kinds[kind]||"unknown"));
+  if(BigInt(stored.byteLength)!==storedSize)throw Error("XWSC01 stored-size mismatch");
   if(compression===0){
-    if(BigInt(stored.byteLength)!==raw)throw Error("XWSC01 size mismatch");
+    if(BigInt(stored.byteLength)!==raw)throw Error("XWSC01 raw-size mismatch");
     return stored.slice().buffer;
   }
   if(compression!==1)throw Error("Unsupported XWSC01 compression: "+compression);
   if(!("DecompressionStream" in window))throw Error("This browser has no DecompressionStream; XWSC01 compressed containers cannot be opened here");
-  // xwasm.container.py uses zlib.compress(), i.e. the zlib/deflate wrapper,
-  // not raw DEFLATE. Use "deflate", not "deflate-raw".
   const out=await new Response(
     new Blob([stored]).stream().pipeThrough(new DecompressionStream("deflate"))
   ).arrayBuffer();
@@ -61,8 +65,12 @@ async function unpack(buf,expectedKind){
 async function main(){
   const rb=document.querySelector("#runtime").files[0],pb=document.querySelector("#payload").files[0];
   if(!rb||!pb)return alert("Select runtime.xwasm and payload.xpl");
+  log("[INFO] Reading XWSC01 runtime.xwasm...");
   const wasm=await unpack(await rb.arrayBuffer(),"xwasm");
+  log("[PASS] runtime.xwasm unpacked");
+  log("[INFO] Reading XWSC01 payload.xpl...");
   const payload=await unpack(await pb.arrayBuffer(),"xpl");
+  log("[PASS] payload.xpl unpacked");
   let mem;
   const env={
     memory:new WebAssembly.Memory({initial:1024,maximum:4096}),
