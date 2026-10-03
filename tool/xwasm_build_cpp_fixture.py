@@ -9,7 +9,7 @@ def main()->int:
     ap.add_argument("--clang",required=True); ap.add_argument("--lld-link",required=True); ap.add_argument("--output",type=Path,required=True,help="fixture output directory")
     a=ap.parse_args(); root=Path(__file__).resolve().parents[1]; src=root/"tests/fixtures/cpp_runtime_fixture.cpp"; out=a.output.resolve(); out.mkdir(parents=True,exist_ok=True)
     exe=out/"cpp_fixture.exe"; obj=out/"cpp_fixture.obj"
-    subprocess.run([a.clang,"--target=i386-pc-windows-msvc","-O0","-ffreestanding","-fno-exceptions","-fno-rtti","-fno-builtin","-nostdinc++","-c",str(src),"-o",str(obj)],check=True)
+    subprocess.run([a.clang,"--target=i686-pc-windows-msvc","-O0","-ffreestanding","-fno-builtin","-fno-stack-protector","-mno-stack-arg-probe","-fno-exceptions","-fno-rtti","-std=c++11","-nostdinc++","-c",str(src),"-o",str(obj)],check=True)
     subprocess.run([a.lld_link,"/machine:x86","/subsystem:console","/entry:main","/nodefaultlib","/base:0x400000","/fixed",f"/out:{exe}",str(obj)],check=True)
     obj.unlink(missing_ok=True)
     data=exe.read_bytes()
