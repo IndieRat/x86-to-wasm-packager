@@ -46,6 +46,9 @@ def pe():
     call(0x3208)
     for bits in (0x00000000,0x00000000,0x00000000,0x3f800000): push(bits)
     call(0x320c)
+    # Run three complete render/present/poll/audio frames through LOOP.
+    code.extend(b"\xb9\x03\x00\x00\x00")  # mov ecx, 3
+    loop_start = len(code)
     push(0x00004000); call(0x3210)
 
     def color(r,g,b):
@@ -60,16 +63,10 @@ def pe():
     tri(0xbf800000,0x3e800000,0xbf800000,0xbe800000,0xbf000000,0xbe800000)
     tri(0xbf000000,0xbe800000,0xbf000000,0x3e800000,0xbf800000,0x3e800000)
     tri(0x3f000000,0x3e800000,0x3f800000,0xbe800000,0x3f800000,0x3e800000)
-    tri(0x3f000000,0x3e800000,0x3f800000,0x3e800000,0x3f000000,0xbe800000)
+    tri(0x3f000000,0x3e800000,0x3f000000,0x3e800000,0x3f000000,0xbe800000)
     color(0x3f000000,0x3f800000,0x3f000000)
     tri(0xbe800000,0xbe800000,0x00000000,0x3e800000,0x3e800000,0xbe800000)
     call(0x3108)
-    # Exercise a real IA-32 LOOP instruction around the render/poll body.
-    # ECX is the compiler-friendly loop counter; E2 uses ECX-- and a short
-    # backward branch, so this fixture covers repeated control flow rather
-    # than only proving that one frame can reach HLT.
-    code.extend(b"\xb9\x03\x00\x00\x00")  # mov ecx, 3
-    loop_start = len(code)
     push(90); push(660); call(0x3300)
     mov_edi(0x00900000)
     for v in (1,0,0,0,0x00900000): push(v)
