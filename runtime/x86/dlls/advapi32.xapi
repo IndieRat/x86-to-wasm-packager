@@ -1,0 +1,16 @@
+{
+  "format": "xwasm-xapi",
+  "version": 1,
+  "libraries": {
+    "ADVAPI32.dll": {
+      "functions": {
+        "RegOpenKeyExA": {"id": 24577, "abi": "stdcall", "args": ["u32", "ptr", "u32", "u32", "ptr"], "return": "u32", "bridge": "xw.advapi32.RegOpenKeyExA"},
+        "RegCreateKeyExA": {"id": 24578, "abi": "stdcall", "args": ["u32", "ptr", "u32", "ptr", "u32", "u32", "ptr", "ptr", "ptr"], "return": "u32", "bridge": "xw.advapi32.RegCreateKeyExA"},
+        "RegQueryValueExA": {"id": 24579, "abi": "stdcall", "args": ["u32", "ptr", "ptr", "ptr", "ptr", "ptr"], "return": "u32", "bridge": "xw.advapi32.RegQueryValueExA"},
+        "RegSetValueExA": {"id": 24580, "abi": "stdcall", "args": ["u32", "ptr", "u32", "u32", "ptr", "u32"], "return": "u32", "bridge": "xw.advapi32.RegSetValueExA"},
+        "RegCloseKey": {"id": 24581, "abi": "stdcall", "args": ["u32"], "return": "u32", "bridge": "xw.advapi32.RegCloseKey"},
+        "RegDeleteValueA": {"id": 24582, "abi": "stdcall", "args": ["u32", "ptr"], "return": "u32", "bridge": "xw.advapi32.RegDeleteValueA"}
+      }
+    }
+  }
+}
