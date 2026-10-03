@@ -203,7 +203,7 @@ async function loadPayload(){
 }
 function snapshot(){
  if(!exports){cpuLog("[FAIL] runtime not loaded");return}
- const pairs=[["EIP","x86_get_eip"],["EAX","x86_get_eax"],["ECX","x86_get_ecx"],["EDX","x86_get_edx"],["EBX","x86_get_ebx"],["ESP","x86_get_esp"],["EBP","x86_get_ebp"],["ESI","x86_get_esi"],["EDI","x86_get_edi"],["EFLAGS","x86_get_eflags"],["STEPS","x86_get_steps"],["HALTED","x86_get_halted"],["CPU_ERROR","x86_get_cpu_error"],["IMPORTS","x86_get_import_count"],["IMPORT_OK","x86_get_import_resolved"],["IMPORT_FAIL","x86_get_import_failed"],["MEM_FAULTS","x86_get_memory_faults"]];
+ const pairs=[["EIP","x86_get_eip"],["EAX","x86_get_eax"],["ECX","x86_get_ecx"],["EDX","x86_get_edx"],["EBX","x86_get_ebx"],["ESP","x86_get_esp"],["EBP","x86_get_ebp"],["ESI","x86_get_esi"],["EDI","x86_get_edi"],["EFLAGS","x86_get_eflags"],["STEPS","x86_get_steps"],["HALTED","x86_get_halted"],["CPU_ERROR","x86_get_cpu_error"],["IMPORTS","x86_get_import_count"],["IMPORT_OK","x86_get_import_resolved"],["IMPORT_FAIL","x86_get_import_failed"],["MEM_FAULTS","x86_get_memory_faults"],["LAST_INDIRECT_SLOT","x86_get_last_indirect_slot"],["LAST_INDIRECT_TARGET","x86_get_last_indirect_target"]];
  const lines=["=== CPU STATE ==="];
  for(const [n,f] of pairs)if(typeof exports[f]==="function")lines.push(n+" = "+(n==="STEPS"||n==="HALTED"?"":hex(exports[f]()))+((n==="STEPS"||n==="HALTED")?exports[f](): ""));
  if(typeof exports.x86_get_current_opcode==="function")lines.push("OPCODE = "+hex(exports.x86_get_current_opcode()));
