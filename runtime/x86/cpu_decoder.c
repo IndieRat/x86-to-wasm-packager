@@ -392,6 +392,8 @@ static int cpu_step(void) {
         last_decoded_map = d.map;
         last_decoded_opcode = d.opcode;
         last_decoded_length = d.cursor - d.start;
+        last_decoded_has_modrm = d.has_modrm;
+        last_decoded_modrm = d.has_modrm ? d.modrm : 0u;
         x86_copy_semantic_id(last_decoded_semantic_id, "DECODE_FAULT");
         last_dispatch_id = X86_DISPATCH_NONE;
         last_dispatch_count++;
@@ -414,6 +416,8 @@ static int cpu_step(void) {
     last_decoded_map = d.map;
     last_decoded_opcode = d.opcode;
     last_decoded_length = d.cursor - d.start;
+    last_decoded_has_modrm = d.has_modrm;
+    last_decoded_modrm = d.has_modrm ? d.modrm : 0u;
     x86_copy_semantic_id(last_decoded_semantic_id,
                          (d.entry && d.entry->id) ? d.entry->id : "NONE");
 
@@ -444,8 +448,10 @@ static int cpu_step(void) {
      * is correct even when legacy prefixes precede it. */
     if (d.x87) {
         char x87_buf[12];
+        last_decoded_has_modrm=1u;
+        last_decoded_modrm=MEM8(d.op_pos+1u);
         x86_copy_semantic_id(last_decoded_semantic_id,
-                             x87_semantic_name(d.opcode, MEM8(d.op_pos + 1u), x87_buf));
+                             x87_semantic_name(d.opcode, last_decoded_modrm, x87_buf));
         uint32_t op_ip = d.op_pos + 1u;
         int xr = cpu_step_x87(d.opcode, &op_ip);
         if (xr < 0) return xr;
