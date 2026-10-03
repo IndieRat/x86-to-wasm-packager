@@ -7,7 +7,8 @@ import argparse, json, struct, sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from xwasm.container import pack_file  # noqa: E402
+from xwasm.container import pack_file
+from xwasm.dll import pack_xapi_file  # noqa: E402
 
 IMAGE_BASE=0x00400000
 SECTION_RVA=0x1000
@@ -111,6 +112,16 @@ def main():
 
     (root/"runtime.xwasm").write_bytes(runtime.read_bytes())
 
+    dll_api_dir=root/"dll_apis"
+    dll_api_dir.mkdir(parents=True,exist_ok=True)
+    canonical_xapis=("kernel32.xapi","user32.xapi","gdi32.xapi","opengl32.xapi","advapi32.xapi")
+    seed_dir=ROOT/"runtime"/"x86"/"dlls"
+    for api_name in canonical_xapis:
+        seed=seed_dir/api_name
+        if not seed.is_file():
+            raise SystemExit(f"Canonical XAPI seed missing: {seed}")
+        pack_xapi_file(seed,dll_api_dir/api_name)
+
     exe=root/"resources/__x86__/payload.exe"
     exe.write_bytes(pe())
     payload=root/"payload.xpl"
@@ -124,6 +135,8 @@ def main():
         "abi":"xwasm.host/1","resource_root":"resources/",
         "payload":"payload.xpl","payload_format":"XPL",
         "payload_architecture":"i386",
+        "dll_api_format":"XWSC01/XAPI",
+        "dll_api_manifests":["dll_apis/"+x for x in canonical_xapis],
         "bundled_dlls":["KERNEL32.dll","USER32.dll","GDI32.dll","OPENGL32.dll"],
         "execution_status":"opengl_window_input_audio_seed",
         "test_suite":{"name":"Win32/OpenGL Pong seed","tests":[
@@ -141,6 +154,7 @@ def main():
     print(f"Payload: {payload}")
     print("Payload format: XPL")
     print(f"Runtime: {root/'runtime.xwasm'}")
+    print("XAPIs: " + ", ".join("dll_apis/"+x for x in canonical_xapis))
 
 
 if __name__=="__main__":
