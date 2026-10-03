@@ -1316,7 +1316,22 @@ static int cpu_step_legacy(void){
   case 0xA4:case 0xA5:case 0xA6:case 0xA7:case 0xAA:case 0xAB:case 0xAC:case 0xAD:case 0xAE:case 0xAF:string_execute(op);eip=ip;return 0;
   case 0x88:{uint8_t m=MEM8(ip++),v=reg8_read((m>>3)&7);modrm_write8(m,&ip,v);eip=ip;return 0;}
   case 0x8A:{uint8_t m=MEM8(ip++);reg8_write((m>>3)&7,modrm_read8(m,&ip));eip=ip;return 0;}
-  case 0x90: eip=ip; return 0; /* NOP */
+  case 0x87: { /* XCHG r/m32,r32 */
+   uint8_t m=MEM8(ip++);
+   uint32_t other=regs[(m>>3)&7u];
+   if((m>>6)==3){
+    uint32_t t=regs[m&7u]; regs[m&7u]=other; regs[(m>>3)&7u]=t;
+   }else{
+    uint32_t ea=0;
+    if(!modrm_ea(m,&ip,&ea)){cpu_error=0x8700u;return -55;}
+    uint32_t t=rd32(ea); wr32(ea,other); regs[(m>>3)&7u]=t;
+   }
+   eip=ip;return 0;
+  }
+  case 0x90: eip=ip; return 0; /* NOP / XCHG EAX,EAX */
+  case 0x91:case 0x92:case 0x93:case 0x94:case 0x95:case 0x96:case 0x97: {
+   uint32_t r=op-0x90u,t=regs[R_EAX];regs[R_EAX]=regs[r];regs[r]=t;eip=ip;return 0;
+  }
   case 0xF4: eip=ip; halted=1; return 1; /* HLT */
   case 0x31: { /* XOR r/m32,r32; v0.2 supports register form */
    uint8_t m=MEM8(ip++);
@@ -1963,5 +1978,7 @@ __attribute__((export_name("x86_crt_exit"))) uint32_t x86_crt_exit(uint32_t code
 __attribute__((export_name("x86_crt_get_last_atexit_result"))) uint32_t x86_crt_get_last_atexit_result(void){return crt_last_atexit_result;}
 __attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback,0);}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
+
+
 
 
