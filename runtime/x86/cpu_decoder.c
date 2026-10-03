@@ -633,6 +633,33 @@ static int cpu_step(void) {
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,before_opcode,last_dispatch_id);
             return 0;
         }
+        if (x86_id_is(d.entry->id,"SUB_RM8_R8") ||
+            x86_id_is(d.entry->id,"SUB_R8_RM8")) {
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u),ea=0;
+            uint8_t reg=(uint8_t)((d.modrm>>3)&7u),dst,src,r;
+            if ((d.modrm>>6)==3) {
+                if (x86_id_is(d.entry->id,"SUB_RM8_R8")) {
+                    dst=reg8_read(d.modrm&7u); src=reg8_read(reg); r=(uint8_t)(dst-src);
+                    reg8_write(d.modrm&7u,r);
+                } else {
+                    dst=reg8_read(reg); src=reg8_read(d.modrm&7u); r=(uint8_t)(dst-src);
+                    reg8_write(reg,r);
+                }
+            } else {
+                if (!modrm_ea(d.modrm,&op_ip,&ea)) { cpu_error=0x2800u|d.opcode; return -37; }
+                if (x86_id_is(d.entry->id,"SUB_RM8_R8")) {
+                    dst=MEM8(ea); src=reg8_read(reg); r=(uint8_t)(dst-src); wr8(ea,r);
+                } else {
+                    dst=reg8_read(reg); src=MEM8(ea); r=(uint8_t)(dst-src); reg8_write(reg,r);
+                }
+            }
+            set_sub_flags_width(dst,src,r,8u);
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_NONE;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"MOV_AL_MOFFS8") ||
             x86_id_is(d.entry->id,"MOV_EAX_MOFFS32") ||
             x86_id_is(d.entry->id,"MOV_MOFFS8_AL") ||
