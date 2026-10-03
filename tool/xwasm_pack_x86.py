@@ -60,11 +60,27 @@ def main()->int:
     bundled_dlls=[str(x.relative_to(game)).replace("\\","/") for x in dll_files]
     dll_api_manifests=[]
     dll_api_dir=out/"dll_apis"
+    dll_api_dir.mkdir(parents=True,exist_ok=True)
+
+    # Every XWASM package carries the canonical host ABI manifests, even when
+    # the original game directory does not ship those Windows DLLs.  Bundled
+    # DLLs are then converted against the same seeds and replace the canonical
+    # copy with their export-aware manifest.
+    canonical_xapis=("kernel32.xapi","user32.xapi","gdi32.xapi","opengl32.xapi","advapi32.xapi")
+    seed_dir=ROOT/"runtime"/"x86"/"dlls"
+    for api_name in canonical_xapis:
+        seed=seed_dir/api_name
+        if seed.is_file():
+            shutil.copy2(seed,dll_api_dir/api_name)
+            dll_api_manifests.append("dll_apis/"+api_name)
+
     for dll in dll_files:
         try:
             api_name=dll.stem.lower()+".xapi"
             convert_dll(dll,dll_api_dir/api_name)
-            dll_api_manifests.append("dll_apis/"+api_name)
+            manifest_name="dll_apis/"+api_name
+            if manifest_name not in dll_api_manifests:
+                dll_api_manifests.append(manifest_name)
         except (FileNotFoundError,ValueError):
             pass
 
