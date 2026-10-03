@@ -21,11 +21,12 @@ function gfxCreate(w,h){canvas.width=w||640;canvas.height=h||360;pixels=ctx.crea
 function gfxClear(rgb){ctx.fillStyle="#"+((rgb>>>0)&0xffffff).toString(16).padStart(6,"0");ctx.fillRect(0,0,canvas.width,canvas.height)}
 function gfxPixel(x,y,rgb){if(x<0||y<0||x>=canvas.width||y>=canvas.height)return;ctx.fillStyle="#"+((rgb>>>0)&0xffffff).toString(16).padStart(6,"0");ctx.fillRect(x,y,1,1)}
 function gfxRect(x,y,w,h,rgb){ctx.fillStyle="#"+((rgb>>>0)&0xffffff).toString(16).padStart(6,"0");ctx.fillRect(x,y,w,h)}
-function present(){/* 2D bridge is immediate; retained for API compatibility */}
+function present(){}
 function beep(freq,dur){try{audioCtx??=new AudioContext();let o=audioCtx.createOscillator(),g=audioCtx.createGain();o.frequency.value=freq;g.gain.value=.04;o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur/1000)}catch(e){log("[AUDIO] "+e)}}
 function poll(ptr){
   if(!events.length)return 0;
-  const e=events.shift(), dv=new DataView(mem.buffer); dv.setInt32(ptr,e.msg,true); dv.setInt32(ptr+8,e.x||0,true); dv.setInt32(ptr+12,e.y||0,true); return 1;
+  const e=events.shift(),dv=new DataView(mem.buffer);
+  dv.setInt32(ptr,e.msg,true);dv.setInt32(ptr+8,e.x||0,true);dv.setInt32(ptr+12,e.y||0,true);return 1;
 }
 window.addEventListener("keydown",e=>events.push({msg:0x100,x:e.keyCode}));
 window.addEventListener("keyup",e=>events.push({msg:0x101,x:e.keyCode}));
@@ -33,20 +34,35 @@ canvas.addEventListener("mousemove",e=>{let r=canvas.getBoundingClientRect();eve
 canvas.addEventListener("mousedown",e=>events.push({msg:e.button===0?0x201:e.button===2?0x204:0x207,x:e.offsetX,y:e.offsetY}));
 canvas.addEventListener("contextmenu",e=>e.preventDefault());
 
-async function unpack(buf){
-  const u=new Uint8Array(buf), dv=new DataView(buf);
-  if(new TextDecoder().decode(u.subarray(0,6))!=="XWSC01")return buf;
-  const raw=dv.getUint32(12,true), stored=u.subarray(20);
-  if(u[11]===1 && "DecompressionStream" in window){
-    const out=await new Response(new Blob([stored]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer();
-    if(out.byteLength!==raw)throw Error("XWSC01 size mismatch"); return out;
+async function unpack(buf,expectedKind){
+  const u=new Uint8Array(buf),dv=new DataView(buf);
+  if(u.byteLength<60)throw Error("XWSC01 container is truncated");
+  const magic=new TextDecoder().decode(u.subarray(0,6));
+  if(magic!=="XWSC01")throw Error("Expected XWSC01 "+expectedKind+" container");
+  const version=dv.getUint16(6,true),kind=dv.getUint8(8),compression=dv.getUint8(9);
+  const raw=dv.getBigUint64(16,true),stored=u.subarray(60);
+  const kinds={1:"xwasm",2:"xpl",3:"xpak",4:"xapi"};
+  if(version!==1)throw Error("Unsupported XWSC01 version: "+version);
+  if(kinds[kind]!==expectedKind)throw Error("Expected "+expectedKind+", got "+(kinds[kind]||"unknown"));
+  if(compression===0){
+    if(BigInt(stored.byteLength)!==raw)throw Error("XWSC01 size mismatch");
+    return stored.slice().buffer;
   }
-  throw Error("XWSC01 DEFLATE requires DecompressionStream");
+  if(compression!==1)throw Error("Unsupported XWSC01 compression: "+compression);
+  if(!("DecompressionStream" in window))throw Error("This browser has no DecompressionStream; XWSC01 compressed containers cannot be opened here");
+  // xwasm.container.py uses zlib.compress(), i.e. the zlib/deflate wrapper,
+  // not raw DEFLATE. Use "deflate", not "deflate-raw".
+  const out=await new Response(
+    new Blob([stored]).stream().pipeThrough(new DecompressionStream("deflate"))
+  ).arrayBuffer();
+  if(BigInt(out.byteLength)!==raw)throw Error("XWSC01 decompressed size mismatch");
+  return out;
 }
 async function main(){
   const rb=document.querySelector("#runtime").files[0],pb=document.querySelector("#payload").files[0];
   if(!rb||!pb)return alert("Select runtime.xwasm and payload.xpl");
-  const wasm=await unpack(await rb.arrayBuffer()), payload=await unpack(await pb.arrayBuffer());
+  const wasm=await unpack(await rb.arrayBuffer(),"xwasm");
+  const payload=await unpack(await pb.arrayBuffer(),"xpl");
   let mem;
   const env={
     memory:new WebAssembly.Memory({initial:1024,maximum:4096}),
@@ -61,11 +77,14 @@ async function main(){
   const e=instance.exports;
   log("[PASS] runtime instantiated; exports="+Object.keys(e).length);
   if(!e.xwasm_init||!e.x86_load_pe||!e.x86_run)throw Error("required XWASM API missing");
+  log("[PASS] XWASM xwasm + xpl containers unpacked");
   log("[PASS] window + input + audio + graphics bridge supplied");
   log("runtime=0x"+e.x86_get_runtime_version().toString(16));
-  const bytes=new Uint8Array(mem.buffer); const p=0x100000; bytes.set(new Uint8Array(payload),p);
+  const bytes=new Uint8Array(mem.buffer),p=0x100000;
+  bytes.set(new Uint8Array(payload),p);
+  e.xwasm_init();
   if(e.x86_load_pe(p,payload.byteLength)!==0)throw Error("x86_load_pe failed: "+e.x86_get_load_error());
-  e.xwasm_init(); const r=e.x86_run(200000);
+  const r=e.x86_run(200000);
   log("x86_run="+r+" halted="+e.x86_get_halted()+" steps="+e.x86_get_steps());
   log("EIP=0x"+e.x86_get_eip().toString(16)+" cpu_error=0x"+e.x86_get_cpu_error().toString(16));
   log(r===1?"[PASS] Pong guest reached its render/audio completion":"[INFO] Guest did not complete");
