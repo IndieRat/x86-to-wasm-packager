@@ -756,6 +756,9 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
  if(streq_ascii(dll,"GDI32.dll")||streq_ascii(dll,"gdi32.dll")){
   if(streq_ascii(name,"SetPixel"))return API_GDI32_SETPIXEL;
   if(streq_ascii(name,"Rectangle"))return API_GDI32_RECTANGLE;
+  if(streq_ascii(name,"SwapBuffers"))return API_GDI32_SWAPBUFFERS;
+  if(streq_ascii(name,"ChoosePixelFormat"))return API_GDI32_CHOOSEPIXELFORMAT;
+  if(streq_ascii(name,"SetPixelFormat"))return API_GDI32_SETPIXELFORMAT;
  }
  if(streq_ascii(dll,"OPENGL32.dll")||streq_ascii(dll,"opengl32.dll")){
   if(streq_ascii(name,"wglCreateContext"))return API_OPENGL32_WGLCREATECONTEXT;
