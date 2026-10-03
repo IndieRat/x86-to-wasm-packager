@@ -4327,6 +4327,306 @@
       "modrm": {
         "required": true
       }
+    },
+    {
+      "id": "ADD_RM8_IMM8",
+      "instruction": "ADD",
+      "opcode": [
+        "80"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 0
+      },
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "ADC_RM8_IMM8",
+      "instruction": "ADC",
+      "opcode": [
+        "80"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 2
+      },
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "SBB_RM8_IMM8",
+      "instruction": "SBB",
+      "opcode": [
+        "80"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 3
+      },
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "AND_RM8_IMM8",
+      "instruction": "AND",
+      "opcode": [
+        "80"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 4
+      },
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "SUB_RM8_IMM8",
+      "instruction": "SUB",
+      "opcode": [
+        "80"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 5
+      },
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "XOR_RM8_IMM8",
+      "instruction": "XOR",
+      "opcode": [
+        "80"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 6
+      },
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "CMP_RM8_IMM8",
+      "instruction": "CMP",
+      "opcode": [
+        "80"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 7
+      },
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "ADC_RM32_IMM32",
+      "instruction": "ADC",
+      "opcode": [
+        "81"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 2
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "SBB_RM32_IMM32",
+      "instruction": "SBB",
+      "opcode": [
+        "81"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 3
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "ADC_RM32_IMM8",
+      "instruction": "ADC",
+      "opcode": [
+        "83"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 2
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "SBB_RM32_IMM8",
+      "instruction": "SBB",
+      "opcode": [
+        "83"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 3
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "XOR_RM32_IMM8",
+      "instruction": "XOR",
+      "opcode": [
+        "83"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 6
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
     }
   ]
 }
