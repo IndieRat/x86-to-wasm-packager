@@ -4,22 +4,11 @@ from pathlib import Path
 import argparse, json, struct
 
 
-def find_runtime():
-    """Find the runtime produced by xwasm_build_x86_runtime.py."""
-    dist = Path("dist")
-    candidates = sorted(dist.glob("x86-runtime-v*/runtime.xwasm"), key=lambda p: p.parent.name)
-    if candidates:
-        return candidates[-1]
-    # Also accept a directly placed runtime for local/CI fixture work.
-    direct = dist / "runtime.xwasm"
-    if direct.exists():
-        return direct
-    return None
-
 IMAGE_BASE=0x00400000
 SECTION_RVA=0x1000
 SECTION_RAW=0x200
 SECTION_SIZE=0x3000
+
 
 def pe():
     b=bytearray(SECTION_RAW+SECTION_SIZE)
@@ -38,19 +27,18 @@ def pe():
     code=bytearray()
     def push(v): code.extend(b"\x68"+struct.pack("<I",v&0xffffffff))
     def call(iat): code.extend(b"\xff\x15"+struct.pack("<I",IMAGE_BASE+iat))
-    def mov_eax(v): code.extend(b"\xb8"+struct.pack("<I",v))
     def mov_edi(v): code.extend(b"\xbf"+struct.pack("<I",v))
 
     # Create/show window, obtain DC.
     for v in reversed([0,0,0,0x10000000,0,0,640,360,0,0,0,0]): push(v)
-    call(0x3000); code.extend(b"\x89\xc6"); push(1); push_reg=b"\x56"; code.extend(push_reg); call(0x3004)
+    call(0x3000); code.extend(b"\x89\xc6"); push(1); code.extend(b"\x56"); call(0x3004)
     code.extend(b"\x56"); call(0x3008); code.extend(b"\x89\xc3")
 
     # Minimal pixel-format/WGL setup.
-    push(0); push(0); call(0x3010) # ChoosePixelFormat
-    push(0); push(0); push(0); call(0x3014) # SetPixelFormat
-    code.extend(b"\x53"); call(0x3018); code.extend(b"\x89\xc5") # wglCreateContext
-    code.extend(b"\x53\x55"); call(0x301c) # wglMakeCurrent
+    push(0); push(0); call(0x3010)
+    push(0); push(0); push(0); call(0x3014)
+    code.extend(b"\x53"); call(0x3018); code.extend(b"\x89\xc5")
+    code.extend(b"\x53\x55"); call(0x301c)
 
     # Viewport + black clear.
     for v in (360,640,0,0): push(v)
@@ -75,16 +63,16 @@ def pe():
     tri(0x3f000000,0x3e800000,0x3f800000,0x3e800000,0x3f000000,0xbe800000)
     color(0x3f000000,0x3f800000,0x3f000000)
     tri(0xbe800000,0xbe800000,0x00000000,0x3e800000,0x3e800000,0xbe800000)
-    call(0x3044) # SwapBuffers
+    call(0x3044)
 
     # Audio proof.
     push(90); push(660); call(0x3048)
 
-    # Poll a small deterministic number of frames; host input wakes the bridge.
-    mov_edi(0x00900000)
     # Exercise the browser input bridge once: PeekMessageA(MSG*, NULL, 0, 0, PM_REMOVE).
+    mov_edi(0x00900000)
     for v in (1,0,0,0,0x00900000): push(v)
     call(0x300c)
+
     # HLT gives the shell a clean completion point after render/audio/input.
     code.extend(b"\xf4")
     b[SECTION_RAW:SECTION_RAW+len(code)]=code
@@ -95,7 +83,7 @@ def pe():
           ("GDI32.dll",[("ChoosePixelFormat",0x3010),("SetPixelFormat",0x3014),("SwapBuffers",0x3044)]),
           ("OPENGL32.dll",[("wglCreateContext",0x3018),("wglMakeCurrent",0x301c),("glViewport",0x3020),("glClearColor",0x3024),("glClear",0x3028),("glBegin",0x302c),("glEnd",0x3030),("glColor3f",0x3034),("glVertex2f",0x3038)]),
           ("KERNEL32.dll",[("Beep",0x3048)])]
-    rva=names_base; index=0
+    rva=names_base
     for di,(dll,entries) in enumerate(dlls):
         d=SECTION_RAW+(desc-SECTION_RVA)+di*20
         ot=oft+di*0x100; it=iat+di*0x100
@@ -105,25 +93,36 @@ def pe():
             struct.pack_into("<I",b,SECTION_RAW+(it-SECTION_RVA)+j*4,rva)
             no=SECTION_RAW+(rva-SECTION_RVA); b[no:no+2]=b"\0\0"; nb=name.encode()+b"\0"; b[no+2:no+2+len(nb)]=nb
             rva += 0x40
-        # null thunk terminators
         struct.pack_into("<I",b,SECTION_RAW+(ot-SECTION_RVA)+len(entries)*4,0)
         struct.pack_into("<I",b,SECTION_RAW+(it-SECTION_RVA)+len(entries)*4,0)
         db=SECTION_RAW+(rva-SECTION_RVA); dbs=dll.encode()+b"\0"; b[db:db+len(dbs)]=dbs; rva+=0x40
-        # fix descriptor DLL RVA
         struct.pack_into("<I",b,d+12,rva-0x40)
     struct.pack_into("<II",b,oh+96+8,desc,20*len(dlls)+20)
     return bytes(b)
 
+
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument("--output",type=Path,default=Path("dist/xwasm-opengl-pong")); a=ap.parse_args()
-    root=a.output; (root/"resources/__x86__").mkdir(parents=True,exist_ok=True)
-    runtime=find_runtime()
+    ap=argparse.ArgumentParser()
+    ap.add_argument("--output",type=Path,default=Path("dist/xwasm-opengl-pong"))
+    ap.add_argument("--runtime",type=Path,help="Existing XWASM runtime.xwasm to bundle.")
+    a=ap.parse_args()
+
+    root=a.output
+    (root/"resources/__x86__").mkdir(parents=True,exist_ok=True)
+
+    runtime=a.runtime
     if runtime is None:
-        raise SystemExit("No built XWASM runtime found under dist/x86-runtime-v*/runtime.xwasm. Run xwasm_build_x86_runtime.py first.")
+        raise SystemExit("Pong requires an existing XWASM runtime. Pass --runtime PATH (the PowerShell xwasm_build command supplies xwasm-runtime).")
+    runtime=runtime.resolve()
+    if not runtime.is_file():
+        raise SystemExit(f"XWASM runtime not found: {runtime}")
+
     (root/"runtime.xwasm").write_bytes(runtime.read_bytes())
     (root/"resources/__x86__/payload.exe").write_bytes(pe())
     manifest={"format":"xwasm-package","format_version":1,"name":"XWASM-X86-OpenGL-Pong-Test","architecture":"x86","runtime_kind":"x86-compatibility","runtime":"runtime.xwasm","abi":"xwasm.host/1","resource_root":"resources/","payload":"resources/__x86__/payload.exe","payload_format":"PE32","payload_architecture":"i386","bundled_dlls":["KERNEL32.dll","USER32.dll","GDI32.dll","OPENGL32.dll"],"execution_status":"opengl_window_input_audio_seed","test_suite":{"name":"Win32/OpenGL Pong seed","tests":["CreateWindowExA/ShowWindow/GetDC","ChoosePixelFormat/SetPixelFormat","wglCreateContext/wglMakeCurrent","glViewport/glClearColor/glClear","glBegin/glEnd/glColor3f/glVertex2f","SwapBuffers","KERNEL32 Beep audio bridge","XWASM input bridge availability"]}}
     (root/"manifest.xwasm.json").write_text(json.dumps(manifest,indent=2)+"\n",encoding="utf-8")
     print(root)
 
-if __name__=="__main__": main()
+
+if __name__=="__main__":
+    main()
