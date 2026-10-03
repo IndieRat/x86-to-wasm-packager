@@ -19,8 +19,7 @@
         "glVertex3f": {"id": 12301, "abi": "stdcall", "args": ["f32", "f32", "f32"], "return": "void", "bridge": "xw.opengl32.glVertex3f"},
         "glFlush": {"id": 12302, "abi": "stdcall", "args": [], "return": "void", "bridge": "xw.opengl32.glFlush"},
         "glFinish": {"id": 12303, "abi": "stdcall", "args": [], "return": "void", "bridge": "xw.opengl32.glFinish"},
-        "SwapBuffers": {"id": 12304, "abi": "stdcall", "args": ["u32"], "return": "u32", "bridge": "xw.opengl32.SwapBuffers"},
-        "glGetString": {"id": 12305, "abi": "stdcall", "args": ["u32"], "return": "ptr", "bridge": "xw.opengl32.glGetString"}
+        "glGetString": {"id": 12304, "abi": "stdcall", "args": ["u32"], "return": "ptr", "bridge": "xw.opengl32.glGetString"}
       }
     }
   }
