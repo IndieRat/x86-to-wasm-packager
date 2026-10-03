@@ -124,6 +124,22 @@ enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_
 #define API_OPENGL32_GLFLUSH (API_BASE+0x0000A034u)
 #define API_OPENGL32_GLFINISH (API_BASE+0x0000A038u)
 #define API_OPENGL32_GLGETSTRING (API_BASE+0x0000A03Cu)
+#define API_OPENGL32_GLENABLE (API_BASE+0x0000A040u)
+#define API_OPENGL32_GLDISABLE (API_BASE+0x0000A044u)
+#define API_OPENGL32_GLBLENDFUNC (API_BASE+0x0000A048u)
+#define API_OPENGL32_GLDEPTHFUNC (API_BASE+0x0000A04Cu)
+#define API_OPENGL32_GLDEPTHMASK (API_BASE+0x0000A050u)
+#define API_OPENGL32_GLLINEWIDTH (API_BASE+0x0000A054u)
+#define API_OPENGL32_GLPOINTSIZE (API_BASE+0x0000A058u)
+#define API_OPENGL32_GLTEXCOORD2F (API_BASE+0x0000A05Cu)
+#define API_OPENGL32_GLNORMAL3F (API_BASE+0x0000A060u)
+#define API_OPENGL32_GLMATRIXMODE (API_BASE+0x0000A064u)
+#define API_OPENGL32_GLLOADIDENTITY (API_BASE+0x0000A068u)
+#define API_OPENGL32_GL_PUSHMATRIX (API_BASE+0x0000A06Cu)
+#define API_OPENGL32_GL_POPMATRIX (API_BASE+0x0000A070u)
+#define API_OPENGL32_GLTRANSLATEF (API_BASE+0x0000A074u)
+#define API_OPENGL32_GLSCALEF (API_BASE+0x0000A078u)
+#define API_OPENGL32_GLROTATEF (API_BASE+0x0000A07Cu)
 #define API_USER32_GETMESSAGEA (API_BASE+0x00006000u)
 #define API_USER32_PEEKMESSAGEA (API_BASE+0x00006004u)
 #define API_USER32_TRANSLATEMESSAGE (API_BASE+0x00006008u)
@@ -778,6 +794,22 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"glFlush"))return API_OPENGL32_GLFLUSH;
   if(streq_ascii(name,"glFinish"))return API_OPENGL32_GLFINISH;
   if(streq_ascii(name,"glGetString"))return API_OPENGL32_GLGETSTRING;
+  if(streq_ascii(name,"glEnable"))return API_OPENGL32_GLENABLE;
+  if(streq_ascii(name,"glDisable"))return API_OPENGL32_GLDISABLE;
+  if(streq_ascii(name,"glBlendFunc"))return API_OPENGL32_GLBLENDFUNC;
+  if(streq_ascii(name,"glDepthFunc"))return API_OPENGL32_GLDEPTHFUNC;
+  if(streq_ascii(name,"glDepthMask"))return API_OPENGL32_GLDEPTHMASK;
+  if(streq_ascii(name,"glLineWidth"))return API_OPENGL32_GLLINEWIDTH;
+  if(streq_ascii(name,"glPointSize"))return API_OPENGL32_GLPOINTSIZE;
+  if(streq_ascii(name,"glTexCoord2f"))return API_OPENGL32_GLTEXCOORD2F;
+  if(streq_ascii(name,"glNormal3f"))return API_OPENGL32_GLNORMAL3F;
+  if(streq_ascii(name,"glMatrixMode"))return API_OPENGL32_GLMATRIXMODE;
+  if(streq_ascii(name,"glLoadIdentity"))return API_OPENGL32_GLLOADIDENTITY;
+  if(streq_ascii(name,"glPushMatrix"))return API_OPENGL32_GL_PUSHMATRIX;
+  if(streq_ascii(name,"glPopMatrix"))return API_OPENGL32_GL_POPMATRIX;
+  if(streq_ascii(name,"glTranslatef"))return API_OPENGL32_GLTRANSLATEF;
+  if(streq_ascii(name,"glScalef"))return API_OPENGL32_GLSCALEF;
+  if(streq_ascii(name,"glRotatef"))return API_OPENGL32_GLROTATEF;
  }
 
  if(streq_ascii(dll,"USER32.dll")||streq_ascii(dll,"user32.dll")){
@@ -921,6 +953,14 @@ static uint32_t call_builtin(uint32_t target){
  if(target==API_OPENGL32_GLCOLOR3F||target==API_OPENGL32_GLCOLOR4F){uint32_t sp=regs[R_ESP];union{uint32_t u;float f;}a,b,d,e;a.u=rd32(sp+4u);b.u=rd32(sp+8u);d.u=rd32(sp+12u);gl_color_r=a.f;gl_color_g=b.f;gl_color_b=d.f;if(target==API_OPENGL32_GLCOLOR4F){e.u=rd32(sp+16u);gl_color_a=e.f;regs[R_ESP]+=16u;}else regs[R_ESP]+=12u;return 1;}
  if(target==API_OPENGL32_GLVERTEX2F||target==API_OPENGL32_GLVERTEX3F){uint32_t sp=regs[R_ESP];if(gl_mode&&gl_vertex_count<64u){union{uint32_t u;float f;}a,b,d;a.u=rd32(sp+4u);b.u=rd32(sp+8u);d.u=(target==API_OPENGL32_GLVERTEX3F)?rd32(sp+12u):0;gl_vertices[gl_vertex_count][0]=a.f;gl_vertices[gl_vertex_count][1]=b.f;gl_vertices[gl_vertex_count][2]=d.f;gl_vertex_count++;}regs[R_ESP]+=(target==API_OPENGL32_GLVERTEX3F?12u:8u);return 1;}
  if(target==API_OPENGL32_GLFLUSH||target==API_OPENGL32_GLFINISH){xwasm_gfx_present();return 1;}
+ if(target==API_OPENGL32_GLENABLE||target==API_OPENGL32_GLDISABLE||target==API_OPENGL32_GLDEPTHFUNC||target==API_OPENGL32_GLDEPTHMASK||target==API_OPENGL32_GLMATRIXMODE){regs[R_ESP]+=4u;return 1;}
+ if(target==API_OPENGL32_GLBLENDFUNC){regs[R_ESP]+=8u;return 1;}
+ if(target==API_OPENGL32_GLLINEWIDTH||target==API_OPENGL32_GLPOINTSIZE){regs[R_ESP]+=4u;return 1;}
+ if(target==API_OPENGL32_GLTEXCOORD2F){regs[R_ESP]+=8u;return 1;}
+ if(target==API_OPENGL32_GLNORMAL3F){regs[R_ESP]+=12u;return 1;}
+ if(target==API_OPENGL32_GLLOADIDENTITY||target==API_OPENGL32_GL_PUSHMATRIX||target==API_OPENGL32_GL_POPMATRIX){return 1;}
+ if(target==API_OPENGL32_GLTRANSLATEF||target==API_OPENGL32_GLSCALEF){regs[R_ESP]+=12u;return 1;}
+ if(target==API_OPENGL32_GLROTATEF){regs[R_ESP]+=16u;return 1;}
  if(target==API_OPENGL32_GLGETSTRING){uint32_t sp=regs[R_ESP],name=rd32(sp+4u);const char *s="XWASM OpenGL";if(name==0x1F00u)s="XWASM";else if(name==0x1F01u)s="XWASM WebGL-compatible renderer";else if(name==0x1F02u)s="1.1 XWASM compatibility";uint32_t p=guest_alloc_raw(64u);if(p){uint32_t i=0;while(s[i]){wr8(p+i,(uint8_t)s[i]);i++;}wr8(p+i,0);}regs[R_EAX]=p;regs[R_ESP]+=4u;return 1;}
  if(target==API_GDI32_SWAPBUFFERS){xwasm_gfx_present();regs[R_EAX]=1u;regs[R_ESP]+=4u;return 1;}
  if(target==API_GDI32_CHOOSEPIXELFORMAT){regs[R_EAX]=1u;regs[R_ESP]+=8u;return 1;}
