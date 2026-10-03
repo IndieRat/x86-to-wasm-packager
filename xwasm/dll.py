@@ -4,6 +4,7 @@ import json
 import struct
 
 from .container import pack_bytes, inspect_bytes, unpack_bytes
+from .xapi import validate_manifest
 from pathlib import Path
 
 I386 = 0x014C
@@ -144,32 +145,14 @@ def convert_dll(path: Path, output: Path | None = None, *, strict: bool = False)
 
 def pack_xapi_manifest(manifest: dict, output: Path) -> None:
     """Write a validated XAPI manifest as an XWSC01/XAPI container."""
-    if not isinstance(manifest, dict) or manifest.get("format") != "xwasm-xapi":
-        raise ValueError("XAPI manifest must have format=xwasm-xapi")
-    if manifest.get("version") != 1:
-        raise ValueError("unsupported XAPI manifest version")
-    libraries = manifest.get("libraries")
-    if not isinstance(libraries, dict) or not libraries:
-        raise ValueError("XAPI manifest must contain libraries")
-    for library, spec in libraries.items():
-        if not isinstance(library, str) or not isinstance(spec, dict):
-            raise ValueError("invalid XAPI library entry")
-        functions = spec.get("functions")
-        if not isinstance(functions, dict):
-            raise ValueError(f"{library}: XAPI functions must be an object")
-        for name, fn in functions.items():
-            if not isinstance(name, str) or not isinstance(fn, dict):
-                raise ValueError(f"{library}: invalid XAPI function entry for {name!r}")
-            if not isinstance(fn.get("id"), int) or not isinstance(fn.get("abi"), str):
-                raise ValueError(f"{library}!{name}: XAPI function requires integer id and ABI")
-            if not isinstance(fn.get("args"), list) or not isinstance(fn.get("return"), str):
-                raise ValueError(f"{library}!{name}: invalid args/return declaration")
-    raw = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    errors = validate_manifest(manifest)
+    if errors:
+        raise ValueError("; ".join(errors))
+    raw = (json.dumps(manifest, indent=2) + "\n").encode("utf-8")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(pack_bytes(raw, "xapi", compression="auto"))
     inspect_bytes(output.read_bytes())
     unpack_bytes(output.read_bytes(), expected_kind="xapi")
-
 
 def pack_xapi_file(source: Path, output: Path) -> None:
     """Validate a JSON XAPI seed and write it as an XWSC01/XAPI container."""
