@@ -40,7 +40,9 @@
         "MOV_EAX_MOFFS32",
         "MOV_MOFFS8_AL",
         "MOV_MOFFS32_EAX",
-        "XCHG_R32_RM32"
+        "XCHG_R32_RM32",
+        "MOV_RM8_R8",
+        "MOV_R8_RM8"
       ],
       "flags": {
         "read": [],
@@ -70,7 +72,8 @@
         "ADD_R32_RM32",
         "ADD_RM32_IMM32",
         "ADD_RM32_IMM8",
-        "ADD_EAX_IMM32"
+        "ADD_EAX_IMM32",
+        "ADD_AL_IMM8"
       ],
       "flags": {
         "read": [],
@@ -93,7 +96,8 @@
         "SUB_R32_RM32",
         "SUB_RM32_IMM32",
         "SUB_RM32_IMM8",
-        "SUB_EAX_IMM32"
+        "SUB_EAX_IMM32",
+        "SUB_AL_IMM8"
       ],
       "flags": {
         "read": [],
@@ -116,7 +120,8 @@
         "CMP_R32_RM32",
         "CMP_RM32_IMM32",
         "CMP_RM32_IMM8",
-        "CMP_EAX_IMM32"
+        "CMP_EAX_IMM32",
+        "CMP_AL_IMM8"
       ],
       "flags": {
         "read": [],
@@ -177,7 +182,8 @@
       "forms": [
         "AND_RM32_R32",
         "AND_R32_RM32",
-        "AND_RM32_IMM8"
+        "AND_RM32_IMM8",
+        "AND_AL_IMM8"
       ],
       "flags": {
         "read": [],
@@ -199,7 +205,8 @@
       "status": "EXECUTE",
       "forms": [
         "OR_RM32_R32",
-        "OR_R32_RM32"
+        "OR_R32_RM32",
+        "OR_AL_IMM8"
       ],
       "flags": {
         "read": [],
@@ -222,7 +229,8 @@
       "forms": [
         "XOR_RM32_R32",
         "XOR_R32_RM32",
-        "XOR_RM32_IMM32"
+        "XOR_RM32_IMM32",
+        "XOR_AL_IMM8"
       ],
       "flags": {
         "read": [],
@@ -258,7 +266,8 @@
       "family": "integer_core",
       "status": "EXECUTE",
       "forms": [
-        "TEST_RM32_R32"
+        "TEST_RM32_R32",
+        "TEST_RM8_R8"
       ],
       "flags": {
         "read": [],
@@ -280,7 +289,9 @@
       "status": "EXECUTE",
       "forms": [
         "IMUL_R32_RM32",
-        "IMUL_RM32"
+        "IMUL_RM32",
+        "IMUL_R32_RM32_IMM32",
+        "IMUL_R32_RM32_IMM8"
       ],
       "flags": {
         "read": [],
@@ -691,7 +702,8 @@
         "ADC_R32_RM32",
         "ADC_RM32_IMM32",
         "ADC_RM32_IMM8",
-        "ADC_EAX_IMM32"
+        "ADC_EAX_IMM32",
+        "ADC_AL_IMM8"
       ],
       "flags": {
         "read": [
@@ -717,7 +729,8 @@
         "SBB_R32_RM32",
         "SBB_RM32_IMM32",
         "SBB_RM32_IMM8",
-        "SBB_EAX_IMM32"
+        "SBB_EAX_IMM32",
+        "SBB_AL_IMM8"
       ],
       "flags": {
         "read": [
@@ -1587,7 +1600,8 @@
       "family": "data_move",
       "status": "EXECUTE",
       "forms": [
-        "XCHG_R32_RM32"
+        "XCHG_R32_RM32",
+        "XCHG_EAX_R32"
       ],
       "flags": {
         "read": [],
