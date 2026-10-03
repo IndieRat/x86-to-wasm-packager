@@ -1638,6 +1638,17 @@ static int cpu_step_x87(uint8_t op,uint32_t *ip){
  /* DD: double-precision loads/stores and stack-pop arithmetic. */
  if(op==0xDDu){
   if(mod!=3u){
+   /* DD memory operands are 64-bit. Validate the entire operand before
+    * reading/writing it so failed accesses do not mutate x87 state. */
+   uint32_t access=(sub==0u)?X86_MEM_READ:X86_MEM_WRITE;
+   if(!x86_mem_region_find(ea,8u,access)){
+    x86_mem_faults++;
+    x86_last_fault_address=ea;
+    x86_last_fault_size=8u;
+    x86_last_fault_kind=access;
+    cpu_error=0xE100u|((access==X86_MEM_READ)?1u:2u);
+    return -62;
+   }
    if(sub==0u)return x87_push(x87_load_f64(ea))?0:-62;
    if(sub==1u){if(!x87_need_top())return -61;x87_store_i64(ea,(int64_t)x87_round(x87_stack[0],1));return x87_pop()?0:-61;}
    if(sub==2u||sub==3u){if(!x87_need_top())return -61;x87_store_f64(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;}
