@@ -63,7 +63,7 @@ static uint32_t x87_count=0;
 /* IA-32 SSE/SSE2 architectural XMM0-XMM7 state. The first SIMD milestone
  * implements scalar operations while retaining all 128 register bits. */
 static uint8_t xmm[8][16];
-static uint32_t halted=0,cpu_error=0;
+static uint32_t halted=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
 static uint32_t last_dispatch_id=0,last_dispatch_count=0,legacy_execution_count=0;
