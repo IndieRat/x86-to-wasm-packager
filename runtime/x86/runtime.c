@@ -1471,6 +1471,48 @@ static int cpu_step_legacy(void){
   case 0x70:case 0x71:case 0x72:case 0x73:case 0x74:case 0x75:case 0x76:case 0x77:case 0x78:case 0x79:case 0x7A:case 0x7B:case 0x7C:case 0x7D:case 0x7E:case 0x7F:{
    int8_t d=(int8_t)MEM8(ip++);eip=cond(op)?ip+(int32_t)d:ip;return 0;
   }
+  case 0x60: { /* PUSHAD */
+   uint32_t original_esp=regs[R_ESP];
+   if(!x86_stack_push32(regs[R_EAX]))return -51;
+   if(!x86_stack_push32(regs[R_ECX]))return -51;
+   if(!x86_stack_push32(regs[R_EDX]))return -51;
+   if(!x86_stack_push32(regs[R_EBX]))return -51;
+   if(!x86_stack_push32(original_esp))return -51;
+   if(!x86_stack_push32(regs[R_EBP]))return -51;
+   if(!x86_stack_push32(regs[R_ESI]))return -51;
+   if(!x86_stack_push32(regs[R_EDI]))return -51;
+   eip=ip;return 0;
+  }
+  case 0x61: { /* POPAD */
+   uint32_t discarded;
+   if(!x86_stack_pop32(&regs[R_EDI]))return -52;
+   if(!x86_stack_pop32(&regs[R_ESI]))return -52;
+   if(!x86_stack_pop32(&regs[R_EBP]))return -52;
+   if(!x86_stack_pop32(&discarded))return -52; /* original ESP */
+   if(!x86_stack_pop32(&regs[R_EBX]))return -52;
+   if(!x86_stack_pop32(&regs[R_EDX]))return -52;
+   if(!x86_stack_pop32(&regs[R_ECX]))return -52;
+   if(!x86_stack_pop32(&regs[R_EAX]))return -52;
+   eip=ip;return 0;
+  }
+  case 0x98: { /* CWDE: sign-extend AX into EAX */
+   regs[R_EAX]=(uint32_t)(int32_t)(int16_t)(regs[R_EAX]&0xFFFFu);
+   eip=ip;return 0;
+  }
+  case 0x99: { /* CDQ: sign-extend EAX into EDX:EAX */
+   regs[R_EDX]=(regs[R_EAX]&0x80000000u)?0xFFFFFFFFu:0u;
+   eip=ip;return 0;
+  }
+  case 0x9C: { /* PUSHFD */
+   if(!x86_stack_push32(eflags|0x00000002u))return -53;
+   eip=ip;return 0;
+  }
+  case 0x9D: { /* POPFD */
+   uint32_t v;
+   if(!x86_stack_pop32(&v))return -54;
+   eflags=(v&0x00000FD5u)|0x00000002u;
+   eip=ip;return 0;
+  }
   case 0x68:{uint32_t v=rd32(ip);ip+=4;if(!x86_stack_push32(v))return -42;eip=ip;return 0;} /* PUSH imm32 */
   case 0x6A:{int8_t v=(int8_t)MEM8(ip++);if(!x86_stack_push32((uint32_t)(int32_t)v))return -43;eip=ip;return 0;} /* PUSH imm8 */
   case 0x58:case 0x59:case 0x5A:case 0x5B:case 0x5C:case 0x5D:case 0x5E:case 0x5F:
@@ -1921,3 +1963,5 @@ __attribute__((export_name("x86_crt_exit"))) uint32_t x86_crt_exit(uint32_t code
 __attribute__((export_name("x86_crt_get_last_atexit_result"))) uint32_t x86_crt_get_last_atexit_result(void){return crt_last_atexit_result;}
 __attribute__((export_name("x86_crt_invoke_callback"))) uint32_t x86_crt_invoke_callback(uint32_t callback){return x86_crt_invoke_callback_impl(callback,0);}
 __attribute__((export_name("x86_get_running"))) uint32_t x86_get_running(void){return loaded&&!halted&&!cpu_error;}
+
+
