@@ -157,7 +157,7 @@ function hostBridge(){
  const q=(type,data={})=>{state.input.push({type,time:performance.now(),...data});if(state.input.length>256)state.input.shift();renderInput()};
  const ctx=()=>{if(!state.graphics.ctx)throw Error("create a graphics surface first");return state.graphics.ctx};
  const b={
-  memory:new WebAssembly.Memory({initial:1024,maximum:4096}),
+  memory:new WebAssembly.Memory({initial:2048,maximum:4096}),
   xwasm_log:(level,ptr,len)=>{try{const u=new Uint8Array(memory.buffer,ptr,len);log("[GUEST "+level+"] "+td.decode(u),"info")}catch(e){log("[WARN] xwasm_log: "+e,"warn")}},
   xwasm_gfx_create:(w,h)=>{state.graphics.w=w;state.graphics.h=h;$("gfx").width=w;$("gfx").height=h;state.graphics.ctx=$("gfx").getContext("2d");state.graphics.ctx.imageSmoothingEnabled=false;state.graphics.ctx.clearRect(0,0,w,h);$("gfxOut").textContent+="\ncreate("+w+","+h+")";},
   xwasm_gfx_clear:c=>{const x=ctx();x.save();x.fillStyle="rgb("+((c>>>16)&255)+","+((c>>>8)&255)+","+(c&255)+")";x.fillRect(0,0,state.graphics.w,state.graphics.h);x.restore();$("gfxOut").textContent+="\nclear("+hex(c)+")"},
