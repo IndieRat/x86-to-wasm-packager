@@ -140,6 +140,8 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
              x86_id_is(id, "CMP_RM32_IMM8") ||
              x86_id_is(id, "ADC_RM32_IMM8") ||
              x86_id_is(id, "SBB_RM32_IMM8") ||
+             x86_id_is(id, "OR_RM32_IMM8") ||
+             x86_id_is(id, "XOR_RM32_IMM8") ||
              x86_id_is(id, "SHL_RM32_IMM8") ||
              x86_id_is(id, "SHR_RM32_IMM8") ||
              x86_id_is(id, "SAR_RM32_IMM8") ||
@@ -152,6 +154,21 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
              x86_id_is(id, "BTS_RM32_IMM8") ||
              x86_id_is(id, "BTR_RM32_IMM8") ||
              x86_id_is(id, "BTC_RM32_IMM8") ||
+             x86_id_is(id, "ADD_AL_IMM8") || 
+             x86_id_is(id, "OR_AL_IMM8") ||
+             x86_id_is(id, "ADC_AL_IMM8") || 
+             x86_id_is(id, "SBB_AL_IMM8") ||
+             x86_id_is(id, "AND_AL_IMM8") || 
+             x86_id_is(id, "SUB_AL_IMM8") ||
+             x86_id_is(id, "XOR_AL_IMM8") || 
+             x86_id_is(id, "CMP_AL_IMM8") ||
+             x86_id_is(id, "ADD_RM8_IMM8") || 
+             x86_id_is(id, "ADC_RM8_IMM8") ||
+             x86_id_is(id, "SBB_RM8_IMM8") || 
+             x86_id_is(id, "AND_RM8_IMM8") ||
+             x86_id_is(id, "SUB_RM8_IMM8") || 
+             x86_id_is(id, "XOR_RM8_IMM8") ||
+             x86_id_is(id, "CMP_RM8_IMM8") || 
              x86_id_is(id, "PUSH_IMM8")) d->imm_size = 1;
     else if (x86_id_is(id, "CALL_REL32") ||
              x86_id_is(id, "JMP_REL32") ||
@@ -311,7 +328,18 @@ static int x86_decode_instruction(x86_decoded_t *d) {
                         x86_id_is(d->entry->id, "RCR_RM32_IMM8") ||
                         x86_id_is(d->entry->id, "SHL_RM32_1") ||
                         x86_id_is(d->entry->id, "SHR_RM32_1") ||
-                        x86_id_is(d->entry->id, "SAR_RM32_1");
+                        x86_id_is(d->entry->id, "SAR_RM32_1") ||
+                        x86_id_is(d->entry->id, "ROL_RM32_1") ||
+                        x86_id_is(d->entry->id, "ROR_RM32_1") ||
+                        x86_id_is(d->entry->id, "RCL_RM32_1") ||
+                        x86_id_is(d->entry->id, "RCR_RM32_1") ||
+                        x86_id_is(d->entry->id, "SHL_RM32_CL") ||
+                        x86_id_is(d->entry->id, "SHR_RM32_CL") ||
+                        x86_id_is(d->entry->id, "SAR_RM32_CL") ||
+                        x86_id_is(d->entry->id, "ROL_RM32_CL") ||
+                        x86_id_is(d->entry->id, "ROR_RM32_CL") ||
+                        x86_id_is(d->entry->id, "RCL_RM32_CL") ||
+                        x86_id_is(d->entry->id, "RCR_RM32_CL");
         if (!string16 && !group2_16 &&
             !x86_id_is(d->entry->id, "MOV_R32_IMM32") &&
             !x86_id_is(d->entry->id, "ADD_EAX_IMM32") &&
@@ -884,38 +912,6 @@ static int cpu_step(void) {
                 last_dispatch_id=X86_DISPATCH_BTR;
             else
                 last_dispatch_id=X86_DISPATCH_BTC;
-            last_dispatch_count++;
-            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
-                             before_opcode,last_dispatch_id);
-            return 0;
-        }
-        if (x86_id_is(d.entry->id,"RCR_RM32_1") ||
-            x86_id_is(d.entry->id,"RCR_RM32_IMM8") ||
-            x86_id_is(d.entry->id,"RCR_RM32_CL")) {
-            uint32_t op_ip=d.cursor-d.disp_size;
-            uint32_t v=decoded_operand16 ? (uint32_t)modrm_read16(d.modrm,&op_ip) : modrm_read32(d.modrm,&op_ip);
-            uint32_t bits=decoded_operand16?16u:32u;
-            uint32_t mask=bits==16?0xFFFFu:0xFFFFFFFFu;
-            uint32_t sign=1u<<(bits-1u);
-            uint32_t count=x86_id_is(d.entry->id,"RCR_RM32_1")?1u:
-                          x86_id_is(d.entry->id,"RCR_RM32_CL")?(regs[R_ECX]&31u):MEM8(d.cursor-d.imm_size);
-            uint32_t modulus=bits==16?17u:33u;
-            count&=31u; count%=modulus;
-            if(count){
-                uint32_t cf=(eflags&CF)?1u:0u;
-                uint64_t x=((uint64_t)cf<<bits)|(v&mask);
-                uint64_t fullmask=(1ull<<(bits+1u))-1ull;
-                x=((x>>count)|(x<<(bits+1u-count)))&fullmask;
-                uint32_t r=(uint32_t)x&mask;
-                cf=(uint32_t)((x>>bits)&1u);
-                uint32_t of=((r&sign)?1u:0u)^((r>>(bits-2u))&1u);
-                set_rotate_flags(r,cf,count==1u,of);
-                uint32_t write_ip=d.cursor-d.disp_size;
-                if(decoded_operand16)modrm_write16(d.modrm,&write_ip,(uint16_t)r);
-                else modrm_write32(d.modrm,&write_ip,r);
-            }
-            eip=d.cursor;
-            last_dispatch_id=X86_DISPATCH_RCR;
             last_dispatch_count++;
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
                              before_opcode,last_dispatch_id);
