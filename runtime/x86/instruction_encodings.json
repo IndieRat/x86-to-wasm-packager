@@ -4028,6 +4028,333 @@
           "fixed": "CL"
         }
       ]
+    },
+    {
+      "id": "ADD_AL_IMM8",
+      "instruction": "ADD",
+      "opcode": [
+        "04"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "rw",
+          "fixed": "AL"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "OR_AL_IMM8",
+      "instruction": "OR",
+      "opcode": [
+        "0C"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "rw",
+          "fixed": "AL"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "ADC_AL_IMM8",
+      "instruction": "ADC",
+      "opcode": [
+        "14"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "rw",
+          "fixed": "AL"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "SBB_AL_IMM8",
+      "instruction": "SBB",
+      "opcode": [
+        "1C"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "rw",
+          "fixed": "AL"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "AND_AL_IMM8",
+      "instruction": "AND",
+      "opcode": [
+        "24"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "rw",
+          "fixed": "AL"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "SUB_AL_IMM8",
+      "instruction": "SUB",
+      "opcode": [
+        "2C"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "rw",
+          "fixed": "AL"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "XOR_AL_IMM8",
+      "instruction": "XOR",
+      "opcode": [
+        "34"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "rw",
+          "fixed": "AL"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "CMP_AL_IMM8",
+      "instruction": "CMP",
+      "opcode": [
+        "3C"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "r",
+          "fixed": "AL"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "TEST_RM8_R8",
+      "instruction": "TEST",
+      "opcode": [
+        "84"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MR",
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "r",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "reg8",
+          "access": "r",
+          "source": "modrm.reg"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "MOV_RM8_R8",
+      "instruction": "MOV",
+      "opcode": [
+        "88"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MR",
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "w",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "reg8",
+          "access": "r",
+          "source": "modrm.reg"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "MOV_R8_RM8",
+      "instruction": "MOV",
+      "opcode": [
+        "8A"
+      ],
+      "opcode_map": "primary",
+      "encoding": "RM",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "w",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm8",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "IMUL_R32_RM32_IMM32",
+      "instruction": "IMUL",
+      "opcode": [
+        "69"
+      ],
+      "opcode_map": "primary",
+      "encoding": "RMI",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "w",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "IMUL_R32_RM32_IMM8",
+      "instruction": "IMUL",
+      "opcode": [
+        "6B"
+      ],
+      "opcode_map": "primary",
+      "encoding": "RMI",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "w",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "sign_extend": true,
+          "source": "next1"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "XCHG_EAX_R32",
+      "instruction": "XCHG",
+      "opcode": [
+        "90",
+        "91",
+        "92",
+        "93",
+        "94",
+        "95",
+        "96",
+        "97"
+      ],
+      "opcode_map": "primary",
+      "encoding": "O",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "rw",
+          "source": "opcode.low3"
+        },
+        {
+          "kind": "reg32",
+          "access": "rw",
+          "fixed": "EAX"
+        }
+      ]
     }
   ]
 }
