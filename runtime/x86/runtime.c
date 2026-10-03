@@ -2018,15 +2018,32 @@ static int load_pe(uint32_t f,uint32_t sz){
  if(dirs>5u){reloc_rva=rd32(oh+96u+40u);reloc_size=rd32(oh+96u+44u);}
  uint32_t sh=oh+optsz;
  if(sh<f||sh>f+sz||(uint64_t)nsec*40u>(uint64_t)(f+sz-sh)){load_error=12;return-5;}
+ /* The shell normally stages the PE around 0x00100000 while the guest image
+  * begins at 0x00400000. Large PE files therefore overlap their own source
+  * buffer. Zeroing/copying the image in place can destroy later section data
+  * before it is read. Stage the source first when the two ranges overlap. */
+ uint32_t source=f;
+ uint32_t source_scratch=0;
+ uint64_t src_end=(uint64_t)f+sz;
+ uint64_t dst_end=(uint64_t)image_base+image_size;
+ if((uint64_t)f<dst_end&&(uint64_t)image_base<src_end){
+  const uint32_t scratch_base=0x0E000000u;
+  if((uint64_t)scratch_base+sz>0x10000000ull){load_error=17;return-8;}
+  if(!x86_mem_ensure_wasm(scratch_base+sz)){load_error=17;return-8;}
+  copy_bytes(scratch_base,f,sz);
+  source=scratch_base;source_scratch=1;
+ }
+ uint32_t sh_source=source+(sh-(uint32_t)f);
  for(uint32_t i=0;i<image_size;i++)wr8(image_base+i,0);
- copy_bytes(image_base,f,szhdr);
+ copy_bytes(image_base,source,szhdr);
  for(uint16_t i=0;i<nsec;i++,sh+=40u){
   uint32_t va=rd32(sh+12u),vsz=rd32(sh+8u),raw=rd32(sh+20u),rawsz=rd32(sh+16u);
   uint32_t mapped=vsz>rawsz?vsz:rawsz;
   if((uint64_t)va+mapped>(uint64_t)image_size){load_error=13;return-5;}
   if(raw>sz||rawsz>sz-raw){load_error=14;return-5;}
-  if(rawsz)copy_bytes(image_base+va,f+raw,rawsz);
+  if(rawsz)copy_bytes(image_base+va,source+raw,rawsz);
  }
+ (void)source_scratch;
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
  x86_mem_reset(); x86_mem_register_image();
