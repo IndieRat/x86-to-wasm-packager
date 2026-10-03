@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Build a deterministic 32-bit Win32/OpenGL compatibility Pong fixture."""
+from __future__ import annotations
 from pathlib import Path
-import argparse, json, struct
+import argparse, json, struct, sys
 
-from xwasm.container import pack_file
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from xwasm.container import pack_file  # noqa: E402
 
 IMAGE_BASE=0x00400000
 SECTION_RVA=0x1000
@@ -33,12 +37,10 @@ def pe():
     for v in reversed([0,0,0,0x10000000,0,0,640,360,0,0,0,0]): push(v)
     call(0x3000); code.extend(b"\x89\xc6"); push(1); code.extend(b"\x56"); call(0x3004)
     code.extend(b"\x56"); call(0x3008); code.extend(b"\x89\xc3")
-
     push(0); push(0); call(0x3010)
     push(0); push(0); push(0); call(0x3014)
     code.extend(b"\x53"); call(0x3018); code.extend(b"\x89\xc5")
     code.extend(b"\x53\x55"); call(0x301c)
-
     for v in (360,640,0,0): push(v)
     call(0x3020)
     for bits in (0x00000000,0x00000000,0x00000000,0x3f800000): push(bits)
@@ -61,13 +63,10 @@ def pe():
     color(0x3f000000,0x3f800000,0x3f000000)
     tri(0xbe800000,0xbe800000,0x00000000,0x3e800000,0x3e800000,0xbe800000)
     call(0x3044)
-
     push(90); push(660); call(0x3048)
-
     mov_edi(0x00900000)
     for v in (1,0,0,0,0x00900000): push(v)
     call(0x300c)
-
     code.extend(b"\xf4")
     b[SECTION_RAW:SECTION_RAW+len(code)]=code
 
