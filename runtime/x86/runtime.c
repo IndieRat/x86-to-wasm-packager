@@ -2654,9 +2654,11 @@ __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;
  x86_fs_reset();
  x86_reg_reset();
- for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)x86_dll_modules[i]=(x86_dll_module_t){0};
- for(uint32_t i=0;i<X86_DLL_MAX_RESOURCES;i++)x86_dll_resources[i]=(x86_dll_resource_t){0};
- x86_dll_last_error=0;x86_dll_last_base=0;
+ /* DLL resources/modules belong to the loaded package, not to CRT process state.
+  * Do not erase them here: the browser/package loader may register DLLs before
+  * CRT startup, and clearing them made every bundled DLL disappear just before
+  * import rebinding (dll_count=0, followed by hundreds of false unresolved imports). */
+
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
  for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;last_unresolved_gdr=0xFFFFFFFFu;x86_trace_reset();x86_profile_clear(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.9");
