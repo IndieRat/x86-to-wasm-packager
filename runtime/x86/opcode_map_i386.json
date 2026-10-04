@@ -11,8 +11,10 @@
     "primary": [
       {
         "byte": "00",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADD_RM8_R8"
+        ]
       },
       {
         "byte": "01",
@@ -90,8 +92,10 @@
       },
       {
         "byte": "0D",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "OR_EAX_IMM32"
+        ]
       },
       {
         "byte": "0E",
@@ -149,8 +153,10 @@
       },
       {
         "byte": "18",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SBB_RM8_R8"
+        ]
       },
       {
         "byte": "19",
@@ -161,13 +167,17 @@
       },
       {
         "byte": "1A",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SBB_R8_RM8"
+        ]
       },
       {
         "byte": "1B",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SBB_R32_RM32"
+        ]
       },
       {
         "byte": "1C",
@@ -178,8 +188,10 @@
       },
       {
         "byte": "1D",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SBB_EAX_IMM32"
+        ]
       },
       {
         "byte": "1E",
@@ -918,7 +930,10 @@
       {
         "byte": "8C",
         "status": "MAPPED",
-        "encoding_ids": ["MOV_SREG_RM16"]
+        "encoding_ids": [
+          "MOV_SREG_RM16",
+          "MOV_RM16_SREG"
+        ]
       },
       {
         "byte": "8D",
@@ -929,13 +944,17 @@
       },
       {
         "byte": "8E",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOV_SREG_RM16"
+        ]
       },
       {
         "byte": "8F",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "POP_RM32"
+        ]
       },
       {
         "byte": "90",
@@ -1071,63 +1090,87 @@
       },
       {
         "byte": "A4",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOVSB"
+        ]
       },
       {
         "byte": "A5",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOVSD_STRING"
+        ]
       },
       {
         "byte": "A6",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CMPSB"
+        ]
       },
       {
         "byte": "A7",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CMPSD"
+        ]
       },
       {
         "byte": "A8",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "TEST_AL_IMM8"
+        ]
       },
       {
         "byte": "A9",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "TEST_EAX_IMM32"
+        ]
       },
       {
         "byte": "AA",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "STOSB"
+        ]
       },
       {
         "byte": "AB",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "STOSD"
+        ]
       },
       {
         "byte": "AC",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "LODSB"
+        ]
       },
       {
         "byte": "AD",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "LODSD"
+        ]
       },
       {
         "byte": "AE",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SCASB"
+        ]
       },
       {
         "byte": "AF",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SCASD"
+        ]
       },
       {
         "byte": "B0",
@@ -1331,8 +1374,10 @@
       },
       {
         "byte": "CC",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INT3"
+        ]
       },
       {
         "byte": "CD",
@@ -1662,18 +1707,25 @@
       },
       {
         "byte": "FC",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CLD"
+        ]
       },
       {
         "byte": "FD",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "STD"
+        ]
       },
       {
         "byte": "FE",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "INC_RM8",
+          "DEC_RM8"
+        ]
       },
       {
         "byte": "FF",
@@ -2462,8 +2514,10 @@
       },
       {
         "byte": "90",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SETO_RM8"
+        ]
       },
       {
         "byte": "91",
@@ -2472,8 +2526,10 @@
       },
       {
         "byte": "92",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SETB_RM8"
+        ]
       },
       {
         "byte": "93",
@@ -2620,8 +2676,10 @@
       },
       {
         "byte": "AE",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "FXRSTOR_RM512"
+        ]
       },
       {
         "byte": "AF",
@@ -2671,8 +2729,10 @@
       },
       {
         "byte": "B7",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "MOVZX_R32_RM16"
+        ]
       },
       {
         "byte": "B8",
