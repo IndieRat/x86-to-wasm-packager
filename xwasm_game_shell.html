@@ -601,9 +601,12 @@ function runGapTracer(){
   const ex=state.exports;if(!ex)throw Error("runtime not loaded");
   if(typeof ex.x86_preflight_scan!=="function")throw Error("runtime lacks x86_preflight_scan; rebuild the runtime with preflight support");
   const start=Number(ex.x86_get_eip?.()||0)>>>0;
-  const count=Number(ex.x86_preflight_scan(start,512))||0;
+  const count=Number(ex.x86_preflight_scan(0,512))||0;
   const mines=Number(ex.x86_get_preflight_mines?.()||0);
-  const L=["=== FORWARD PREFLIGHT / MINESWEEPER ===","Start EIP = "+hex(start),"Scanned = "+count+" instruction candidates","[FOUND POTENTIAL GAPS] = "+mines+" m.i.n.e","M.I.N.E = Missing Instruction / Next Expansion",""];
+  const actualStart=Number(ex.x86_get_preflight_start?.()||start)>>>0;
+  const reason=Number(ex.x86_get_preflight_start_reason?.()||0);
+  const reasonName=reason===1?"stack return address":reason===2?"recent executable trace":reason===3?"PE entry":"current/requested EIP";
+  const L=["=== FORWARD PREFLIGHT / MINESWEEPER ===","Requested EIP = "+hex(start),"Actual start = "+hex(actualStart)+" ("+reasonName+")","Scanned = "+count+" instruction candidates","[FOUND POTENTIAL GAPS] = "+mines+" m.i.n.e","M.I.N.E = Missing Instruction / Next Expansion",""];
   for(let i=0;i<count;i++){
    const st=Number(ex.x86_get_preflight_status(i));
    const e=Number(ex.x86_get_preflight_eip(i))>>>0;
