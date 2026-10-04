@@ -856,7 +856,7 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
-        if (x86_id_is(d.entry->id,"MOV_SREG_RM16")) {
+        if (x86_id_is(d.entry->id,"MOV_RM16_SREG")) {
             uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
             uint32_t seg=(uint32_t)((d.modrm>>3)&7u);
             if(seg>=6u){cpu_error=0x8C00u|d.modrm;return -48;}
