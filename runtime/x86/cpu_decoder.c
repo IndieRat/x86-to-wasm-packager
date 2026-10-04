@@ -885,6 +885,46 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
+        if (x86_id_is(d.entry->id,"CPUID")) {
+            /* Deterministic user-mode virtual CPU contract. Leaf 0 exposes
+             * a GenuineIntel-compatible vendor string; leaf 1 advertises
+             * the scalar x87/SSE2 feature surface currently supported by
+             * the XWASM compatibility runtime. */
+            uint32_t leaf=regs[R_EAX];
+            uint32_t a=0,b=0,c=0,out_d=0;
+            const uint32_t feature_edx=0x07000101u; /* FPU,CX8,FXSR,SSE,SSE2 */
+            switch(leaf){
+                case 0x00000000u:
+                    a=0x00000001u;
+                    b=0x756E6547u;      /* "Genu" */
+                    out_d=0x49656E69u;   /* "ineI" */
+                    c=0x6C65746Eu;      /* "ntel" */
+                    break;
+                case 0x00000001u:
+                    a=0x000306A9u;
+                    c=0u;
+                    out_d=feature_edx;
+                    break;
+                case 0x80000000u:
+                    a=0x80000001u;
+                    break;
+                case 0x80000001u:
+                    /* No extended/64-bit features are exposed. */
+                    break;
+                default:
+                    break;
+            }
+            regs[R_EAX]=a;
+            regs[R_EBX]=b;
+            regs[R_ECX]=c;
+            regs[R_EDX]=out_d;
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_CPUID;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"BT_RM32_R32") ||
             x86_id_is(d.entry->id,"BTS_RM32_R32") ||
             x86_id_is(d.entry->id,"BTR_RM32_R32") ||

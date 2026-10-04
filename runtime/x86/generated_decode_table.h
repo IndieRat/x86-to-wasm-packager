@@ -146,6 +146,7 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {0,0xC3,0,-1,"RET",0,0},
   {0,0xC2,0,-1,"RET_IMM16",0,0},
   {0,0xF4,0,-1,"HLT",0,0},
+  {1,0xA2,0,-1,"CPUID",0,0},
   {0,0xC9,0,-1,"LEAVE",0,0},
   {0,0x50,0,-1,"PUSH_R32",0,0},
   {0,0x51,0,-1,"PUSH_R32",0,0},

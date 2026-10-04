@@ -2435,6 +2435,16 @@
       "operands": []
     },
     {
+      "id": "CPUID",
+      "instruction": "CPUID",
+      "opcode": [
+        "A2"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
       "id": "LEAVE",
       "instruction": "LEAVE",
       "opcode": [
@@ -2484,60 +2494,66 @@
         }
       ]
     },
-	{
-	  "id": "PUSH_RM32",
-	  "instruction": "PUSH",
-	  "opcode": ["FF"],
-	  "opcode_map": "primary",
-	  "encoding": "M",
-	  "modrm": {
-		"required": true,
-		"reg_extension": 6
-	  },
-	  "operands": [
-		{
-		  "kind": "rm32",
-		  "access": "r",
-		  "source": "modrm.rm"
-		}
-	  ]
-	},
-	{
-	  "id": "INC_RM32",
-	  "instruction": "INC",
-	  "opcode": ["FF"],
-	  "opcode_map": "primary",
-	  "encoding": "M",
-	  "modrm": {
-		"required": true,
-		"reg_extension": 0
-	  },
-	  "operands": [
-		{
-		  "kind": "rm32",
-		  "access": "rw",
-		  "source": "modrm.rm"
-		}
-	  ]
-	},
-	{
-	  "id": "DEC_RM32",
-	  "instruction": "DEC",
-	  "opcode": ["FF"],
-	  "opcode_map": "primary",
-	  "encoding": "M",
-	  "modrm": {
-		"required": true,
-		"reg_extension": 1
-	  },
-	  "operands": [
-		{
-		  "kind": "rm32",
-		  "access": "rw",
-		  "source": "modrm.rm"
-		}
-	  ]
-	},
+    {
+      "id": "PUSH_RM32",
+      "instruction": "PUSH",
+      "opcode": [
+        "FF"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 6
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "INC_RM32",
+      "instruction": "INC",
+      "opcode": [
+        "FF"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 0
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ]
+    },
+    {
+      "id": "DEC_RM32",
+      "instruction": "DEC",
+      "opcode": [
+        "FF"
+      ],
+      "opcode_map": "primary",
+      "encoding": "M",
+      "modrm": {
+        "required": true,
+        "reg_extension": 1
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ]
+    },
     {
       "id": "PUSH_IMM8",
       "instruction": "PUSH",

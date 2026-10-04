@@ -2549,8 +2549,10 @@
       },
       {
         "byte": "A2",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "CPUID"
+        ]
       },
       {
         "byte": "A3",

@@ -389,7 +389,7 @@
       },
       {
         "mnemonic": "CPUID",
-        "status": "PLANNED"
+        "status": "EXECUTE"
       },
       {
         "mnemonic": "RDTSC",

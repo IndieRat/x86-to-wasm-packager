@@ -700,6 +700,27 @@
       }
     },
     {
+      "id": "CPUID",
+      "mnemonic": "CPUID",
+      "family": "system",
+      "status": "EXECUTE",
+      "forms": [
+        "CPUID"
+      ],
+      "flags": {
+        "read": [
+          "EAX",
+          "ECX"
+        ],
+        "write": [
+          "EAX",
+          "EBX",
+          "ECX",
+          "EDX"
+        ]
+      }
+    },
+    {
       "id": "ADC",
       "mnemonic": "ADC",
       "family": "integer_core",
