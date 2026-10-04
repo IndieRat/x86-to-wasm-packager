@@ -53,8 +53,22 @@ static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,eip=0,
 #define X86_ENTRY_RETURN_SENTINEL 0xF00DCAFEu
 static int32_t crt_errno=0;
 static uint32_t crt_last_error=0,crt_started=0,crt_exited=0,crt_exit_code=0;
+/* Termination provenance is kept separately from CPU EIP because an exit shim
+ * halts the guest after the CALL has advanced EIP to its return site. */
+static uint32_t crt_last_termination_kind=0; /* 1=exit, 2=_exit, 3=abort, 4=terminate, 5=_cexit, 6=_c_exit, 7=TerminateProcess */
+static uint32_t crt_last_termination_caller=0;
+static uint32_t crt_last_termination_return_eip=0;
+static uint32_t crt_last_termination_target=0;
+static uint32_t crt_last_termination_arg0=0;
+static uint32_t crt_last_shim_index=0xFFFFFFFFu;
+static uint32_t crt_last_shim_caller=0;
+static uint32_t crt_last_shim_target=0;
+static uint32_t crt_last_shim_arg0=0;
+static uint32_t crt_last_shim_argc=0;
 static uint32_t crt_atexit_count=0,crt_last_atexit_result=0,crt_last_atexit_ok=0,crt_atexit_running=0;
 static uint32_t crt_atexit_callbacks[X86_CRT_ATEXIT_MAX];
+/* Forward declaration: shim_call can terminate the guest through the CRT API. */
+uint32_t x86_crt_exit(uint32_t code);
 static uint32_t requested_image_base=0,reloc_rva=0,reloc_size=0,import_rva=0,import_size=0;
 static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last_load_ptr=0,last_load_size=0;
 static uint32_t regs[8],eflags=0x00000002u;
@@ -979,6 +993,10 @@ static uint32_t shim_call(uint32_t idx){
  uint32_t sp=regs[R_ESP];
  #define ARG(n) rd32(sp+4u+4u*(n))
  uint32_t r=0;
+ crt_last_shim_index=idx;
+ crt_last_shim_target=API_SHIM_BASE+idx*4u;
+ crt_last_shim_argc=shim_tab[idx].argc;
+ crt_last_shim_arg0=shim_tab[idx].argc?ARG(0):0u;
  switch(idx){
   case SHIM_GetSystemTimeAsFileTime:{shim_ft_lo+=100000u;if(shim_ft_lo<100000u)shim_ft_hi++;uint32_t p=ARG(0);wr32(p,shim_ft_lo);wr32(p+4u,shim_ft_hi);break;}
   case SHIM_GetCurrentProcessId:r=0x1234u;break;
@@ -988,7 +1006,14 @@ static uint32_t shim_call(uint32_t idx){
   case SHIM_QueryPerformanceFrequency:{uint32_t p=ARG(0);wr32(p,10000000u);wr32(p+4u,0);r=1;break;}
   case SHIM_IsProcessorFeaturePresent:{uint32_t f=ARG(0);r=(f==6u||f==10u||f==13u)?1u:0u;break;} /* SSE, SSE2, SSE3: advertise what the CPU implements */
   case SHIM_InitializeSListHead:{uint32_t p=ARG(0);wr32(p,0);wr32(p+4u,0);break;}
-  case SHIM_TerminateProcess:halted=1;r=1;break;
+  case SHIM_TerminateProcess:
+   crt_last_termination_kind=7u;
+   crt_last_termination_caller=crt_last_shim_caller;
+   crt_last_termination_return_eip=rd32(sp);
+   crt_last_termination_target=crt_last_shim_target;
+   crt_last_termination_arg0=ARG(1);
+   crt_exit_code=crt_last_termination_arg0;
+   crt_exited=1u; halted=1; r=1; break;
   case SHIM_GetModuleHandleA:case SHIM_GetModuleHandleW:r=ARG(0)?0u:image_base;break;
   case SHIM_InitializeCriticalSectionAndSpinCount:case SHIM_TryEnterCriticalSection:r=1;break;
   case SHIM_TlsAlloc:r=(shim_tls_next<64u)?shim_tls_next++:0xFFFFFFFFu;break;
@@ -1015,7 +1040,65 @@ static uint32_t shim_call(uint32_t idx){
   case SHIM__get_initial_narrow_environment:if(!shim_env_p){shim_env_p=guest_alloc_raw(8);wr32(shim_env_p,0);}r=shim_env_p;break;
   case SHIM___p__commode:if(!shim_commode_p){shim_commode_p=guest_alloc_raw(4);wr32(shim_commode_p,0);}r=shim_commode_p;break;
   case SHIM__errno:if(!shim_errno_p){shim_errno_p=guest_alloc_raw(4);wr32(shim_errno_p,0);}r=shim_errno_p;break;
-  case SHIM__exit:case SHIM_exit:case SHIM__cexit:case SHIM__c_exit:case SHIM_abort:case SHIM_terminate:crt_exited=1;halted=1;break;
+  case SHIM__exit:
+   crt_last_termination_kind=2u;
+   crt_last_termination_caller=crt_last_shim_caller;
+   crt_last_termination_return_eip=rd32(sp);
+   crt_last_termination_target=crt_last_shim_target;
+   crt_last_termination_arg0=ARG(0);
+   if(!crt_started)x86_crt_startup();
+   crt_exit_code=crt_last_termination_arg0;
+   crt_exited=1u;
+   halted=1;
+   break;
+  case SHIM_exit:
+   crt_last_termination_kind=1u;
+   crt_last_termination_caller=crt_last_shim_caller;
+   crt_last_termination_return_eip=rd32(sp);
+   crt_last_termination_target=crt_last_shim_target;
+   crt_last_termination_arg0=ARG(0);
+   x86_crt_exit(crt_last_termination_arg0);
+   halted=1;
+   break;
+  case SHIM__cexit:
+   crt_last_termination_kind=5u;
+   crt_last_termination_caller=crt_last_shim_caller;
+   crt_last_termination_return_eip=rd32(sp);
+   crt_last_termination_target=crt_last_shim_target;
+   crt_last_termination_arg0=0u;
+   x86_crt_exit(0u);
+   halted=1;
+   break;
+  case SHIM__c_exit:
+   crt_last_termination_kind=6u;
+   crt_last_termination_caller=crt_last_shim_caller;
+   crt_last_termination_return_eip=rd32(sp);
+   crt_last_termination_target=crt_last_shim_target;
+   crt_last_termination_arg0=0u;
+   if(!crt_started)x86_crt_startup();
+   crt_exit_code=0u; crt_exited=1u;
+   halted=1;
+   break;
+  case SHIM_abort:
+   crt_last_termination_kind=3u;
+   crt_last_termination_caller=crt_last_shim_caller;
+   crt_last_termination_return_eip=rd32(sp);
+   crt_last_termination_target=crt_last_shim_target;
+   crt_last_termination_arg0=3u;
+   if(!crt_started)x86_crt_startup();
+   crt_exit_code=3u; crt_exited=1u;
+   halted=1;
+   break;
+  case SHIM_terminate:
+   crt_last_termination_kind=4u;
+   crt_last_termination_caller=crt_last_shim_caller;
+   crt_last_termination_return_eip=rd32(sp);
+   crt_last_termination_target=crt_last_shim_target;
+   crt_last_termination_arg0=3u;
+   if(!crt_started)x86_crt_startup();
+   crt_exit_code=3u; crt_exited=1u;
+   halted=1;
+   break;
   case SHIM_malloc:r=x86_crt_malloc_impl(ARG(0));break;
   case SHIM_free:break;
   case SHIM_calloc:{uint32_t n=ARG(0)*ARG(1);r=x86_crt_malloc_impl(n);if(r)for(uint32_t i=0;i<n;i++)wr8(r+i,0);break;}
@@ -1215,7 +1298,11 @@ static void gl_draw_triangle(void){
 static uint32_t x86_crt_strlen(uint32_t s);
 static uint32_t call_builtin(uint32_t target){
  if(target>=API_XAPI_BASE&&target<API_XAPI_BASE+xapi_count*4u)return xapi_call((target-API_XAPI_BASE)>>2);
- if(target>=API_SHIM_BASE&&target<API_SHIM_BASE+SHIM_COUNT*4u)return shim_call((target-API_SHIM_BASE)>>2);
+ if(target>=API_SHIM_BASE&&target<API_SHIM_BASE+SHIM_COUNT*4u){
+  crt_last_shim_caller=eip;
+  crt_last_shim_target=target;
+  return shim_call((target-API_SHIM_BASE)>>2);
+ }
  if(target==API_C5_MALLOC){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_malloc_impl(rd32(sp+4u));return 1;}
  if(target==API_C5_FREE){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_free_impl(rd32(sp+4u));return 1;}
  if(target==API_C5_STRLEN){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_strlen(rd32(sp+4u));return 1;}
@@ -2388,6 +2475,9 @@ static void scan_imports(void){
 
 static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
+ crt_exited=0;crt_exit_code=0;crt_last_termination_kind=0u;crt_last_termination_caller=0u;
+ crt_last_termination_return_eip=0u;crt_last_termination_target=0u;crt_last_termination_arg0=0u;
+ crt_last_shim_index=0xFFFFFFFFu;crt_last_shim_caller=0u;crt_last_shim_target=0u;crt_last_shim_arg0=0u;crt_last_shim_argc=0u;
  x86_fs_base=X86_FS_TEB_BASE; x86_gs_base=X86_GS_TEB_BASE;
  requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;x86_gdr_reset();last_unresolved_gdr=0xFFFFFFFFu;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;surface_width=640;surface_height=360;
  if(sz<0x40u){load_error=1;return-1;} if(rd16(f)!=0x5a4du){load_error=2;return-1;}
@@ -2459,7 +2549,11 @@ guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefi
 }
 
 __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
- crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;
+ crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;
+ crt_last_termination_kind=0u;crt_last_termination_caller=0u;crt_last_termination_return_eip=0u;
+ crt_last_termination_target=0u;crt_last_termination_arg0=0u;
+ crt_last_shim_index=0xFFFFFFFFu;crt_last_shim_caller=0u;crt_last_shim_target=0u;crt_last_shim_arg0=0u;crt_last_shim_argc=0u;
+ crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;
  x86_fs_reset();
  x86_reg_reset();
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
@@ -2933,7 +3027,11 @@ static uint32_t x86_crt_invoke_callback_impl(uint32_t target,uint32_t *ok_out){
  return ok?result:0;
 }
 __attribute__((export_name("x86_crt_startup"))) uint32_t x86_crt_startup(void){
- crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;crt_atexit_count=0;crt_last_atexit_result=0;crt_last_atexit_ok=0;crt_atexit_running=0;return 1;
+ crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;
+ crt_last_termination_kind=0u;crt_last_termination_caller=0u;crt_last_termination_return_eip=0u;
+ crt_last_termination_target=0u;crt_last_termination_arg0=0u;
+ crt_last_shim_index=0xFFFFFFFFu;crt_last_shim_caller=0u;crt_last_shim_target=0u;crt_last_shim_arg0=0u;crt_last_shim_argc=0u;
+ crt_atexit_count=0;crt_last_atexit_result=0;crt_last_atexit_ok=0;crt_atexit_running=0;return 1;
 }
 __attribute__((export_name("x86_crt_get_errno"))) int32_t x86_crt_get_errno(void){return crt_errno;}
 __attribute__((export_name("x86_crt_set_errno"))) int32_t x86_crt_set_errno(int32_t value){crt_errno=value;return value;}
@@ -2942,6 +3040,16 @@ __attribute__((export_name("x86_crt_set_last_error"))) uint32_t x86_crt_set_last
 __attribute__((export_name("x86_crt_get_started"))) uint32_t x86_crt_get_started(void){return crt_started;}
 __attribute__((export_name("x86_crt_get_exited"))) uint32_t x86_crt_get_exited(void){return crt_exited;}
 __attribute__((export_name("x86_crt_get_exit_code"))) uint32_t x86_crt_get_exit_code(void){return crt_exit_code;}
+__attribute__((export_name("x86_crt_get_last_termination_kind"))) uint32_t x86_crt_get_last_termination_kind(void){return crt_last_termination_kind;}
+__attribute__((export_name("x86_crt_get_last_termination_caller"))) uint32_t x86_crt_get_last_termination_caller(void){return crt_last_termination_caller;}
+__attribute__((export_name("x86_crt_get_last_termination_return_eip"))) uint32_t x86_crt_get_last_termination_return_eip(void){return crt_last_termination_return_eip;}
+__attribute__((export_name("x86_crt_get_last_termination_target"))) uint32_t x86_crt_get_last_termination_target(void){return crt_last_termination_target;}
+__attribute__((export_name("x86_crt_get_last_termination_arg0"))) uint32_t x86_crt_get_last_termination_arg0(void){return crt_last_termination_arg0;}
+__attribute__((export_name("x86_crt_get_last_shim_index"))) uint32_t x86_crt_get_last_shim_index(void){return crt_last_shim_index;}
+__attribute__((export_name("x86_crt_get_last_shim_caller"))) uint32_t x86_crt_get_last_shim_caller(void){return crt_last_shim_caller;}
+__attribute__((export_name("x86_crt_get_last_shim_target"))) uint32_t x86_crt_get_last_shim_target(void){return crt_last_shim_target;}
+__attribute__((export_name("x86_crt_get_last_shim_arg0"))) uint32_t x86_crt_get_last_shim_arg0(void){return crt_last_shim_arg0;}
+__attribute__((export_name("x86_crt_get_last_shim_argc"))) uint32_t x86_crt_get_last_shim_argc(void){return crt_last_shim_argc;}
 __attribute__((export_name("x86_crt_atexit"))) uint32_t x86_crt_atexit(uint32_t callback){
  if(!callback||crt_exited||crt_atexit_running){crt_errno=X86_CRT_EINVAL;return 0;}
  if(crt_atexit_count>=X86_CRT_ATEXIT_MAX){crt_errno=X86_CRT_ENOMEM;return 0;}
