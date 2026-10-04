@@ -1055,14 +1055,26 @@
     {
       "id": "MOV_SREG_RM16",
       "instruction": "MOV",
-      "opcode": ["8C"],
+      "opcode": [
+        "8C"
+      ],
       "opcode_map": "primary",
       "encoding": "MR",
       "operands": [
-        {"kind": "rm16", "access": "w", "source": "modrm.rm"},
-        {"kind": "reg16", "access": "r", "source": "modrm.reg"}
+        {
+          "kind": "rm16",
+          "access": "w",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "reg16",
+          "access": "r",
+          "source": "modrm.reg"
+        }
       ],
-      "modrm": {"required": true}
+      "modrm": {
+        "required": true
+      }
     },
     {
       "id": "CMOVE_R32_RM32",
@@ -5129,6 +5141,492 @@
           "source": "next4"
         }
       ]
+    },
+    {
+      "id": "ADD_RM8_R8",
+      "instruction": "ADD",
+      "opcode": [
+        "00"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MR",
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "reg8",
+          "access": "r",
+          "source": "modrm.reg"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "SBB_R8_RM8",
+      "instruction": "SBB",
+      "opcode": [
+        "1A"
+      ],
+      "opcode_map": "primary",
+      "encoding": "RM",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "w",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm8",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "SBB_RM8_R8",
+      "instruction": "SBB",
+      "opcode": [
+        "18"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MR",
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "reg8",
+          "access": "r",
+          "source": "modrm.reg"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "SBB_R32_RM32",
+      "instruction": "SBB",
+      "opcode": [
+        "1B"
+      ],
+      "opcode_map": "primary",
+      "encoding": "RM",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "w",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "SBB_EAX_IMM32",
+      "instruction": "SBB",
+      "opcode": [
+        "1D"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "rw",
+          "fixed": "EAX"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "OR_EAX_IMM32",
+      "instruction": "OR",
+      "opcode": [
+        "0D"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "rw",
+          "fixed": "EAX"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "TEST_AL_IMM8",
+      "instruction": "TEST",
+      "opcode": [
+        "A8"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "r",
+          "fixed": "AL"
+        },
+        {
+          "kind": "imm8",
+          "access": "r",
+          "source": "next1"
+        }
+      ]
+    },
+    {
+      "id": "TEST_EAX_IMM32",
+      "instruction": "TEST",
+      "opcode": [
+        "A9"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "r",
+          "fixed": "EAX"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
+      "id": "POP_RM32",
+      "instruction": "POP",
+      "opcode": [
+        "8F"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true,
+        "reg_extension": 0
+      }
+    },
+    {
+      "id": "INC_RM8",
+      "instruction": "INC",
+      "opcode": [
+        "FE"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true,
+        "reg_extension": 0
+      }
+    },
+    {
+      "id": "DEC_RM8",
+      "instruction": "DEC",
+      "opcode": [
+        "FE"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "rw",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true,
+        "reg_extension": 1
+      }
+    },
+    {
+      "id": "MOVZX_R32_RM16",
+      "instruction": "MOVZX",
+      "opcode": [
+        "B7"
+      ],
+      "opcode_map": "primary",
+      "encoding": "RM",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "w",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm16",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "SETO_RM8",
+      "instruction": "SETO",
+      "opcode": [
+        "90"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "RM",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "w",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm8",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "SETB_RM8",
+      "instruction": "SETB",
+      "opcode": [
+        "92"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "RM",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "w",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm8",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
+      "id": "FXRSTOR_RM512",
+      "instruction": "FXRSTOR",
+      "opcode": [
+        "AE"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "M",
+      "operands": [
+        {
+          "kind": "rm512",
+          "access": "w",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true,
+        "reg_extension": 1
+      }
+    },
+    {
+      "id": "CLD",
+      "instruction": "CLD",
+      "opcode": [
+        "FC"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "STD",
+      "instruction": "STD",
+      "opcode": [
+        "FD"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "INT3",
+      "instruction": "INT3",
+      "opcode": [
+        "CC"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "MOVSB",
+      "instruction": "MOVSB",
+      "opcode": [
+        "A4"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "MOVSD_STRING",
+      "instruction": "MOVSD_STRING",
+      "opcode": [
+        "A5"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "CMPSB",
+      "instruction": "CMPSB",
+      "opcode": [
+        "A6"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "CMPSD",
+      "instruction": "CMPSD",
+      "opcode": [
+        "A7"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "STOSB",
+      "instruction": "STOSB",
+      "opcode": [
+        "AA"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "STOSD",
+      "instruction": "STOSD",
+      "opcode": [
+        "AB"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "LODSB",
+      "instruction": "LODSB",
+      "opcode": [
+        "AC"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "LODSD",
+      "instruction": "LODSD",
+      "opcode": [
+        "AD"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "SCASB",
+      "instruction": "SCASB",
+      "opcode": [
+        "AE"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "SCASD",
+      "instruction": "SCASD",
+      "opcode": [
+        "AF"
+      ],
+      "opcode_map": "primary",
+      "encoding": "ZO",
+      "operands": []
+    },
+    {
+      "id": "MOV_RM16_SREG",
+      "instruction": "MOV",
+      "opcode": [
+        "8C"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MR",
+      "operands": [
+        {
+          "kind": "rm16",
+          "access": "w",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "reg16",
+          "access": "r",
+          "source": "modrm.reg"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
     }
   ]
 }
