@@ -864,7 +864,7 @@ static int cpu_step(void) {
             if(seg>=6u){cpu_error=0x8C00u|d.modrm;return -48;}
             modrm_write16(d.modrm,&op_ip,x86_seg_selectors[seg]);
             eip=d.cursor;
-            last_dispatch_id=X86_DISPATCH_MOV_SREG_RM16;
+            last_dispatch_id=X86_DISPATCH_MOV_RM16_SREG;
             last_dispatch_count++;
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
                              before_opcode,last_dispatch_id);
