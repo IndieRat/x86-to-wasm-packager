@@ -89,6 +89,7 @@ static char trace_semantic_id[X86_TRACE_DEPTH][X86_SEMANTIC_ID_MAX];
 static uint32_t trace_count=0,trace_head=0,trace_failure_index=0;
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea);
 static int cpu_step_x87(uint8_t op,uint32_t *ip);
+static void x86_gdr_note_call(uint32_t slot);
 static uint32_t xmm_get_u32(uint8_t r){return (uint32_t)xmm[r][0]|((uint32_t)xmm[r][1]<<8)|((uint32_t)xmm[r][2]<<16)|((uint32_t)xmm[r][3]<<24);}
 static void xmm_set_u32(uint8_t r,uint32_t v){xmm[r][0]=(uint8_t)v;xmm[r][1]=(uint8_t)(v>>8);xmm[r][2]=(uint8_t)(v>>16);xmm[r][3]=(uint8_t)(v>>24);}
 static uint64_t xmm_get_u64(uint8_t r){uint64_t lo=xmm_get_u32(r);uint32_t hi=(uint32_t)xmm[r][4]|((uint32_t)xmm[r][5]<<8)|((uint32_t)xmm[r][6]<<16)|((uint32_t)xmm[r][7]<<24);return lo|((uint64_t)hi<<32);}
@@ -1981,9 +1982,9 @@ static int cpu_step_legacy(void){
    if(modrm_ea(m,&ip,&ea))target=rd32(ea);else{ea=0;target=regs[m&7u];}
    uint32_t next=ip;
    last_indirect_slot=ea;last_indirect_target=target;
-   x86_gdr_note_call(ea);
    if(!target){cpu_error=0xFF10u;return -58;} /* indirect call/jmp through a null pointer (unpatched IAT slot) */
    if(sub==2){
+    x86_gdr_note_call(ea);
     if(!x86_stack_push32(next))return -57;
     if(call_builtin(target)){eip=next;regs[R_ESP]+=4u;return 0;}
     eip=target;return 0;
