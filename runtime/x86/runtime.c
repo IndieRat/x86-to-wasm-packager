@@ -9,11 +9,19 @@ extern unsigned char __heap_base[];
 /* Raw WASM access is now bounded independently of the guest-region layer.  This is
  * the final safety net for the C++/CPU stage: malformed guest pointers must become
  * XWASM memory faults, never browser-level WebAssembly OOB traps. */
+static uint32_t eip=0;
 static uint32_t x86_mem_faults=0;
 static uint32_t cpu_error=0;
 static uint32_t x86_last_fault_address=0;
 static uint32_t x86_last_fault_size=0;
 static uint32_t x86_last_fault_kind=0;
+static uint32_t x86_first_fault_eip=0,x86_first_fault_opcode=0,x86_first_fault_modrm=0;
+static uint32_t x86_last_fault_eip=0,x86_last_fault_opcode=0,x86_last_fault_modrm=0;
+static uint32_t x86_first_fault_count=0;
+static uint32_t x86_control_fault_kind=0;
+static uint32_t x86_control_fault_eip=0,x86_control_fault_next_eip=0;
+static uint32_t x86_control_fault_target=0,x86_control_fault_slot=0;
+static uint32_t x86_control_fault_opcode=0,x86_control_fault_modrm=0;
 static uint8_t x86_memory_fault_byte=0;
 static uint8_t *x86_wasm_byte_ptr(uint32_t p,uint32_t size,uint32_t kind){
  uint32_t pages=__builtin_wasm_memory_size(0u);
@@ -24,6 +32,9 @@ static uint8_t *x86_wasm_byte_ptr(uint32_t p,uint32_t size,uint32_t kind){
   x86_last_fault_address=p;
   x86_last_fault_size=size;
   x86_last_fault_kind=kind;
+  x86_last_fault_eip=eip;
+  if(x86_first_fault_count==0u)x86_first_fault_eip=eip;
+  x86_first_fault_count++;
   cpu_error=0xE100u|kind;
   return &x86_memory_fault_byte;
  }
@@ -43,7 +54,7 @@ enum { R_EAX=0,R_ECX,R_EDX,R_EBX,R_ESP,R_EBP,R_ESI,R_EDI };
 #define X86_PREFIX_REPNZ 0x02u
 #define X86_PREFIX_REP 0x04u
 
-static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,eip=0,steps=0,loaded=0;
+static uint32_t heap=HEAP_BASE_FALLBACK,image_base=0,image_size=0,entry=0,steps=0,loaded=0;
 #define X86_CRT_ATEXIT_MAX 32u
 #define X86_CRT_EINVAL 22
 #define X86_CRT_ENOMEM 12
@@ -2386,10 +2397,16 @@ static int cpu_step_legacy(void){
    if(modrm_ea(m,&ip,&ea))target=rd32(ea);else{ea=0;target=regs[m&7u];}
    uint32_t next=ip;
    last_indirect_slot=ea;last_indirect_target=target;
-   if(!target){cpu_error=0xFF10u;return -58;} /* indirect call/jmp through a null pointer (unpatched IAT slot) */
+   if(!target){
+    x86_control_fault_kind=1u;x86_control_fault_eip=eip;x86_control_fault_next_eip=next;
+    x86_control_fault_target=0u;x86_control_fault_slot=ea;x86_control_fault_opcode=0xFFu;x86_control_fault_modrm=m;
+    cpu_error=0xFF10u;return -58;
+   } /* indirect call/jmp through a null pointer (unpatched IAT slot) */
    if(target>=API_UNRESOLVED_BASE&&target<API_UNRESOLVED_END){
     /* Unresolved import: stop with a precise diagnosis instead of executing hint/name bytes. */
     last_unresolved_gdr=(target==API_UNRESOLVED_ORDINAL)?0xFFFFFFFEu:((target-API_UNRESOLVED_BASE)>>2);
+    x86_control_fault_kind=2u;x86_control_fault_eip=eip;x86_control_fault_next_eip=next;
+    x86_control_fault_target=target;x86_control_fault_slot=ea;x86_control_fault_opcode=0xFFu;x86_control_fault_modrm=m;
     x86_gdr_note_call(ea);
     cpu_error=0xFF20u;return -63;
    }
@@ -2402,6 +2419,10 @@ static int cpu_step_legacy(void){
    /* FF /4 JMP is frequently used by PE import thunks. Record the import
     * call and, if resolved to a host/API shim, execute it before returning
     * through the thunk's existing caller return address. */
+   if(target<image_base || target>=image_base+image_size){
+    x86_control_fault_kind=3u;x86_control_fault_eip=eip;x86_control_fault_next_eip=next;
+    x86_control_fault_target=target;x86_control_fault_slot=ea;x86_control_fault_opcode=0xFFu;x86_control_fault_modrm=m;
+   }
    x86_gdr_note_call(ea);
    if(call_builtin(target)){
     uint32_t ret;
@@ -2637,7 +2658,10 @@ static int load_pe(uint32_t f,uint32_t sz){
 /* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
  * synthetic return address so C fixtures whose entrypoint is main() can RET cleanly. */
 if(!x86_stack_push32(X86_ENTRY_RETURN_SENTINEL)){loaded=0;load_error=16;return-7;}
-guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;last_unresolved_gdr=0xFFFFFFFFu;x86_trace_reset();x86_profile_clear();
+guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;last_unresolved_gdr=0xFFFFFFFFu;
+x86_first_fault_eip=0;x86_last_fault_eip=0;x86_first_fault_count=0;
+x86_control_fault_kind=0;x86_control_fault_eip=0;x86_control_fault_next_eip=0;x86_control_fault_target=0;x86_control_fault_slot=0;x86_control_fault_opcode=0;x86_control_fault_modrm=0;
+x86_trace_reset();x86_profile_clear();
  x87_init_state(); xmm_reset();
  legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
@@ -2700,6 +2724,16 @@ __attribute__((export_name("x86_get_edx"))) uint32_t x86_get_edx(void){return re
 __attribute__((export_name("x86_get_ebx"))) uint32_t x86_get_ebx(void){return regs[R_EBX];}
 __attribute__((export_name("x86_get_esp"))) uint32_t x86_get_esp(void){return regs[R_ESP];}
 __attribute__((export_name("x86_get_stack_faults"))) uint32_t x86_get_stack_faults(void){return x86_mem_faults;}
+__attribute__((export_name("x86_get_first_fault_eip"))) uint32_t x86_get_first_fault_eip(void){return x86_first_fault_eip;}
+__attribute__((export_name("x86_get_last_fault_eip"))) uint32_t x86_get_last_fault_eip(void){return x86_last_fault_eip;}
+__attribute__((export_name("x86_get_first_fault_count"))) uint32_t x86_get_first_fault_count(void){return x86_first_fault_count;}
+__attribute__((export_name("x86_get_control_fault_kind"))) uint32_t x86_get_control_fault_kind(void){return x86_control_fault_kind;}
+__attribute__((export_name("x86_get_control_fault_eip"))) uint32_t x86_get_control_fault_eip(void){return x86_control_fault_eip;}
+__attribute__((export_name("x86_get_control_fault_next_eip"))) uint32_t x86_get_control_fault_next_eip(void){return x86_control_fault_next_eip;}
+__attribute__((export_name("x86_get_control_fault_target"))) uint32_t x86_get_control_fault_target(void){return x86_control_fault_target;}
+__attribute__((export_name("x86_get_control_fault_slot"))) uint32_t x86_get_control_fault_slot(void){return x86_control_fault_slot;}
+__attribute__((export_name("x86_get_control_fault_opcode"))) uint32_t x86_get_control_fault_opcode(void){return x86_control_fault_opcode;}
+__attribute__((export_name("x86_get_control_fault_modrm"))) uint32_t x86_get_control_fault_modrm(void){return x86_control_fault_modrm;}
 __attribute__((export_name("x86_get_ebp"))) uint32_t x86_get_ebp(void){return regs[R_EBP];}
 __attribute__((export_name("x86_get_esi"))) uint32_t x86_get_esi(void){return regs[R_ESI];}
 __attribute__((export_name("x86_get_edi"))) uint32_t x86_get_edi(void){return regs[R_EDI];}
