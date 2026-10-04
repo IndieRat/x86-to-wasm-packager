@@ -130,6 +130,7 @@ def main()->int:
         "xapi_pool":"xapi_pool.xapi","xapi_pool_format":"XWSC01/XAPI",
         "xapi_source_count":xapi_source_count,"xapi_library_count":xapi_library_count,
         "xapi_function_count":xapi_function_count,"xapi_converted_dlls":converted_dlls,
+        "xapi_unconverted_dlls":xapi_unconverted_dlls,
         "sha256":hashlib.sha256(exe.read_bytes()).hexdigest(),
         "execution_status":"x86_runtime_bundled" if runtime_source else "requires_x86_runtime",
     }
