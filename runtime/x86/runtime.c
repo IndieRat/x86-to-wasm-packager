@@ -1649,7 +1649,7 @@ static int cpu_step_x87(uint8_t op,uint32_t *ip){
     cpu_error=0xE100u|((access==X86_MEM_READ)?1u:2u);
     return -62;
    }
-   if(sub==0u)return x87_push(x87_load_f64(ea))?0:-62;
+   if(sub==0u)return x87_push((double)x87_load_i64(ea))?0:-62; /* FILD m64int */
    if(sub==1u){if(!x87_need_top())return -61;x87_store_i64(ea,(int64_t)x87_round(x87_stack[0],1));return x87_pop()?0:-61;}
    if(sub==2u||sub==3u){if(!x87_need_top())return -61;x87_store_f64(ea,x87_stack[0]);if(sub==3u&&!x87_pop())return -61;return 0;}
    if(sub==7u){wr16(ea,x87_status_word());return 0;} /* FNSTSW */
