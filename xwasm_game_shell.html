@@ -291,7 +291,8 @@ function tick(){
   if(rc<0){
    state.running=false;
    const err=state.exports.x86_get_cpu_error?.()||0;
-   error("XWASM CPU stopped: rc="+rc+" cpu_error="+hex(err)+" eip="+hex(state.exports.x86_get_eip?.()||0));
+   let why="";if(rc===-63){const g=Number(state.exports.x86_get_last_unresolved_gdr?.());const r=readGdr()[g];why=r?" | unresolved import "+r.dll+"!"+r.fn:" | unresolved import"}
+   error("XWASM CPU stopped: rc="+rc+" cpu_error="+hex(err)+" eip="+hex(state.exports.x86_get_eip?.()||0)+why);
    return;
   }
  }catch(e){state.running=false;error("runtime exception",e);return}
@@ -391,6 +392,46 @@ function profileLine(p){
  if(p.hasModrm)bytes+=" /"+((p.modrm>>3)&7)+" (ModRM "+p.modrm.toString(16).padStart(2,"0").toUpperCase()+")";
  return bytes+" | "+p.semantic+" | count="+p.count+" | len="+p.minLen+(p.maxLen!==p.minLen?"-"+p.maxLen:"")+" | first="+hex(p.firstEip)+" | last="+hex(p.lastEip)+" | dispatch="+p.dispatch;
 }
+function gdrString(fn,i){
+ let t="";
+ for(let j=0;j<255;j++){const c=Number(callDiagnostic(fn,i,j))||0;if(!c)break;t+=String.fromCharCode(c&255)}
+ return t;
+}
+function readGdr(){
+ const n=Number(callDiagnostic("x86_get_gdr_count")||0),rows=[];
+ for(let i=0;i<n;i++){
+  rows.push({
+   i,dll:gdrString("x86_get_gdr_dll_name_byte",i),fn:gdrString("x86_get_gdr_func_name_byte",i),
+   iat:Number(callDiagnostic("x86_get_gdr_iat_rva",i))>>>0,
+   target:Number(callDiagnostic("x86_get_gdr_target",i))>>>0,
+   resolved:Number(callDiagnostic("x86_get_gdr_status",i))===1,
+   calls:Number(callDiagnostic("x86_get_gdr_call_count",i))||0
+  });
+ }
+ return rows;
+}
+function gdrReportLines(){
+ const rows=readGdr(),L=[];
+ if(!rows.length){L.push("(no GDR records)");return L}
+ const by={};
+ for(const r of rows){const k=r.dll||"?";(by[k]=by[k]||{ok:0,miss:0,rows:[]});r.resolved?by[k].ok++:by[k].miss++;by[k].rows.push(r)}
+ const ok=rows.filter(r=>r.resolved).length;
+ L.push("imports="+rows.length+" resolved="+ok+" unresolved="+(rows.length-ok));
+ const lu=Number(callDiagnostic("x86_get_last_unresolved_gdr"));
+ if(Number.isFinite(lu)&&lu!==0xFFFFFFFF){
+  const r=rows[lu];
+  L.push(lu===0xFFFFFFFE?"STOPPED ON: unresolved ORDINAL import":"STOPPED ON: "+(r?r.dll+"!"+r.fn+" (IAT RVA "+hex(r.iat)+")":"GDR #"+lu));
+ }
+ L.push("");L.push("-- per DLL (resolved/unresolved) --");
+ for(const k of Object.keys(by).sort((a,b)=>by[b].miss-by[a].miss))L.push(k+": "+by[k].ok+" ok / "+by[k].miss+" missing");
+ const called=rows.filter(r=>r.calls>0);
+ L.push("");L.push("-- called during run --");
+ if(!called.length)L.push("(none)");
+ for(const r of called)L.push((r.resolved?"OK      ":"MISSING ")+r.dll+"!"+r.fn+" calls="+r.calls);
+ L.push("");L.push("-- unresolved (implement next) --");
+ for(const k of Object.keys(by).sort()){const m=by[k].rows.filter(r=>!r.resolved).map(r=>r.fn);if(m.length)L.push(k+": "+m.join(", "))}
+ return L;
+}
 function buildFullReport(){
  const d=readDiagnostics(),p=readProfile();
  const lines=[];
@@ -401,6 +442,9 @@ function buildFullReport(){
  lines.push("");
  lines.push("=== RUNTIME DIAGNOSTICS ===");
  for(const k of Object.keys(d).filter(k=>!k.startsWith("__")).sort())lines.push(k+" = "+d[k]);
+ lines.push("");
+ lines.push("=== GUEST DEPENDENCY RESOLUTION (GDR) ===");
+ lines.push(...gdrReportLines());
  lines.push("");
  lines.push("=== INSTRUCTION PROFILE ===");
  lines.push("Unique executed instruction forms: "+p.length);
@@ -480,6 +524,7 @@ function renderDiagnostics(reason){
    s+="FF FORM   /"+((m>>3)&7)+"\\n";
   }
  }
+ s+="\\n=== GDR ===\\n"+gdrReportLines().join("\\n")+"\\n";
  $("diagText").textContent=s;
  $("diagCount").textContent=keys.length+" exported + trace/bytes/stack";
  return d;
