@@ -2475,6 +2475,7 @@ static uint32_t x86_preflight_resync(uint32_t pc){
   uint32_t candidate=pc+delta;
   if(!x86_mem_region_find(candidate,1u,X86_MEM_READ))break;
   x86_decoded_t probe;
+  eip=candidate;
   int rc=x86_decode_instruction(&probe);
   (void)rc;
   if(probe.start!=candidate)continue;
