@@ -56,7 +56,7 @@ def inspect_native_dll(path: Path) -> dict:
     if len(data) < 0x40 or data[:2] != b"MZ":
         raise ValueError(f"{path.name}: not an MZ PE image")
     pe = _u32(data, 0x3C)
-    if pe + 24 > len(data) or data[pe:pe + 4] != b"PE\\0\\0":
+    if pe + 24 > len(data) or data[pe:pe + 4] != b"PE\0\0":
         raise ValueError(f"{path.name}: invalid PE signature")
     machine = _u16(data, pe + 4)
     sections_count = _u16(data, pe + 6)
