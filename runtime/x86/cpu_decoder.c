@@ -244,6 +244,7 @@ static int x86_decode_instruction(x86_decoded_t *d) {
     }
 
     d->opcode = MEM8(d->cursor++);
+    d->op_pos = d->cursor - 1u;
     if (d->opcode == 0x0F) {
         d->map = 1;
         if (MEM8(d->cursor) == 0x38 || MEM8(d->cursor) == 0x3A) {
