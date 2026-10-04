@@ -917,8 +917,8 @@
       },
       {
         "byte": "8C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": ["MOV_SREG_RM16"]
       },
       {
         "byte": "8D",
