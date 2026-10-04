@@ -94,6 +94,14 @@ def validate_package(root: Path) -> dict:
 
         xapi_pool_name=manifest.get("xapi_pool")
         if xapi_pool_name:
+            # The package-local pool is the only authoritative runtime XAPI
+            # artifact. Source/plain .xapi files must not be loaded as a second
+            # registry input by browser shells.
+            pool_resolved=(root / xapi_pool_name).resolve()
+            for stray in sorted(root.rglob("*.xapi")):
+                if stray.resolve()!=pool_resolved:
+                    warnings.append(f"stray XAPI artifact in package (not loaded): {stray.relative_to(root).as_posix()}")
+
             try:
                 xapi_pool_path=_safe_package_path(root,xapi_pool_name,"xapi_pool")
                 if not xapi_pool_path.is_file():
