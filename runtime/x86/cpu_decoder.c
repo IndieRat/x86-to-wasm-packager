@@ -111,6 +111,8 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
     if (x86_id_is(id, "RET_IMM16")) d->imm_size = 2;
     if (x86_id_is(id, "MOV_R8_IMM8") || x86_id_is(id, "MOV_RM8_IMM8")) d->imm_size = 1;
     if (x86_id_is(id, "MOV_AL_MOFFS8") || x86_id_is(id, "MOV_EAX_MOFFS32") || x86_id_is(id, "MOV_MOFFS8_AL") || x86_id_is(id, "MOV_MOFFS32_EAX")) d->imm_size = 4;
+    if (x86_id_is(id, "OR_EAX_IMM32") || x86_id_is(id, "SBB_EAX_IMM32") || x86_id_is(id, "TEST_EAX_IMM32")) d->imm_size = 4;
+    if (x86_id_is(id, "TEST_AL_IMM8")) d->imm_size = 1;
 
     else if (x86_id_is(id, "MOV_R32_IMM32") && !d->operand16) d->imm_size = 4;
     else if (x86_id_is(id, "XOR_EAX_IMM32")) d->imm_size = 4;
@@ -868,14 +870,14 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
-        if (x86_id_is(d.entry->id,"MOV_RM16_SREG")) {
+        if (x86_id_is(d.entry->id,"MOV_SREG_RM16")) {
             uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
             uint32_t seg=(uint32_t)((d.modrm>>3)&7u);
             uint16_t selector=modrm_read16(d.modrm,&op_ip);
             if(seg==X86_SEG_CS||seg>=6u){cpu_error=0x8E00u|d.modrm;return -48;}
             x86_set_segment_selector(seg,selector);
             eip=d.cursor;
-            last_dispatch_id=X86_DISPATCH_MOV_RM16_SREG;
+            last_dispatch_id=X86_DISPATCH_MOV_SREG_RM16;
             last_dispatch_count++;
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
                              before_opcode,last_dispatch_id);
