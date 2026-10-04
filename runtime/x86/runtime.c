@@ -263,6 +263,7 @@ static uint32_t last_virtual_alloc=0,last_virtual_alloc_size=0,virtual_free_coun
 static uint32_t al4(uint32_t x);
 static uint32_t rd32(uint32_t p);
 static void wr32(uint32_t p,uint32_t v);
+static void wr16(uint32_t p,uint16_t v);
 static void wr8(uint32_t p,uint8_t v);
 /* v0.9 memory subsystem: explicit guest regions plus checked bulk-memory helpers.
  * The current instruction core still uses its established little-endian accessors;
@@ -828,7 +829,120 @@ static uint32_t guest_alloc_raw(uint32_t n){
  if(end<a||end>GUEST_HEAP_LIMIT)return 0;
  guest_heap=end; return a;
 }
+/* ---- Win32 / CRT shim layer (table driven) -------------------------------
+ * Name-matched against any DLL (kernel32, api-ms-win-crt-*, VCRUNTIME140...).
+ * Each entry: id, number of 32-bit stack args, callee_pops (1=stdcall, 0=cdecl).
+ * Shim runs with [ESP]=return address; stdcall shims pop their own args here
+ * (call site then discards the return slot, same as VirtualAlloc above). */
+#define API_SHIM_BASE (API_BASE+0x00020000u)
+#define SHIM_LIST(X) \
+ X(GetSystemTimeAsFileTime,1,1) X(GetCurrentProcessId,0,1) X(GetCurrentThreadId,0,1) X(GetCurrentProcess,0,1) \
+ X(QueryPerformanceCounter,1,1) X(QueryPerformanceFrequency,1,1) X(IsProcessorFeaturePresent,1,1) \
+ X(InitializeSListHead,1,1) X(SetUnhandledExceptionFilter,1,1) X(UnhandledExceptionFilter,1,1) X(IsDebuggerPresent,0,1) \
+ X(TerminateProcess,2,1) X(GetModuleHandleA,1,1) X(GetModuleHandleW,1,1) \
+ X(InitializeCriticalSection,1,1) X(InitializeCriticalSectionAndSpinCount,2,1) X(EnterCriticalSection,1,1) \
+ X(LeaveCriticalSection,1,1) X(DeleteCriticalSection,1,1) X(TryEnterCriticalSection,1,1) \
+ X(TlsAlloc,0,1) X(TlsFree,1,1) X(TlsGetValue,1,1) X(TlsSetValue,2,1) \
+ X(FlsAlloc,1,1) X(FlsFree,1,1) X(FlsSetValue,2,1) \
+ X(Sleep,1,1) X(GetStdHandle,1,1) X(GetSystemInfo,1,1) X(GetLocalTime,1,1) X(GetEnvironmentVariableA,3,1) \
+ X(GetCurrentDirectoryA,2,1) X(GlobalAlloc,2,1) X(GlobalLock,1,1) X(GlobalUnlock,1,1) \
+ X(SetThreadExecutionState,1,1) X(SetThreadPriority,2,1) X(VirtualQuery,3,1) X(WriteConsoleA,5,1) \
+ X(CreateEventW,4,1) X(SetEvent,1,1) X(ResetEvent,1,1) X(WaitForSingleObject,2,1) X(WaitForSingleObjectEx,3,1) \
+ X(GetProcAddress,2,1) X(LoadLibraryA,1,1) X(FreeLibrary,1,1) X(GetFileAttributesA,1,1) \
+ X(timeGetTime,0,1) X(timeBeginPeriod,1,1) X(timeEndPeriod,1,1) \
+ X(_set_app_type,1,0) X(_configure_narrow_argv,1,0) X(_initialize_narrow_environment,0,0) \
+ X(_get_initial_narrow_environment,0,0) X(__p___argc,0,0) X(__p___argv,0,0) X(__p__commode,0,0) \
+ X(_set_fmode,1,0) X(_controlfp_s,3,0) X(_configthreadlocale,1,0) X(_set_new_mode,1,0) X(__setusermatherr,1,0) \
+ X(_initialize_onexit_table,1,0) X(_register_onexit_function,2,0) X(_crt_atexit,1,0) \
+ X(_register_thread_local_exe_atexit_callback,1,0) X(_seh_filter_exe,4,0) \
+ X(_exit,1,0) X(exit,1,0) X(_cexit,0,0) X(_c_exit,0,0) X(abort,0,0) X(terminate,0,0) \
+ X(malloc,1,0) X(free,1,0) X(calloc,2,0) X(memset,3,0) X(memcpy,3,0) X(memmove,3,0) X(strlen,1,0) X(_errno,0,0)
+enum {
+#define X(n,a,c) SHIM_##n,
+ SHIM_LIST(X)
+#undef X
+ SHIM_COUNT
+};
+static const struct{const char*name;uint8_t argc,callee_pops;}shim_tab[]={
+#define X(n,a,c) {#n,a,c},
+ SHIM_LIST(X)
+#undef X
+};
+static uint32_t shim_tls[64],shim_fls[64],shim_tls_next=0,shim_fls_next=0,shim_handle=0x100u;
+static uint32_t shim_qpc=0,shim_ft_lo=0xD53E8000u,shim_ft_hi=0x01DC0000u;
+static uint32_t shim_initterm=0,shim_initterm_e=0,shim_argc_p=0,shim_argv_p=0,shim_env_p=0,shim_commode_p=0,shim_errno_p=0,shim_onexit_dummy=0;
+static uint32_t shim_emit(const uint8_t*b,uint32_t n){uint32_t a=guest_alloc_raw(n);if(!a)return 0;for(uint32_t i=0;i<n;i++)MEM8(a+i)=b[i];return a;}
+static uint32_t shim_resolve(uint32_t name){
+ /* _initterm/_initterm_e call guest function pointers, so they are real guest code rather than host shims. */
+ if(streq_ascii(name,"_initterm")){
+  static const uint8_t c[]={0x56,0x8B,0x74,0x24,0x08,0x3B,0x74,0x24,0x0C,0x73,0x0D,0x8B,0x06,0x85,0xC0,0x74,0x02,0xFF,0xD0,0x83,0xC6,0x04,0xEB,0xED,0x5E,0xC3};
+  if(!shim_initterm)shim_initterm=shim_emit(c,sizeof c);
+  return shim_initterm;
+ }
+ if(streq_ascii(name,"_initterm_e")){
+  static const uint8_t c[]={0x56,0x8B,0x74,0x24,0x08,0x3B,0x74,0x24,0x0C,0x73,0x11,0x8B,0x06,0x85,0xC0,0x74,0x06,0xFF,0xD0,0x85,0xC0,0x75,0x07,0x83,0xC6,0x04,0xEB,0xE9,0x33,0xC0,0x5E,0xC3};
+  if(!shim_initterm_e)shim_initterm_e=shim_emit(c,sizeof c);
+  return shim_initterm_e;
+ }
+ for(uint32_t i=0;i<SHIM_COUNT;i++)if(streq_ascii(name,shim_tab[i].name))return API_SHIM_BASE+i*4u;
+ return 0;
+}
+static uint32_t shim_call(uint32_t idx){
+ uint32_t sp=regs[R_ESP];
+ #define ARG(n) rd32(sp+4u+4u*(n))
+ uint32_t r=0;
+ switch(idx){
+  case SHIM_GetSystemTimeAsFileTime:{shim_ft_lo+=100000u;if(shim_ft_lo<100000u)shim_ft_hi++;uint32_t p=ARG(0);wr32(p,shim_ft_lo);wr32(p+4u,shim_ft_hi);break;}
+  case SHIM_GetCurrentProcessId:r=0x1234u;break;
+  case SHIM_GetCurrentThreadId:r=1u;break;
+  case SHIM_GetCurrentProcess:r=0xFFFFFFFFu;break;
+  case SHIM_QueryPerformanceCounter:{shim_qpc+=10000u;uint32_t p=ARG(0);wr32(p,shim_qpc);wr32(p+4u,0);r=1;break;}
+  case SHIM_QueryPerformanceFrequency:{uint32_t p=ARG(0);wr32(p,10000000u);wr32(p+4u,0);r=1;break;}
+  case SHIM_IsProcessorFeaturePresent:{uint32_t f=ARG(0);r=(f==6u||f==10u||f==13u)?1u:0u;break;} /* SSE, SSE2, SSE3: advertise what the CPU implements */
+  case SHIM_InitializeSListHead:{uint32_t p=ARG(0);wr32(p,0);wr32(p+4u,0);break;}
+  case SHIM_TerminateProcess:halted=1;r=1;break;
+  case SHIM_GetModuleHandleA:case SHIM_GetModuleHandleW:r=ARG(0)?0u:image_base;break;
+  case SHIM_InitializeCriticalSectionAndSpinCount:case SHIM_TryEnterCriticalSection:r=1;break;
+  case SHIM_TlsAlloc:r=(shim_tls_next<64u)?shim_tls_next++:0xFFFFFFFFu;break;
+  case SHIM_TlsFree:case SHIM_FlsFree:r=1;break;
+  case SHIM_TlsGetValue:{uint32_t i=ARG(0);r=i<64u?shim_tls[i]:0u;break;}
+  case SHIM_TlsSetValue:{uint32_t i=ARG(0);if(i<64u){shim_tls[i]=ARG(1);r=1;}break;}
+  case SHIM_FlsAlloc:r=(shim_fls_next<64u)?shim_fls_next++:0xFFFFFFFFu;break;
+  case SHIM_FlsSetValue:{uint32_t i=ARG(0);if(i<64u){shim_fls[i]=ARG(1);r=1;}break;}
+  case SHIM_GetStdHandle:r=0x100u+(ARG(0)&0xFu);break;
+  case SHIM_GetSystemInfo:{uint32_t p=ARG(0);for(uint32_t i=0;i<36u;i+=4u)wr32(p+i,0);wr32(p+4u,4096u);wr32(p+8u,0x10000u);wr32(p+12u,0x7FFEFFFFu);wr32(p+16u,1u);wr32(p+20u,1u);wr32(p+24u,586u);wr32(p+28u,0x10000u);break;}
+  case SHIM_GetLocalTime:{uint32_t p=ARG(0);for(uint32_t i=0;i<16u;i+=4u)wr32(p+i,0);wr16(p,2026u);wr16(p+2u,10u);wr16(p+6u,4u);break;}
+  case SHIM_GetEnvironmentVariableA:r=0;break;
+  case SHIM_GetCurrentDirectoryA:{uint32_t b=ARG(1);if(b){wr8(b,'C');wr8(b+1u,':');wr8(b+2u,'\\');wr8(b+3u,0);}r=3u;break;}
+  case SHIM_GlobalAlloc:r=guest_alloc_raw(ARG(1));break;
+  case SHIM_GlobalLock:r=ARG(0);break;
+  case SHIM_GlobalUnlock:r=1;break;
+  case SHIM_WriteConsoleA:r=1;break;
+  case SHIM_CreateEventW:r=shim_handle++;break;
+  case SHIM_SetEvent:case SHIM_ResetEvent:case SHIM_SetThreadPriority:case SHIM_FreeLibrary:case SHIM_timeBeginPeriod:case SHIM_timeEndPeriod:r=1;break;
+  case SHIM_timeGetTime:shim_qpc+=16u;r=shim_qpc/10000u*16u+1234u;break;
+  case SHIM_GetFileAttributesA:r=0xFFFFFFFFu;break;
+  case SHIM___p___argc:if(!shim_argc_p){shim_argc_p=guest_alloc_raw(4);wr32(shim_argc_p,0);}r=shim_argc_p;break;
+  case SHIM___p___argv:if(!shim_argv_p){shim_argv_p=guest_alloc_raw(8);wr32(shim_argv_p,0);}r=shim_argv_p;break;
+  case SHIM__get_initial_narrow_environment:if(!shim_env_p){shim_env_p=guest_alloc_raw(8);wr32(shim_env_p,0);}r=shim_env_p;break;
+  case SHIM___p__commode:if(!shim_commode_p){shim_commode_p=guest_alloc_raw(4);wr32(shim_commode_p,0);}r=shim_commode_p;break;
+  case SHIM__errno:if(!shim_errno_p){shim_errno_p=guest_alloc_raw(4);wr32(shim_errno_p,0);}r=shim_errno_p;break;
+  case SHIM__exit:case SHIM_exit:case SHIM__cexit:case SHIM__c_exit:case SHIM_abort:case SHIM_terminate:crt_exited=1;halted=1;break;
+  case SHIM_malloc:r=x86_crt_malloc_impl(ARG(0));break;
+  case SHIM_free:break;
+  case SHIM_calloc:{uint32_t n=ARG(0)*ARG(1);r=x86_crt_malloc_impl(n);if(r)for(uint32_t i=0;i<n;i++)wr8(r+i,0);break;}
+  case SHIM_memset:{uint32_t d=ARG(0),n=ARG(2);uint8_t v=(uint8_t)ARG(1);for(uint32_t i=0;i<n;i++)wr8(d+i,v);r=d;break;}
+  case SHIM_memcpy:case SHIM_memmove:{uint32_t d=ARG(0),s=ARG(1),n=ARG(2);if(d<=s||d>=s+n){for(uint32_t i=0;i<n;i++)wr8(d+i,MEM8(s+i));}else{for(uint32_t i=n;i>0;i--)wr8(d+i-1u,MEM8(s+i-1u));}r=d;break;}
+  case SHIM_strlen:{uint32_t p=ARG(0),n=0;while(MEM8(p+n))n++;r=n;break;}
+  default:break; /* everything else: success/0, args popped per table */
+ }
+ #undef ARG
+ regs[R_EAX]=r;
+ if(shim_tab[idx].callee_pops)regs[R_ESP]+=shim_tab[idx].argc*4u;
+ return 1;
+}
 static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
+ {uint32_t sh=shim_resolve(name);if(sh&&!streq_ascii(dll,"XWASMHOST.dll")){ if(!(streq_ascii(name,"GetTickCount")))return sh;}}
  /* First compatibility seed: enough structure to grow into real Win32 DLLs. */
  if(streq_ascii(dll,"KERNEL32.dll")||streq_ascii(dll,"kernel32.dll")){
   if(streq_ascii(name,"GetTickCount"))return API_GETTICKCOUNT;
@@ -972,6 +1086,7 @@ static void gl_draw_triangle(void){
 
 static uint32_t x86_crt_strlen(uint32_t s);
 static uint32_t call_builtin(uint32_t target){
+ if(target>=API_SHIM_BASE&&target<API_SHIM_BASE+SHIM_COUNT*4u)return shim_call((target-API_SHIM_BASE)>>2);
  if(target==API_C5_MALLOC){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_malloc_impl(rd32(sp+4u));return 1;}
  if(target==API_C5_FREE){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_free_impl(rd32(sp+4u));return 1;}
  if(target==API_C5_STRLEN){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_strlen(rd32(sp+4u));return 1;}
