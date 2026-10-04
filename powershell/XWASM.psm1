@@ -27,6 +27,47 @@ function Resolve-XWASMTool {
     return (Resolve-Path $Path).Path
 }
 
+function Build-XWASMXAPI {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Output,
+
+        [string]$JsonOutput = ""
+    )
+
+    $dllRoot = Join-Path $script:XWASM_ROOT "runtime\x86\dlls"
+
+    if (!(Test-Path $dllRoot -PathType Container)) {
+        throw "DLL API directory not found: $dllRoot"
+    }
+
+    $inputs = @()
+
+    Get-ChildItem $dllRoot -Recurse -File |
+        Where-Object {
+            $_.Extension -eq ".xapi"
+        } |
+        Sort-Object FullName |
+        ForEach-Object {
+            $inputs += $_.FullName
+        }
+
+    if ($inputs.Count -eq 0) {
+        throw "No .xapi files found in $dllRoot"
+    }
+
+    $args = @()
+    $args += $inputs
+    $args += @("--output", $Output)
+
+    if ($JsonOutput) {
+        $args += @("--json", $JsonOutput)
+    }
+
+    Invoke-XWASM "xwasm_xapi_merge.py" $args
+}
+
 function xwasm_prep {
     [CmdletBinding()]
     param(
@@ -163,12 +204,18 @@ function xwasm_build {
             Write-Host "XWASM Pong fixture ready: $(Join-Path $out 'pong_test')"
             return
         }
-        '^api(_test)?$' {
-            Invoke-XWASM "xwasm_build_xapi.py" @(
-                "--output", (Join-Path $out "default.xapi")
-            )
-            return
-        }
+       	'^api(_test)?$' {
+
+ 	   Build-XWASMXAPI `
+ 	       -Output (Join-Path $out "default.xapi") `
+ 	       -JsonOutput (Join-Path $out "default_seed.json")
+
+ 	   Write-Host "Merged XAPI ready:"
+ 	   Write-Host "  $(Join-Path $out 'default.xapi')"
+
+	    return
+	}
+
         '^all(_tests)?$' {
             foreach ($k in @(
                 "cpu_test", "stress_test", "C_test", "CPP_test",
@@ -189,6 +236,10 @@ function xwasm_build {
 
     $runtime = Join-Path $root "dist\xwasm-runtime\runtime.xwasm"
     $xapi = Join-Path $out "default.xapi"
+
+    Build-XWASMXAPI `
+    	-Output $xapi `
+    	-JsonOutput (Join-Path $out "default_seed.json")
 
     Invoke-XWASM "xwasm_build_x86_runtime.py" @(
         "--clang", $clangPath,
