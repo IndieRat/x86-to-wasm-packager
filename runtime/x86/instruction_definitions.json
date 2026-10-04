@@ -275,6 +275,21 @@
       }
     },
     {
+      "id": "SETNE",
+      "mnemonic": "SETNE",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "SETNE_RM8"
+      ],
+      "flags": {
+        "read": [
+          "ZF"
+        ],
+        "write": []
+      }
+    },
+    {
       "id": "TEST",
       "mnemonic": "TEST",
       "family": "integer_core",
