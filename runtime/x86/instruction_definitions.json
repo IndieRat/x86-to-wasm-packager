@@ -42,7 +42,9 @@
         "MOV_MOFFS32_EAX",
         "XCHG_R32_RM32",
         "MOV_RM8_R8",
-        "MOV_R8_RM8"
+        "MOV_R8_RM8",
+        "MOV_RM16_SREG",
+        "MOV_SREG_RM16"
       ],
       "flags": {
         "read": [],
