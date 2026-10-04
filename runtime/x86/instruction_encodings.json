@@ -980,6 +980,25 @@
       }
     },
     {
+      "id": "SETNE_RM8",
+      "instruction": "SETNE",
+      "opcode": [
+        "95"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "M",
+      "operands": [
+        {
+          "kind": "rm8",
+          "access": "w",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
       "id": "TEST_RM32_R32",
       "instruction": "TEST",
       "opcode": [
