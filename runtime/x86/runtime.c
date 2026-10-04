@@ -89,6 +89,7 @@ static char trace_semantic_id[X86_TRACE_DEPTH][X86_SEMANTIC_ID_MAX];
 static uint32_t trace_count=0,trace_head=0,trace_failure_index=0;
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea);
 static int cpu_step_x87(uint8_t op,uint32_t *ip);
+static void x86_gdr_note_call(uint32_t slot);
 static uint32_t xmm_get_u32(uint8_t r){return (uint32_t)xmm[r][0]|((uint32_t)xmm[r][1]<<8)|((uint32_t)xmm[r][2]<<16)|((uint32_t)xmm[r][3]<<24);}
 static void xmm_set_u32(uint8_t r,uint32_t v){xmm[r][0]=(uint8_t)v;xmm[r][1]=(uint8_t)(v>>8);xmm[r][2]=(uint8_t)(v>>16);xmm[r][3]=(uint8_t)(v>>24);}
 static uint64_t xmm_get_u64(uint8_t r){uint64_t lo=xmm_get_u32(r);uint32_t hi=(uint32_t)xmm[r][4]|((uint32_t)xmm[r][5]<<8)|((uint32_t)xmm[r][6]<<16)|((uint32_t)xmm[r][7]<<24);return lo|((uint64_t)hi<<32);}
@@ -775,6 +776,29 @@ static uint32_t x86_reg_value_exists_impl(uint32_t handle,const char *name){
 
 static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t import_resolved=0,import_failed=0;
+
+/* Guest Dependency Resolution (GDR) provenance.
+ * Each named PE import gets one stable record so the browser shell can distinguish:
+ *   - what the game statically requires (DLL + symbol + IAT slot),
+ *   - whether the current runtime resolved it to a builtin host target, and
+ *   - whether that exact IAT slot was actually called during this run.
+ * This deliberately keeps the provenance keyed by IAT address rather than by
+ * "last resolved import", which is only a scan-time diagnostic. */
+#define X86_GDR_MAX_IMPORTS 4096u
+enum {
+ X86_GDR_UNRESOLVED=0u,
+ X86_GDR_RESOLVED=1u
+};
+typedef struct {
+ uint32_t dll_rva;
+ uint32_t func_rva;
+ uint32_t iat_rva;
+ uint32_t target;
+ uint32_t status;
+ uint32_t call_count;
+} x86_gdr_record_t;
+static x86_gdr_record_t x86_gdr[X86_GDR_MAX_IMPORTS];
+static uint32_t x86_gdr_count=0;
 static uint32_t message_count=0,message_last=0,message_quit=0,mouse_clicks=0,mouse_right_clicks=0,mouse_middle_clicks=0,mouse_moves=0;
 static uint32_t surface_width=640,surface_height=360;
 static uint32_t gl_context=1,gl_current_context=0,gl_mode=0;
@@ -1960,6 +1984,7 @@ static int cpu_step_legacy(void){
    last_indirect_slot=ea;last_indirect_target=target;
    if(!target){cpu_error=0xFF10u;return -58;} /* indirect call/jmp through a null pointer (unpatched IAT slot) */
    if(sub==2){
+    x86_gdr_note_call(ea);
     if(!x86_stack_push32(next))return -57;
     if(call_builtin(target)){eip=next;regs[R_ESP]+=4u;return 0;}
     eip=target;return 0;
@@ -1977,8 +2002,33 @@ static int cpu_step_legacy(void){
 static int image_rva_valid(uint32_t rva,uint32_t size){
  return rva<=image_size && size<=image_size-rva;
 }
+static uint32_t x86_gdr_add(uint32_t dll_rva,uint32_t func_rva,uint32_t iat_rva,uint32_t target,uint32_t status){
+ if(x86_gdr_count>=X86_GDR_MAX_IMPORTS)return 0xFFFFFFFFu;
+ uint32_t i=x86_gdr_count++;
+ x86_gdr[i].dll_rva=dll_rva;
+ x86_gdr[i].func_rva=func_rva;
+ x86_gdr[i].iat_rva=iat_rva;
+ x86_gdr[i].target=target;
+ x86_gdr[i].status=status;
+ x86_gdr[i].call_count=0;
+ return i;
+}
+static void x86_gdr_note_call(uint32_t slot){
+ if(slot<image_base)return;
+ uint32_t rva=slot-image_base;
+ for(uint32_t i=0;i<x86_gdr_count;i++)
+  if(x86_gdr[i].iat_rva==rva){
+   x86_gdr[i].call_count++;
+   return;
+  }
+}
+static void x86_gdr_reset(void){
+ x86_gdr_count=0;
+ for(uint32_t i=0;i<X86_GDR_MAX_IMPORTS;i++)x86_gdr[i]=(x86_gdr_record_t){0};
+}
 static void scan_imports(void){
  dll_count=0; import_count=0; import_resolved=0; import_failed=0; last_import_dll=0; last_import_func=0; last_import_thunk=0; last_import_target=0; last_failed_import_dll=0; last_failed_import_func=0;
+ x86_gdr_reset();
  if(!import_rva||!import_size||!image_rva_valid(import_rva,20))return;
  uint32_t p=image_base+import_rva;
  uint32_t max=image_base+import_rva+import_size;
@@ -2000,9 +2050,14 @@ static void scan_imports(void){
    if(v+2u>=image_size){import_failed++;break;}
    uint32_t name=image_base+v+2u;
    import_count++;
+   uint32_t gdr_index=x86_gdr_add(name_rva,v,ft+i*4u,0u,X86_GDR_UNRESOLVED);
    uint32_t target=resolve_builtin(dll,name);
    if(target){
     wr32(iat+i*4u,target);
+    if(gdr_index!=0xFFFFFFFFu){
+     x86_gdr[gdr_index].target=target;
+     x86_gdr[gdr_index].status=X86_GDR_RESOLVED;
+    }
     import_resolved++;
     last_import_dll=name_rva;
     last_import_func=v;
@@ -2027,7 +2082,7 @@ static void scan_imports(void){
 
 static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
- requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;surface_width=640;surface_height=360;
+ requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;x86_gdr_reset();mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;surface_width=640;surface_height=360;
  if(sz<0x40u){load_error=1;return-1;} if(rd16(f)!=0x5a4du){load_error=2;return-1;}
  uint32_t pe=rd32(f+0x3cu); if(pe>sz-4u){load_error=3;return-2;} if(pe+24u>sz){load_error=4;return-2;}
  if(rd32(f+pe)!=0x4550u){load_error=5;return-2;}
@@ -2270,6 +2325,13 @@ __attribute__((export_name("x86_get_last_import_thunk_rva"))) uint32_t x86_get_l
 __attribute__((export_name("x86_get_last_import_target"))) uint32_t x86_get_last_import_target(void){return last_import_target;}
 __attribute__((export_name("x86_get_last_failed_import_dll_rva"))) uint32_t x86_get_last_failed_import_dll_rva(void){return last_failed_import_dll;}
 __attribute__((export_name("x86_get_last_failed_import_func_rva"))) uint32_t x86_get_last_failed_import_func_rva(void){return last_failed_import_func;}
+__attribute__((export_name("x86_get_gdr_count"))) uint32_t x86_get_gdr_count(void){return x86_gdr_count;}
+__attribute__((export_name("x86_get_gdr_dll_rva"))) uint32_t x86_get_gdr_dll_rva(uint32_t i){return i<x86_gdr_count?x86_gdr[i].dll_rva:0;}
+__attribute__((export_name("x86_get_gdr_func_rva"))) uint32_t x86_get_gdr_func_rva(uint32_t i){return i<x86_gdr_count?x86_gdr[i].func_rva:0;}
+__attribute__((export_name("x86_get_gdr_iat_rva"))) uint32_t x86_get_gdr_iat_rva(uint32_t i){return i<x86_gdr_count?x86_gdr[i].iat_rva:0;}
+__attribute__((export_name("x86_get_gdr_target"))) uint32_t x86_get_gdr_target(uint32_t i){return i<x86_gdr_count?x86_gdr[i].target:0;}
+__attribute__((export_name("x86_get_gdr_status"))) uint32_t x86_get_gdr_status(uint32_t i){return i<x86_gdr_count?x86_gdr[i].status:0xFFFFFFFFu;}
+__attribute__((export_name("x86_get_gdr_call_count"))) uint32_t x86_get_gdr_call_count(uint32_t i){return i<x86_gdr_count?x86_gdr[i].call_count:0;}
 __attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
 __attribute__((export_name("x86_crt_malloc"))) uint32_t x86_crt_malloc(uint32_t size){return x86_crt_malloc_impl(size);}
 __attribute__((export_name("x86_crt_calloc"))) uint32_t x86_crt_calloc(uint32_t count,uint32_t size){return x86_crt_calloc_impl(count,size);}

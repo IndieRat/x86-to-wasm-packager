@@ -16,6 +16,16 @@ const say=s=>{out.textContent+="\n"+s;};
 const files=new Map();
 const hex=(u8,n=32)=>Array.from(u8.slice(0,n),b=>b.toString(16).padStart(2,"0")).join(" ");
 const td=new TextDecoder();
+let gdrProvenance=null;
+const readGuestAscii=(ptr,max=512)=>{
+  ptr=ptr>>>0;
+  const u8=new Uint8Array(mem.buffer);
+  if(ptr>=u8.length)return "<OOB>";
+  let end=ptr;
+  const limit=Math.min(u8.length,ptr+max);
+  while(end<limit&&u8[end]!==0)end++;
+  return new TextDecoder().decode(u8.slice(ptr,end));
+};
 async function unpackXWSC(file,expectedKind,label){
   const b=new Uint8Array(file),v=new DataView(file);
   if(b.length<62||td.decode(b.slice(0,6))!=="XWSC01") throw Error(label+" is not an XWSC01 container");
@@ -97,6 +107,100 @@ document.querySelector("#files").onchange=async e=>{
     const {instance}=await WebAssembly.instantiate(bytes,imports);
     const ex=instance.exports;
     say("Runtime WASM instantiated.");
+
+    const emitGdrProvenance=()=>{
+      if(!ex.x86_get_gdr_count){
+        say("=== GDR PROVENANCE ===");
+        say("Runtime does not expose GDR provenance exports.");
+        return;
+      }
+
+      const base=(ex.x86_get_image_base?ex.x86_get_image_base():0)>>>0;
+      const count=ex.x86_get_gdr_count()>>>0;
+      const imports=[];
+      const unique=new Map();
+
+      for(let i=0;i<count;i++){
+        const dllRva=ex.x86_get_gdr_dll_rva(i)>>>0;
+        const funcRva=ex.x86_get_gdr_func_rva(i)>>>0;
+        const iatRva=ex.x86_get_gdr_iat_rva(i)>>>0;
+        const target=ex.x86_get_gdr_target(i)>>>0;
+        const status=ex.x86_get_gdr_status(i)>>>0;
+        const calls=ex.x86_get_gdr_call_count(i)>>>0;
+        const dll=readGuestAscii(base+dllRva);
+        const name=funcRva?readGuestAscii(base+funcRva):"<ordinal>";
+        const key=dll.toLowerCase()+"!"+name;
+        const row={index:i,dll,name,dll_rva:dllRva,func_rva:funcRva,iat_rva:iatRva,
+          iat_address:(base+iatRva)>>>0,target,status,resolved:status===1,call_count:calls};
+        imports.push(row);
+
+        let u=unique.get(key);
+        if(!u){
+          u={dll,name,slots:0,resolved:false,targets:new Set(),calls:0};
+          unique.set(key,u);
+        }
+        u.slots++;
+        u.resolved ||= row.resolved;
+        if(row.target)u.targets.add("0x"+row.target.toString(16).padStart(8,"0"));
+        u.calls+=calls;
+      }
+
+      const required=[...unique.values()].map(u=>({
+        dll:u.dll,name:u.name,slots:u.slots,resolved:u.resolved,
+        targets:[...u.targets].sort(),calls:u.calls
+      })).sort((a,b)=>{
+        if(a.resolved!==b.resolved)return a.resolved?1:-1;
+        return (a.dll+"!"+a.name).localeCompare(b.dll+"!"+b.name);
+      });
+
+      const resolved=imports.filter(x=>x.resolved).length;
+      const missing=imports.length-resolved;
+      const executed=imports.filter(x=>x.call_count>0);
+      const lastSlot=ex.x86_get_last_indirect_slot?ex.x86_get_last_indirect_slot()>>>0:0;
+      const lastTarget=ex.x86_get_last_indirect_target?ex.x86_get_last_indirect_target()>>>0:0;
+      const lastImport=imports.find(x=>x.iat_address===lastSlot);
+
+      say("=== GDR PROVENANCE ===");
+      say("Static import slots: "+imports.length);
+      say("Runtime-resolved slots: "+resolved);
+      say("Runtime-missing slots: "+missing);
+      say("Unique DLL!export requirements: "+required.length);
+      say("Actually executed imported slots: "+executed.length);
+      say("Last indirect slot: 0x"+lastSlot.toString(16).padStart(8,"0")+
+          " -> 0x"+lastTarget.toString(16).padStart(8,"0"));
+      say("Last indirect provenance: "+(
+        lastImport
+          ? lastImport.dll+"!"+lastImport.name+
+            " | resolved="+lastImport.resolved+
+            " | calls="+lastImport.call_count
+          : "NOT AN IMPORT IAT SLOT"
+      ));
+
+      say("GDR REQUIRED EXPORTS:");
+      for(const u of required){
+        const state=u.resolved?"RESOLVED":"MISSING";
+        const target=u.targets.length?u.targets.join(","):"-";
+        say("  ["+state+"] "+u.dll+"!"+u.name+
+            " | slots="+u.slots+
+            " | calls="+u.calls+
+            " | target="+target);
+      }
+
+      gdrProvenance={
+        format:"xwasm-gdr-provenance",
+        version:1,
+        image_base:base,
+        static_import_slots:imports.length,
+        runtime_resolved_slots:resolved,
+        runtime_missing_slots:missing,
+        actually_executed_import_slots:executed.length,
+        last_indirect_slot:lastSlot,
+        last_indirect_target:lastTarget,
+        last_indirect_provenance:lastImport||null,
+        required_exports:required,
+        imports
+      };
+    };
 
     if(!ex.x86_get_runtime_version)
       throw Error("x86_get_runtime_version export missing");
@@ -214,7 +318,7 @@ document.querySelector("#files").onchange=async e=>{
     if(ex.x86_get_import_count) say("PE imported symbols: "+ex.x86_get_import_count());
     if(ex.x86_get_import_resolved) say("Resolved imports: "+ex.x86_get_import_resolved());
     if(ex.x86_get_import_failed) say("Unresolved imports: "+ex.x86_get_import_failed());
-    if(ex.x86_get_last_import_target) say("Last resolved API: 0x"+ex.x86_get_last_import_target().toString(16));
+    if(ex.x86_get_last_import_target) say("Last resolved API during import scan: 0x"+ex.x86_get_last_import_target().toString(16));
     if(ex.x86_alloc){
       const probeAlloc=ex.x86_alloc(64);
       say("Guest allocation probe: 64 bytes at 0x"+probeAlloc.toString(16));
@@ -250,6 +354,10 @@ document.querySelector("#files").onchange=async e=>{
     say("EAX: 0x"+(ex.x86_get_eax()>>>0).toString(16).padStart(8,"0"));
     say("EFLAGS: 0x"+(ex.x86_get_eflags()>>>0).toString(16).padStart(8,"0"));
     say("CPU halted: "+ex.x86_get_halted());
+
+    /* Emit GDR after execution so call_count and last-indirect provenance
+     * describe the actual failing/successful run rather than a pre-run zero state. */
+    emitGdrProvenance();
 
     if(runResult<0){
       const opcode=ex.x86_get_current_opcode?(ex.x86_get_current_opcode()>>>0):0xFFFFFFFF;
