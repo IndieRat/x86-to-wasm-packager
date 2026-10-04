@@ -2511,7 +2511,14 @@
 	  "modrm": {
 		"required": true,
 		"reg_extension": 0
-	  }
+	  },
+	  "operands": [
+		{
+		  "kind": "rm32",
+		  "access": "rw",
+		  "source": "modrm.rm"
+		}
+	  ]
 	},
 	{
 	  "id": "DEC_RM32",
@@ -2522,7 +2529,14 @@
 	  "modrm": {
 		"required": true,
 		"reg_extension": 1
-	  }
+	  },
+	  "operands": [
+		{
+		  "kind": "rm32",
+		  "access": "rw",
+		  "source": "modrm.rm"
+		}
+	  ]
 	},
     {
       "id": "PUSH_IMM8",
