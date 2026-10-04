@@ -236,25 +236,29 @@ async function readSelectedPackage(){
    const files=state.files;
    if(!files.length)throw Error("select an XWASM game package folder first");
    
-   // XAPI files are XWSC01 binary containers, not plain JSON.
-   // Unpack the container first, then decode the raw JSON payload.
-   state.xapis = [];
-   const xapiFiles = files.filter(f => f.name.toLowerCase().endsWith(".xapi"));
-   for (const f of xapiFiles) {
-    const ab = await f.arrayBuffer();
-    const head = td.decode(new Uint8Array(ab,0,Math.min(6,ab.byteLength)));
-    /* packed XWSC01 container (kind xapi) or a plain JSON .xapi / seed */
-    const raw = head==="XWSC01" ? await unpack(ab,"xapi",f.name) : ab;
-    const text = td.decode(new Uint8Array(raw));
-    let parsed;
-    try { parsed = JSON.parse(text); }
-    catch(e) { throw Error(f.name+": XAPI payload is not valid JSON after unpack: "+e.message); }
-    state.xapis.push(parsed);
-   }
-
    const rf=fileByNames(["runtime.xwasm","runtime.wasm"]);
    const pf=fileByNames(["payload.xpl","payload.bin"]);
-   const mf=fileByNames(["manifest.json"]);
+   const mf=fileByNames(["manifest.xwasm.json","manifest.json"]);
+   state.manifest=mf?JSON.parse(await mf.text()):null;
+
+   // The package-local xapi_pool is authoritative. Do not merge legacy
+   // game.xapi/source manifests with it: old packages may contain conflicting
+   // IDs and produce false "DUPED" failures (for example id 4098).
+   state.xapis = [];
+   const poolName=state.manifest?.xapi_pool || "xapi_pool.xapi";
+   const poolFile=files.find(f =>
+     f.name.toLowerCase()===String(poolName).split("/").pop().toLowerCase() ||
+     f.webkitRelativePath.split("/").pop().toLowerCase()===String(poolName).split("/").pop().toLowerCase());
+   if(poolFile){
+    const ab=await poolFile.arrayBuffer();
+    const head=td.decode(new Uint8Array(ab,0,Math.min(6,ab.byteLength)));
+    const raw=head==="XWSC01" ? await unpack(ab,"xapi",poolFile.name) : ab;
+    const text=td.decode(new Uint8Array(raw));
+    try { state.xapis.push(JSON.parse(text)); }
+    catch(e) { throw Error(poolFile.name+": XAPI payload is not valid JSON after unpack: "+e.message); }
+   }else{
+    log("xapi: no authoritative xapi_pool.xapi found; legacy standalone .xapi files are ignored");
+   }
    const bf=fileByNames(["bridge.js"]);
    if(!rf)throw Error("package is missing runtime.xwasm/runtime.wasm");
    if(!pf)throw Error("package is missing payload.xpl/payload.bin");
@@ -265,7 +269,11 @@ async function readSelectedPackage(){
      ? await unpack(await pf.arrayBuffer(),"xpl",pf.name)
      : await pf.arrayBuffer();
    state.bridge=bf||null;
-   state.manifest=mf?JSON.parse(await mf.text()):null;
+   if(state.manifest?.xapi_unconverted_dlls?.length){
+    log("xapi DLL coverage gaps: "+state.manifest.xapi_unconverted_dlls.length);
+    for(const item of state.manifest.xapi_unconverted_dlls.slice(0,32))
+      log("  XAPI missing: "+item.dll+" ["+item.reason+"]");
+   }
    validatePE(state.payload);
   state.module=await WebAssembly.compile(state.runtime);
   state.instance=await WebAssembly.instantiate(state.module,buildImports(state.module));
