@@ -67,7 +67,8 @@ static uint32_t crt_last_shim_arg0=0;
 static uint32_t crt_last_shim_argc=0;
 static uint32_t crt_atexit_count=0,crt_last_atexit_result=0,crt_last_atexit_ok=0,crt_atexit_running=0;
 static uint32_t crt_atexit_callbacks[X86_CRT_ATEXIT_MAX];
-/* Forward declaration: shim_call can terminate the guest through the CRT API. */
+/* Forward declarations: shim_call can terminate the guest through the CRT APIs. */
+uint32_t x86_crt_startup(void);
 uint32_t x86_crt_exit(uint32_t code);
 static uint32_t requested_image_base=0,reloc_rva=0,reloc_size=0,import_rva=0,import_size=0;
 static uint32_t relocation_needed=0,dll_count=0,import_count=0,load_error=0,last_load_ptr=0,last_load_size=0;
