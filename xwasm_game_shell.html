@@ -365,27 +365,34 @@ function readDiagnostics(){
   }catch(e){out[n]="<call failed: "+(e.message||e)+">"}
  }
  const traceCount=Number(callDiagnostic("x86_get_trace_count")||0);
- const traceDepth=32;
+ const traceDepth=256;
  const trace=[];
  for(let i=0;i<Math.min(traceCount,traceDepth);i++){
+  const slot=Number(callDiagnostic("x86_get_trace_index",i));
   trace.push({
-   index:i,eip:callDiagnostic("x86_get_trace_eip",i),
-   nextEip:callDiagnostic("x86_get_trace_next_eip",i),
-   opcode:callDiagnostic("x86_get_trace_opcode",i),
-   dispatch:callDiagnostic("x86_get_trace_dispatch",i),
-   flags:callDiagnostic("x86_get_trace_flags",i),
-   postFlags:callDiagnostic("x86_get_trace_post_flags",i),
-   eax:callDiagnostic("x86_get_trace_eax",i),
-   ecx:callDiagnostic("x86_get_trace_ecx",i),
-   edx:callDiagnostic("x86_get_trace_edx",i),
-   ebx:callDiagnostic("x86_get_trace_ebx",i),
-   postEax:callDiagnostic("x86_get_trace_post_eax",i),
-   postEcx:callDiagnostic("x86_get_trace_post_ecx",i),
-   postEdx:callDiagnostic("x86_get_trace_post_edx",i),
-   postEbx:callDiagnostic("x86_get_trace_post_ebx",i)
+   index:i,eip:callDiagnostic("x86_get_trace_eip",slot),
+   nextEip:callDiagnostic("x86_get_trace_next_eip",slot),
+   opcode:callDiagnostic("x86_get_trace_opcode",slot),
+   dispatch:callDiagnostic("x86_get_trace_dispatch",slot),
+   flags:callDiagnostic("x86_get_trace_flags",slot),
+   postFlags:callDiagnostic("x86_get_trace_post_flags",slot),
+   eax:callDiagnostic("x86_get_trace_eax",slot),
+   ecx:callDiagnostic("x86_get_trace_ecx",slot),
+   edx:callDiagnostic("x86_get_trace_edx",slot),
+   ebx:callDiagnostic("x86_get_trace_ebx",slot),
+   postEax:callDiagnostic("x86_get_trace_post_eax",slot),
+   postEcx:callDiagnostic("x86_get_trace_post_ecx",slot),
+   postEdx:callDiagnostic("x86_get_trace_post_edx",slot),
+   postEbx:callDiagnostic("x86_get_trace_post_ebx",slot)
   });
  }
  out.__trace=trace;
+ if(Number(callDiagnostic("x86_get_crash_hit")||0)){
+  const cf=[],cs=[];
+  for(let i=0;i<Number(callDiagnostic("x86_get_crash_frame_count")||0);i++)cf.push(callDiagnostic("x86_get_crash_frame",i));
+  for(let i=0;i<32;i++)cs.push(callDiagnostic("x86_get_crash_stack",i));
+  out.__crash={returnEip:callDiagnostic("x86_get_crash_return_eip"),frames:cf,stack:cs};
+ }
  const currentBytes=[];
  for(let i=0;i<32;i++){
   const v=callDiagnostic("x86_get_current_byte",i);
@@ -668,41 +675,49 @@ function renderDiagnostics(reason){
  const d=readDiagnostics();
  state.diagnostics.last={reason,t:Date.now(),data:d};
  const keys=Object.keys(d).filter(k=>!k.startsWith("__")).sort();
- let s="REASON: "+reason+"\\nTIME: "+new Date().toLocaleTimeString()+"\\n";
- s+="\\n=== RUNTIME EXPORT DIAGNOSTICS ("+keys.length+") ===\\n";
- for(const k of keys)s+=k+" = "+d[k]+"\\n";
+ let s="REASON: "+reason+"\nTIME: "+new Date().toLocaleTimeString()+"\n";
+ s+="\n=== RUNTIME EXPORT DIAGNOSTICS ("+keys.length+") ===\n";
+ for(const k of keys)s+=k+" = "+d[k]+"\n";
  if(d.__currentBytes&&d.__currentBytes.length){
-  s+="\\n=== BYTES @ EIP ===\\n";
+  s+="\n=== BYTES @ EIP ===\n";
   const eip=Number(d.x86_get_eip)>>>0;
   for(let i=0;i<d.__currentBytes.length;i++){
    if(i%16===0)s+=hex((eip+i)>>>0)+": ";
    s+=Number(d.__currentBytes[i]).toString(16).padStart(2,"0")+" ";
-   if(i%16===15||i===d.__currentBytes.length-1)s+="\\n";
+   if(i%16===15||i===d.__currentBytes.length-1)s+="\n";
   }
  }
+ if(d.__crash){
+  s+="\n=== CRASH REPORT PATH (UnhandledExceptionFilter reached) ===\n";
+  s+="called from  "+hex(d.__crash.returnEip)+"\n";
+  s+="frame walk (EBP chain, innermost first):\n";
+  for(let i=0;i<d.__crash.frames.length;i++)s+="  #"+i+" "+hex(d.__crash.frames[i])+"\n";
+  s+="stack at call:\n";
+  for(let i=0;i<d.__crash.stack.length;i++)s+="  "+i.toString().padStart(2,"0")+": "+hex(d.__crash.stack[i])+"\n";
+ }
  if(d.__stack&&d.__stack.length){
-  s+="\\n=== STACK DWORDS @ ESP ===\\n";
-  for(let i=0;i<d.__stack.length;i++)s+=i.toString().padStart(2,"0")+": "+hex(d.__stack[i])+"\\n";
+  s+="\n=== STACK DWORDS @ ESP ===\n";
+  for(let i=0;i<d.__stack.length;i++)s+=i.toString().padStart(2,"0")+": "+hex(d.__stack[i])+"\n";
  }
  if(d.__trace&&d.__trace.length){
-  s+="\\n=== TRACE ("+d.__trace.length+") ===\\n";
+  s+="\n=== TRACE ("+d.__trace.length+") ===\n";
   for(const t of d.__trace){
-   s+=t.index.toString().padStart(2,"0")+" EIP="+hex(t.eip)+" NEXT="+hex(t.nextEip)+" OP="+hex(t.opcode)+" DISPATCH="+t.dispatch+" FLAGS="+hex(t.flags)+" -> "+hex(t.postFlags)+"\\n";
+   s+=t.index.toString().padStart(2,"0")+" EIP="+hex(t.eip)+" NEXT="+hex(t.nextEip)+" OP="+hex(t.opcode)+" DISPATCH="+t.dispatch+" FLAGS="+hex(t.flags)+" -> "+hex(t.postFlags)+"\n";
   }
  }
  const eip=d.x86_get_eip,op=d.x86_get_last_decoded_opcode,err=d.x86_get_cpu_error;
  if(eip!==undefined||op!==undefined||err!==undefined){
-  s+="\\n=== FAILURE TRIAGE ===\\n";
-  if(eip!==undefined)s+="EIP       "+hex(eip)+"\\n";
-  if(op!==undefined)s+="OPCODE    "+hex(op)+"\\n";
-  if(err!==undefined)s+="CPU_ERROR "+hex(err)+"\\n";
+  s+="\n=== FAILURE TRIAGE ===\n";
+  if(eip!==undefined)s+="EIP       "+hex(eip)+"\n";
+  if(op!==undefined)s+="OPCODE    "+hex(op)+"\n";
+  if(err!==undefined)s+="CPU_ERROR "+hex(err)+"\n";
   if(Number(op)===0xff&&d.__currentBytes.length>1){
    const m=d.__currentBytes[1];
-   s+="FF MODRM  "+hex(m)+" (mod="+(m>>6)+" reg="+((m>>3)&7)+" rm="+(m&7)+")\\n";
-   s+="FF FORM   /"+((m>>3)&7)+"\\n";
+   s+="FF MODRM  "+hex(m)+" (mod="+(m>>6)+" reg="+((m>>3)&7)+" rm="+(m&7)+")\n";
+   s+="FF FORM   /"+((m>>3)&7)+"\n";
   }
  }
- s+="\\n=== GDR ===\\n"+gdrReportLines().join("\\n")+"\\n";
+ s+="\n=== GDR ===\n"+gdrReportLines().join("\n")+"\n";
  if(state.diagnostics.preflightLines)s+="\n"+state.diagnostics.preflightLines.join("\n")+"\n";
  $("diagText").textContent=s;
  $("diagCount").textContent=keys.length+" exported + trace/bytes/stack";
