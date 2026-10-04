@@ -305,8 +305,10 @@
       },
       {
         "byte": "32",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "XOR_R8_RM8"
+        ]
       },
       {
         "byte": "33",
