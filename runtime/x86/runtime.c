@@ -1920,16 +1920,18 @@ static int cpu_step_legacy(void){
    uint32_t r=op-0x90u,t=regs[R_EAX];regs[R_EAX]=regs[r];regs[r]=t;eip=ip;return 0;
   }
   case 0xF4: eip=ip; halted=1; return 1; /* HLT */
-  case 0x31: { /* XOR r/m32,r32; v0.2 supports register form */
+  case 0x31: { /* XOR r/m32,r32 (register and memory forms) */
    uint8_t m=MEM8(ip++);
-   if((m>>6)!=3){cpu_error=2;return -2;}
-   uint32_t *dst=&regs[m&7]; uint32_t src=regs[(m>>3)&7];
-   *dst^=src; set_logic_flags(*dst); eip=ip; return 0;
+   uint32_t src=regs[(m>>3)&7];
+   if((m>>6)==3){uint32_t *dst=&regs[m&7];*dst^=src;set_logic_flags(*dst);eip=ip;return 0;}
+   uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=2;return -2;}
+   uint32_t r=rd32(ea)^src;wr32(ea,r);set_logic_flags(r);eip=ip;return 0;
   }
-  case 0x33: { /* XOR r32,r/m32 register form */
+  case 0x33: { /* XOR r32,r/m32 (register and memory forms) */
    uint8_t m=MEM8(ip++);
-   if((m>>6)!=3){cpu_error=3;return -3;}
-   uint32_t *dst=&regs[(m>>3)&7]; *dst^=regs[m&7]; set_logic_flags(*dst); eip=ip; return 0;
+   uint32_t src;
+   if((m>>6)==3)src=regs[m&7];else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=3;return -3;}src=rd32(ea);}
+   uint32_t *dst=&regs[(m>>3)&7];*dst^=src;set_logic_flags(*dst);eip=ip;return 0;
   }
   case 0xB8:case 0xB9:case 0xBA:case 0xBB:case 0xBC:case 0xBD:case 0xBE:case 0xBF:
    regs[op-0xB8]=rd32(ip); eip=ip+4; return 0; /* MOV r32,imm32 */
