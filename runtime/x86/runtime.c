@@ -69,6 +69,28 @@ static uint8_t decoded_prefixes=0,decoded_operand16=0;
 #define X86_FS_TEB_BASE 0x01E00000u
 #define X86_GS_TEB_BASE 0x01E01000u
 static uint32_t x86_fs_base=0,x86_gs_base=0;
+/* Synthetic Win32-compatible user-mode segment selectors. FS/GS bases are
+ * virtualized independently, so selector values only model the observable
+ * 16-bit segment-register state used by MOV Sreg instructions. */
+#define X86_SEG_ES 0u
+#define X86_SEG_CS 1u
+#define X86_SEG_SS 2u
+#define X86_SEG_DS 3u
+#define X86_SEG_FS 4u
+#define X86_SEG_GS 5u
+static uint16_t x86_seg_selectors[6]={0x0023u,0x001Bu,0x0023u,0x0023u,0x003Bu,0x0053u};
+static void x86_reset_segment_selectors(void){
+ x86_seg_selectors[0]=0x0023u; x86_seg_selectors[1]=0x001Bu; x86_seg_selectors[2]=0x0023u;
+ x86_seg_selectors[3]=0x0023u; x86_seg_selectors[4]=0x003Bu; x86_seg_selectors[5]=0x0053u;
+ x86_reset_segment_selectors();
+}
+static void x86_set_segment_selector(uint32_t seg,uint16_t sel){
+ if(seg>=6u)return;
+ x86_seg_selectors[seg]=sel;
+ if(seg==X86_SEG_FS)x86_fs_base=(sel==0x003Bu)?X86_FS_TEB_BASE:0u;
+ else if(seg==X86_SEG_GS)x86_gs_base=(sel==0x0053u)?X86_GS_TEB_BASE:0u;
+}
+
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
 static uint32_t last_decoded_modrm=0,last_decoded_has_modrm=0;
 static uint32_t last_dispatch_id=0,last_dispatch_count=0,legacy_execution_count=0;
@@ -159,7 +181,7 @@ static void x86_trace_record(uint32_t before_eip,uint32_t before_flags,uint32_t 
  x86_profile_record(before_eip);
  if(regs[R_EAX]==0xDEADC0DEu && before_eax!=0xDEADC0DEu) trace_failure_index=i+1u;
 }
-enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_DISPATCH_RCR=3, X86_DISPATCH_MOV_R8_IMM8=4, X86_DISPATCH_MOV_R16_IMM16=5, X86_DISPATCH_CMP_R16_IMM16=6, X86_DISPATCH_MOV_R32_IMM32=7, X86_DISPATCH_ADD_EAX_IMM=8, X86_DISPATCH_SUB_EAX_IMM=9, X86_DISPATCH_CMP_EAX_IMM=10, X86_DISPATCH_MOV_R32_RM32=11, X86_DISPATCH_MOV_RM32_R32=12, X86_DISPATCH_CMP_R32_RM32=13, X86_DISPATCH_CMP_RM32_R32=14, X86_DISPATCH_JCC=15, X86_DISPATCH_GROUP2=16, X86_DISPATCH_F7=17, X86_DISPATCH_HLT=18, X86_DISPATCH_BT=19, X86_DISPATCH_BTS=20, X86_DISPATCH_BTR=21, X86_DISPATCH_BTC=22, X86_DISPATCH_X87=23, X86_DISPATCH_XOR_RM32_IMM32=24, X86_DISPATCH_SSE_SCALAR=25, X86_DISPATCH_CPUID=26, X86_DISPATCH_TEST=27, X86_DISPATCH_XOR_R8_RM8=28 };
+enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_DISPATCH_RCR=3, X86_DISPATCH_MOV_R8_IMM8=4, X86_DISPATCH_MOV_R16_IMM16=5, X86_DISPATCH_CMP_R16_IMM16=6, X86_DISPATCH_MOV_R32_IMM32=7, X86_DISPATCH_ADD_EAX_IMM=8, X86_DISPATCH_SUB_EAX_IMM=9, X86_DISPATCH_CMP_EAX_IMM=10, X86_DISPATCH_MOV_R32_RM32=11, X86_DISPATCH_MOV_RM32_R32=12, X86_DISPATCH_CMP_R32_RM32=13, X86_DISPATCH_CMP_RM32_R32=14, X86_DISPATCH_JCC=15, X86_DISPATCH_GROUP2=16, X86_DISPATCH_F7=17, X86_DISPATCH_HLT=18, X86_DISPATCH_BT=19, X86_DISPATCH_BTS=20, X86_DISPATCH_BTR=21, X86_DISPATCH_BTC=22, X86_DISPATCH_X87=23, X86_DISPATCH_XOR_RM32_IMM32=24, X86_DISPATCH_SSE_SCALAR=25, X86_DISPATCH_CPUID=26, X86_DISPATCH_TEST=27, X86_DISPATCH_XOR_R8_RM8=28, X86_DISPATCH_MOV_SREG_RM16=29, X86_DISPATCH_MOV_RM16_SREG=30 };
 
 /* v0.4 guest memory/import foundation. The guest-visible address space is
  * intentionally separate from the WASM allocator used for diagnostics. */
