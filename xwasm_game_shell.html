@@ -137,6 +137,8 @@ function createHost(){
   },
 
   /* Window bridge */
+  xwasm_xapi_call:(id,argc)=>xapiDispatch(id>>>0,argc>>>0),
+
   xwasm_window_create:(w,h,titlePtr,titleLen)=>{
    state.window.width=w>>>0;state.window.height=h>>>0;
    canvas.width=Math.max(1,w>>>0);canvas.height=Math.max(1,h>>>0);
@@ -239,7 +241,10 @@ async function readSelectedPackage(){
    state.xapis = [];
    const xapiFiles = files.filter(f => f.name.toLowerCase().endsWith(".xapi"));
    for (const f of xapiFiles) {
-    const raw = await unpack(await f.arrayBuffer(),"xapi",f.name);
+    const ab = await f.arrayBuffer();
+    const head = td.decode(new Uint8Array(ab,0,Math.min(6,ab.byteLength)));
+    /* packed XWSC01 container (kind xapi) or a plain JSON .xapi / seed */
+    const raw = head==="XWSC01" ? await unpack(ab,"xapi",f.name) : ab;
     const text = td.decode(new Uint8Array(raw));
     let parsed;
     try { parsed = JSON.parse(text); }
@@ -266,6 +271,7 @@ async function readSelectedPackage(){
   state.instance=await WebAssembly.instantiate(state.module,buildImports(state.module));
   state.exports=state.instance.exports;
   if(typeof state.exports.xwasm_init==="function")state.exports.xwasm_init();
+  registerXapis();
   state.diagnostics.exportNames=Object.keys(state.exports).filter(n=>/x86|cpu|trace|diag|fault|error|indirect|mem/i.test(n)).sort();
   renderDiagnostics("package loaded");
   $("overlay").textContent="XWASM package loaded";
@@ -392,6 +398,94 @@ function profileLine(p){
  if(p.hasModrm)bytes+=" /"+((p.modrm>>3)&7)+" (ModRM "+p.modrm.toString(16).padStart(2,"0").toUpperCase()+")";
  return bytes+" | "+p.semantic+" | count="+p.count+" | len="+p.minLen+(p.maxLen!==p.minLen?"-"+p.maxLen:"")+" | first="+hex(p.firstEip)+" | last="+hex(p.lastEip)+" | dispatch="+p.dispatch;
 }
+/* ---- XAPI: merged game manifest -> runtime registry + host bridge dispatch ----
+   Sub-.xapi files in the package are merged (later file wins on lib+function; ids must not collide),
+   registered with the runtime, and called back through xwasm_xapi_call(id,argc). */
+const XT={void:0,u32:1,i32:2,ptr:3,f32:4,f64:5};
+const xapiBridges={
+ "xw.kernel32.GetTickCount":()=>Math.floor(performance.now())|0,
+ "xw.kernel32.Beep":(f,d)=>{try{playBeep(f,d)}catch(e){}return 1},
+ "xw.kernel32.GetLastError":()=>state.lastError|0,
+ "xw.kernel32.SetLastError":e=>{state.lastError=e>>>0;return 0},
+ "xw.math.sin":Math.sin,"xw.math.cos":Math.cos,"xw.math.tan":Math.tan,"xw.math.sqrt":Math.sqrt,"xw.math.pow":Math.pow,
+ "xw.math.asin":Math.asin,"xw.math.acos":Math.acos,"xw.math.atan":Math.atan,"xw.math.atan2":Math.atan2,
+ "xw.math.exp":Math.exp,"xw.math.log":Math.log,"xw.math.log10":Math.log10,
+ "xw.math.ceil":Math.ceil,"xw.math.floor":Math.floor,"xw.math.fabs":Math.abs,
+ "xw.math.fmod":(a,b)=>a%b,"xw.math.ldexp":(x,e)=>x*Math.pow(2,e),
+ "xw.math.roundf":x=>Math.fround(Math.sign(x)*Math.round(Math.abs(x))),
+ "xw.math.copysignf":(a,b)=>Math.fround((Object.is(b,-0)||b<0)?-Math.abs(a):Math.abs(a))
+};
+state.xapiFns=[];state.xapiById={};state.xapiMissing={};state.xapiLibs=[];state.xapiAliases={};
+function mergeXapis(list){
+ const libs={},aliases={},fns=new Map(),idOwner=new Map(),notes=[];
+ for(const x of list){
+  if(!x||x.format!=="xwasm-xapi"||!x.libraries)throw Error("not an xwasm-xapi manifest");
+  Object.assign(aliases,x.dll_aliases||{});
+  for(const lib of Object.keys(x.libraries)){
+   libs[lib]=true;
+   const f=x.libraries[lib].functions||{};
+   for(const n of Object.keys(f)){
+    const key=lib.toLowerCase()+"!"+n,d=f[n];
+    const owner=idOwner.get(d.id);
+    if(owner&&owner!==key)throw Error("xapi id "+d.id+" used by both "+owner+" and "+key);
+    if(fns.has(key))notes.push("override "+lib+"!"+n);
+    idOwner.set(d.id,key);fns.set(key,{lib,name:n,def:d});
+   }
+  }
+ }
+ return {libs:Object.keys(libs),aliases,fns:[...fns.values()],notes};
+}
+function registerXapis(){
+ const ex=state.exports;
+ if(!ex||!ex.x86_xapi_register||!state.xapis.length)return;
+ const m=mergeXapis(state.xapis);
+ state.xapiLibs=m.libs;state.xapiAliases=m.aliases;state.xapiFns=[];state.xapiById={};state.xapiMissing={};
+ ex.x86_xapi_reset();
+ const sp=ex.x86_xapi_scratch()>>>0;
+ const put=(off,str)=>{const u=new TextEncoder().encode(str),dst=new Uint8Array(state.memory.buffer,sp+off,u.length+1);dst.set(u);dst[u.length]=0;return u.length+1};
+ for(const a of Object.keys(m.aliases)){const o=put(0,a);put(o,m.aliases[a]);ex.x86_xapi_register_alias()}
+ for(const e of m.fns){
+  const d=e.def,args=d.args||[];
+  if(args.length>16)throw Error(e.lib+"!"+e.name+": more than 16 args");
+  let o=put(0,e.lib);o+=put(o,e.name);
+  new Uint8Array(state.memory.buffer,sp+o,args.length).set(args.map(t=>{if(!(t in XT))throw Error(e.name+": unknown arg type "+t);return XT[t]}));
+  const rt=d.return||"void";if(!(rt in XT))throw Error(e.name+": unknown return type "+rt);
+  const idx=ex.x86_xapi_register(d.id>>>0,d.abi==="cdecl"?1:0,args.length,XT[rt])>>>0;
+  if(idx===0xFFFFFFFF)throw Error("xapi registry full or invalid: "+e.lib+"!"+e.name);
+  state.xapiFns[idx]={idx,lib:e.lib,name:e.name,def:d,ret:rt,fn:xapiBridges[d.bridge]||null};
+  state.xapiById[d.id>>>0]=state.xapiFns[idx];
+ }
+ log("xapi: "+m.fns.length+" functions in "+m.libs.length+" libraries from "+state.xapis.length+" file(s)"+(m.notes.length?" ("+m.notes.length+" overrides)":""));
+}
+function xapiDispatch(id,argc){
+ const e=state.xapiById[id],ex=state.exports;
+ if(!e)return 0;
+ const slots=new Float64Array(state.memory.buffer,ex.x86_xapi_slots()>>>0,16);
+ if(!e.fn){
+  const k=e.lib+"!"+e.name;
+  if(!state.xapiMissing[k]){state.xapiMissing[k]=1;error("xapi bridge not implemented: "+e.def.bridge+" ("+k+")")}
+  return 0;
+ }
+ const args=[];for(let i=0;i<argc;i++){const t=e.def.args[i];args.push(t==="u32"||t==="ptr"?slots[i]>>>0:slots[i])}
+ const r=e.fn(...args);
+ if(e.ret==="f32"||e.ret==="f64"){slots[15]=Number(r)||0;return 0}
+ return Number(r)|0;
+}
+function xapiReportLines(){
+ const L=[],fns=state.xapiFns.filter(Boolean);
+ if(!fns.length){L.push("(no xapi registered)");return L}
+ L.push("libraries="+state.xapiLibs.join(", ")+"  functions="+fns.length);
+ const al=Object.keys(state.xapiAliases);if(al.length)L.push("dll aliases: "+al.map(a=>a+" -> "+state.xapiAliases[a]).join(", "));
+ const ex=state.exports;
+ const called=fns.map(f=>({f,c:Number(ex.x86_get_xapi_call_count?.(f.idx))||0})).filter(x=>x.c>0);
+ L.push("-- xapi functions called --");
+ if(!called.length)L.push("(none)");
+ for(const x of called)L.push((x.f.fn?"OK        ":"NO-BRIDGE  ")+x.f.lib+"!"+x.f.name+" calls="+x.c);
+ const nb=fns.filter(f=>!f.fn).map(f=>f.lib+"!"+f.name);
+ L.push("-- xapi functions without a JS bridge ("+nb.length+") --");
+ L.push(nb.join(", ")||"(none)");
+ return L;
+}
 function gdrString(fn,i){
  let t="";
  for(let j=0;j<255;j++){const c=Number(callDiagnostic(fn,i,j))||0;if(!c)break;t+=String.fromCharCode(c&255)}
@@ -417,7 +511,7 @@ function gdrReportLines(){
  for(const r of rows){const k=r.dll||"?";(by[k]=by[k]||{ok:0,miss:0,rows:[]});r.resolved?by[k].ok++:by[k].miss++;by[k].rows.push(r)}
  const ok=rows.filter(r=>r.resolved).length;
  L.push("imports="+rows.length+" resolved="+ok+" unresolved="+(rows.length-ok));
- const lu=Number(callDiagnostic("x86_get_last_unresolved_gdr"));
+ const lu=Number(callDiagnostic("x86_get_last_unresolved_gdr"))>>>0;
  if(Number.isFinite(lu)&&lu!==0xFFFFFFFF){
   const r=rows[lu];
   L.push(lu===0xFFFFFFFE?"STOPPED ON: unresolved ORDINAL import":"STOPPED ON: "+(r?r.dll+"!"+r.fn+" (IAT RVA "+hex(r.iat)+")":"GDR #"+lu));
@@ -445,6 +539,9 @@ function buildFullReport(){
  lines.push("");
  lines.push("=== GUEST DEPENDENCY RESOLUTION (GDR) ===");
  lines.push(...gdrReportLines());
+ lines.push("");
+ lines.push("=== XAPI ===");
+ lines.push(...xapiReportLines());
  lines.push("");
  lines.push("=== INSTRUCTION PROFILE ===");
  lines.push("Unique executed instruction forms: "+p.length);
