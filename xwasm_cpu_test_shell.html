@@ -231,7 +231,7 @@ function findPotentialGaps(){
  const out=$("preflightOut");
  try{
   if(!exports)throw Error("runtime not loaded");
-  if(typeof exports.x86_preflight_scan!=="function")throw Error("runtime lacks x86_preflight_scan; rebuild v0.10+ runtime");
+  if(typeof exports.x86_preflight_scan!=="function")throw Error("runtime lacks x86_preflight_scan; rebuild the runtime with preflight support");
   const start=typeof exports.x86_get_eip==="function"?(Number(exports.x86_get_eip())>>>0):0;
   const scanned=Number(exports.x86_preflight_scan(start,256))||0;
   const mines=typeof exports.x86_get_preflight_mines==="function"?Number(exports.x86_get_preflight_mines()):0;
