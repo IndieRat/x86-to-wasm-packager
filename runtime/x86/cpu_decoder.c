@@ -706,6 +706,25 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
+        if (x86_id_is(d.entry->id,"XOR_R8_RM8")) {
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u),ea=0;
+            uint32_t reg=(uint32_t)((d.modrm>>3)&7u);
+            uint8_t a,b,v;
+            if ((d.modrm>>6)==3) {
+                a=reg8_read(reg); b=reg8_read((uint32_t)(d.modrm&7u));
+            } else {
+                if(!modrm_ea(d.modrm,&op_ip,&ea)){cpu_error=0x3200u|d.opcode;return -49;}
+                a=MEM8(ea); b=reg8_read(reg);
+            }
+            v=(uint8_t)(a^b);
+            if((d.modrm>>6)==3) reg8_write(reg,v); else wr8(ea,v);
+            set_logic_flags(v);
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_XOR_R8_RM8;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"XOR_EAX_IMM32")) {
             uint32_t b = rd32(d.cursor - 4u);
             uint32_t v = regs[R_EAX] ^ b;
