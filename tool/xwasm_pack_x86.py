@@ -53,7 +53,7 @@ def main()->int:
     resources=out/"resources"; resources.mkdir(parents=True,exist_ok=True)
     exe=(game/a.exe).resolve() if a.exe else None
     if exe is None:
-        candidates=sorted(game.glob("*.exe")) or sorted(game.rglob("*.exe"))
+        candidates=sorted(game.rglob("*.exe"))
         if not candidates: raise SystemExit("No EXE found.")
         # Do not silently choose the first alphabetic EXE: game directories commonly
         # contain launchers, installers, updaters, crash tools, and the real game.
