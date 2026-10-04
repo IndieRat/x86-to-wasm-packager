@@ -1,0 +1,143 @@
+{
+  "format": "xwasm-xapi",
+  "version": 1,
+  "dll_aliases": {
+    "api-ms-win-crt-math-l1-1-0.dll": "MATH.dll"
+  },
+  "libraries": {
+    "MATH.dll": {
+      "functions": {
+        "asin": {
+          "id": 6,
+          "abi": "cdecl",
+          "args": [
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.asin"
+        },
+        "acos": {
+          "id": 7,
+          "abi": "cdecl",
+          "args": [
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.acos"
+        },
+        "atan": {
+          "id": 8,
+          "abi": "cdecl",
+          "args": [
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.atan"
+        },
+        "atan2": {
+          "id": 9,
+          "abi": "cdecl",
+          "args": [
+            "f64",
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.atan2"
+        },
+        "exp": {
+          "id": 10,
+          "abi": "cdecl",
+          "args": [
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.exp"
+        },
+        "log": {
+          "id": 11,
+          "abi": "cdecl",
+          "args": [
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.log"
+        },
+        "log10": {
+          "id": 12,
+          "abi": "cdecl",
+          "args": [
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.log10"
+        },
+        "ceil": {
+          "id": 13,
+          "abi": "cdecl",
+          "args": [
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.ceil"
+        },
+        "floor": {
+          "id": 14,
+          "abi": "cdecl",
+          "args": [
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.floor"
+        },
+        "fabs": {
+          "id": 15,
+          "abi": "cdecl",
+          "args": [
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.fabs"
+        },
+        "fmod": {
+          "id": 16,
+          "abi": "cdecl",
+          "args": [
+            "f64",
+            "f64"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.fmod"
+        },
+        "ldexp": {
+          "id": 17,
+          "abi": "cdecl",
+          "args": [
+            "f64",
+            "i32"
+          ],
+          "return": "f64",
+          "bridge": "xw.math.ldexp"
+        },
+        "roundf": {
+          "id": 18,
+          "abi": "cdecl",
+          "args": [
+            "f32"
+          ],
+          "return": "f32",
+          "bridge": "xw.math.roundf"
+        },
+        "copysignf": {
+          "id": 19,
+          "abi": "cdecl",
+          "args": [
+            "f32",
+            "f32"
+          ],
+          "return": "f32",
+          "bridge": "xw.math.copysignf"
+        }
+      }
+    }
+  }
+}
