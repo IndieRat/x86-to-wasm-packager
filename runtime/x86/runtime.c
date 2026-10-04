@@ -237,6 +237,8 @@ enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_
 #define API_OPENGL32_GLTRANSLATEF (API_BASE+0x0000A074u)
 #define API_OPENGL32_GLSCALEF (API_BASE+0x0000A078u)
 #define API_OPENGL32_GLROTATEF (API_BASE+0x0000A07Cu)
+#define API_OPENGL32_WGLSHARELISTS (API_BASE+0x0000A080u)
+#define API_OPENGL32_WGLGETPROCADDRESS (API_BASE+0x0000A084u)
 #define API_USER32_GETMESSAGEA (API_BASE+0x00006000u)
 #define API_USER32_PEEKMESSAGEA (API_BASE+0x00006004u)
 #define API_USER32_TRANSLATEMESSAGE (API_BASE+0x00006008u)
@@ -911,7 +913,8 @@ static int x87_push(double v);
 extern int32_t xwasm_xapi_call(int32_t id,int32_t argc);
 typedef struct{uint32_t id,lib_off,name_off,calls;uint8_t abi,nargs,ret,args[16];}x86_xapi_fn_t;
 static x86_xapi_fn_t xapi_fn[XAPI_MAX_FUNCS];
-static uint32_t xapi_count=0,xapi_pool_used=0,xapi_alias_count=0,xapi_alias_from[XAPI_MAX_ALIASES],xapi_alias_to[XAPI_MAX_ALIASES];
+static uint32_t xapi_count=0,xapi_pool_used=0,xapi_alias_count=0,xapi_duplicate_count=0,
+ xapi_alias_from[XAPI_MAX_ALIASES],xapi_alias_to[XAPI_MAX_ALIASES];
 static uint32_t xapi_last_id=0,xapi_last_idx=0xFFFFFFFFu;
 static char xapi_pool[XAPI_POOL_SIZE];
 static uint8_t xapi_scratch[512];
@@ -1057,6 +1060,8 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"wglDeleteContext"))return API_OPENGL32_WGLDELETECONTEXT;
   if(streq_ascii(name,"wglMakeCurrent"))return API_OPENGL32_WGLMAKECURRENT;
   if(streq_ascii(name,"wglGetCurrentContext"))return API_OPENGL32_WGLGETCURRENTCONTEXT;
+  if(streq_ascii(name,"wglShareLists"))return API_OPENGL32_WGLSHARELISTS;
+  if(streq_ascii(name,"wglGetProcAddress"))return API_OPENGL32_WGLGETPROCADDRESS;
   if(streq_ascii(name,"glClearColor"))return API_OPENGL32_GLCLEARCOLOR;
   if(streq_ascii(name,"glClear"))return API_OPENGL32_GLCLEAR;
   if(streq_ascii(name,"glViewport"))return API_OPENGL32_GLVIEWPORT;
@@ -1127,6 +1132,43 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"RegDeleteValueA"))return API_KERNEL32_REGDELETEVALUEA;
  }
  {int32_t xi=xapi_lookup(dll,name);if(xi>=0)return API_XAPI_BASE+(uint32_t)xi*4u;}
+ return 0;
+}
+static uint32_t opengl_proc_target(uint32_t name){
+ if(streq_ascii(name,"wglCreateContext"))return API_OPENGL32_WGLCREATECONTEXT;
+ if(streq_ascii(name,"wglDeleteContext"))return API_OPENGL32_WGLDELETECONTEXT;
+ if(streq_ascii(name,"wglMakeCurrent"))return API_OPENGL32_WGLMAKECURRENT;
+ if(streq_ascii(name,"wglGetCurrentContext"))return API_OPENGL32_WGLGETCURRENTCONTEXT;
+ if(streq_ascii(name,"wglShareLists"))return API_OPENGL32_WGLSHARELISTS;
+ if(streq_ascii(name,"wglGetProcAddress"))return API_OPENGL32_WGLGETPROCADDRESS;
+ if(streq_ascii(name,"glClearColor"))return API_OPENGL32_GLCLEARCOLOR;
+ if(streq_ascii(name,"glClear"))return API_OPENGL32_GLCLEAR;
+ if(streq_ascii(name,"glViewport"))return API_OPENGL32_GLVIEWPORT;
+ if(streq_ascii(name,"glBegin"))return API_OPENGL32_GLBEGIN;
+ if(streq_ascii(name,"glEnd"))return API_OPENGL32_GLEND;
+ if(streq_ascii(name,"glColor3f"))return API_OPENGL32_GLCOLOR3F;
+ if(streq_ascii(name,"glColor4f"))return API_OPENGL32_GLCOLOR4F;
+ if(streq_ascii(name,"glVertex2f"))return API_OPENGL32_GLVERTEX2F;
+ if(streq_ascii(name,"glVertex3f"))return API_OPENGL32_GLVERTEX3F;
+ if(streq_ascii(name,"glFlush"))return API_OPENGL32_GLFLUSH;
+ if(streq_ascii(name,"glFinish"))return API_OPENGL32_GLFINISH;
+ if(streq_ascii(name,"glGetString"))return API_OPENGL32_GLGETSTRING;
+ if(streq_ascii(name,"glEnable"))return API_OPENGL32_GLENABLE;
+ if(streq_ascii(name,"glDisable"))return API_OPENGL32_GLDISABLE;
+ if(streq_ascii(name,"glBlendFunc"))return API_OPENGL32_GLBLENDFUNC;
+ if(streq_ascii(name,"glDepthFunc"))return API_OPENGL32_GLDEPTHFUNC;
+ if(streq_ascii(name,"glDepthMask"))return API_OPENGL32_GLDEPTHMASK;
+ if(streq_ascii(name,"glLineWidth"))return API_OPENGL32_GLLINEWIDTH;
+ if(streq_ascii(name,"glPointSize"))return API_OPENGL32_GLPOINTSIZE;
+ if(streq_ascii(name,"glTexCoord2f"))return API_OPENGL32_GLTEXCOORD2F;
+ if(streq_ascii(name,"glNormal3f"))return API_OPENGL32_GLNORMAL3F;
+ if(streq_ascii(name,"glMatrixMode"))return API_OPENGL32_GLMATRIXMODE;
+ if(streq_ascii(name,"glLoadIdentity"))return API_OPENGL32_GLLOADIDENTITY;
+ if(streq_ascii(name,"glPushMatrix"))return API_OPENGL32_GL_PUSHMATRIX;
+ if(streq_ascii(name,"glPopMatrix"))return API_OPENGL32_GL_POPMATRIX;
+ if(streq_ascii(name,"glTranslatef"))return API_OPENGL32_GLTRANSLATEF;
+ if(streq_ascii(name,"glScalef"))return API_OPENGL32_GLSCALEF;
+ if(streq_ascii(name,"glRotatef"))return API_OPENGL32_GLROTATEF;
  return 0;
 }
 static uint32_t gl_color_u32(void){
@@ -1219,6 +1261,8 @@ static uint32_t call_builtin(uint32_t target){
   uint32_t sp=regs[R_ESP]; uint32_t hdc=rd32(sp+4u),x=rd32(sp+8u),y=rd32(sp+12u),color=rd32(sp+16u);
   if(hdc) xwasm_gfx_pixel((int32_t)x,(int32_t)y,(int32_t)color); xwasm_gfx_present(); regs[R_EAX]=color; regs[R_ESP]+=16u; return 1;
  }
+ if(target==API_OPENGL32_WGLSHARELISTS){regs[R_EAX]=1u;regs[R_ESP]+=8u;return 1;}
+ if(target==API_OPENGL32_WGLGETPROCADDRESS){uint32_t sp=regs[R_ESP];regs[R_EAX]=opengl_proc_target(rd32(sp+4u));regs[R_ESP]+=4u;return 1;}
  if(target==API_OPENGL32_WGLCREATECONTEXT){regs[R_EAX]=gl_context;regs[R_ESP]+=4u;return 1;}
  if(target==API_OPENGL32_WGLDELETECONTEXT){uint32_t sp=regs[R_ESP];if(rd32(sp+4u)==gl_current_context)gl_current_context=0;regs[R_EAX]=1u;regs[R_ESP]+=4u;return 1;}
  if(target==API_OPENGL32_WGLMAKECURRENT){uint32_t sp=regs[R_ESP];uint32_t hdc=rd32(sp+4u),ctx=rd32(sp+8u);gl_current_context=ctx?ctx:0;if(hdc&&ctx)xwasm_gfx_create((int32_t)surface_width,(int32_t)surface_height);regs[R_EAX]=1u;regs[R_ESP]+=8u;return 1;}
@@ -2723,11 +2767,22 @@ __attribute__((export_name("x86_get_gdr_status"))) uint32_t x86_get_gdr_status(u
 __attribute__((export_name("x86_get_gdr_call_count"))) uint32_t x86_get_gdr_call_count(uint32_t i){return i<x86_gdr_count?x86_gdr[i].call_count:0;}
 __attribute__((export_name("x86_xapi_scratch"))) uint32_t x86_xapi_scratch(void){return (uint32_t)(uintptr_t)xapi_scratch;}
 __attribute__((export_name("x86_xapi_slots"))) uint32_t x86_xapi_slots(void){return (uint32_t)(uintptr_t)xapi_slots;}
-__attribute__((export_name("x86_xapi_reset"))) void x86_xapi_reset(void){xapi_count=0;xapi_pool_used=0;xapi_alias_count=0;xapi_last_idx=0xFFFFFFFFu;}
+__attribute__((export_name("x86_xapi_reset"))) void x86_xapi_reset(void){xapi_count=0;xapi_pool_used=0;xapi_alias_count=0;xapi_duplicate_count=0;xapi_last_idx=0xFFFFFFFFu;}
 /* scratch layout: "lib\0name\0" then nargs type-code bytes. Returns index, or 0xFFFFFFFF on error. */
 __attribute__((export_name("x86_xapi_register"))) uint32_t x86_xapi_register(uint32_t id,uint32_t abi,uint32_t nargs,uint32_t ret){
  if(xapi_count>=XAPI_MAX_FUNCS||nargs>16u)return 0xFFFFFFFFu;
  uint32_t ll=xapi_len(xapi_scratch,200u),nl2=xapi_len(xapi_scratch+ll+1u,200u);
+ for(uint32_t i=0;i<xapi_count;i++){
+  x86_xapi_fn_t*f=&xapi_fn[i];
+  int same_name=xapi_cstreq(xapi_pool+f->lib_off,(const char*)xapi_scratch)&&
+                xapi_cstreq(xapi_pool+f->name_off,(const char*)(xapi_scratch+ll+1u));
+  int same_sig=same_name&&f->id==id&&f->abi==(uint8_t)abi&&f->nargs==(uint8_t)nargs&&f->ret==(uint8_t)ret;
+  if(same_sig){
+   for(uint32_t k=0;k<nargs;k++)if(f->args[k]!=xapi_scratch[ll+nl2+2u+k]){same_sig=0;break;}
+   if(same_sig){xapi_duplicate_count++;return i;}
+  }
+  if(f->id==id||same_name)return 0xFFFFFFFFu;
+ }
  uint32_t lo=xapi_pool_add(xapi_scratch,ll),no=xapi_pool_add(xapi_scratch+ll+1u,nl2);
  if(lo==0xFFFFFFFFu||no==0xFFFFFFFFu)return 0xFFFFFFFFu;
  x86_xapi_fn_t*f=&xapi_fn[xapi_count];
@@ -2744,6 +2799,7 @@ __attribute__((export_name("x86_xapi_register_alias"))) uint32_t x86_xapi_regist
  xapi_alias_from[xapi_alias_count]=a;xapi_alias_to[xapi_alias_count]=t;return xapi_alias_count++;
 }
 __attribute__((export_name("x86_get_xapi_count"))) uint32_t x86_get_xapi_count(void){return xapi_count;}
+__attribute__((export_name("x86_get_xapi_duplicate_count"))) uint32_t x86_get_xapi_duplicate_count(void){return xapi_duplicate_count;}
 __attribute__((export_name("x86_get_xapi_id"))) uint32_t x86_get_xapi_id(uint32_t i){return i<xapi_count?xapi_fn[i].id:0;}
 __attribute__((export_name("x86_get_xapi_call_count"))) uint32_t x86_get_xapi_call_count(uint32_t i){return i<xapi_count?xapi_fn[i].calls:0;}
 __attribute__((export_name("x86_get_last_xapi_id"))) uint32_t x86_get_last_xapi_id(void){return xapi_last_id;}
