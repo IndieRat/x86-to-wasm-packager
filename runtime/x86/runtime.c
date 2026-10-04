@@ -2004,6 +2004,7 @@ static int cpu_step_legacy(void){
    eip=ip; return 0;
   }
   case 0x09: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t ea=0,v=regs[d]; if((m>>6)==3){v|=regs[m&7];regs[m&7]=v;}else{modrm_ea(m,&ip,&ea);v=rd32(ea)|v;wr32(ea,v);} set_logic_flags(v);eip=ip;return 0; } /* OR r/m32,r32 */
+  case 0x0D: { uint32_t b=rd32(ip),v=regs[R_EAX]|b; regs[R_EAX]=v; set_logic_flags(v); eip=ip+4; return 0; } /* OR EAX,imm32 */
   case 0x0B: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t v=regs[d]|modrm_read32(m,&ip);regs[d]=v;set_logic_flags(v);eip=ip;return 0; } /* OR r32,r/m32 */
   case 0x21: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t ea=0,v=regs[d]; if((m>>6)==3){v&=regs[m&7];regs[m&7]=v;}else{modrm_ea(m,&ip,&ea);v=rd32(ea)&v;wr32(ea,v);}set_logic_flags(v);eip=ip;return 0; } /* AND r/m32,r32 */
   case 0x23: { uint8_t m=MEM8(ip++),d=(m>>3)&7; uint32_t v=regs[d]&modrm_read32(m,&ip);regs[d]=v;set_logic_flags(v);eip=ip;return 0; } /* AND r32,r/m32 */
@@ -2148,8 +2149,18 @@ static int cpu_step_legacy(void){
    eflags=(v&0x00000FD5u)|0x00000002u;
    eip=ip;return 0;
   }
+  case 0xA8:{uint8_t b=MEM8(ip++),a=reg8_read(0);set_logic_flags_width((uint8_t)(a&b),8);eip=ip;return 0;} /* TEST AL,imm8 */
+  case 0xA9:{uint32_t b=rd32(ip),a=regs[R_EAX];set_logic_flags(a,b,a&b);eip=ip+4;return 0;} /* TEST EAX,imm32 */
   case 0x68:{uint32_t v=rd32(ip);ip+=4;if(!x86_stack_push32(v))return -42;eip=ip;return 0;} /* PUSH imm32 */
   case 0x6A:{int8_t v=(int8_t)MEM8(ip++);if(!x86_stack_push32((uint32_t)(int32_t)v))return -43;eip=ip;return 0;} /* PUSH imm8 */
+  case 0x8F:{ /* POP r/m32 */
+   uint8_t m=MEM8(ip++),sub=(m>>3)&7u; uint32_t v,ea=0;
+   if(sub!=0u){cpu_error=0x8F00u|sub;return -57;}
+   if(!x86_stack_pop32(&v))return -55;
+   if((m>>6)==3)regs[m&7u]=v;
+   else{if(!modrm_ea(m,&ip,&ea)){cpu_error=0x8F01u;return -58;}wr32(ea,v);}
+   eip=ip;return 0;
+  }
   case 0x58:case 0x59:case 0x5A:case 0x5B:case 0x5C:case 0x5D:case 0x5E:case 0x5F:{
    uint32_t v;
    if(!x86_stack_pop32(&v))return -55;
@@ -2158,12 +2169,25 @@ static int cpu_step_legacy(void){
   case 0x50:case 0x51:case 0x52:case 0x53:case 0x54:case 0x55:case 0x56:case 0x57:
    if(!x86_stack_push32(regs[op-0x50]))return -56;
    eip=ip;return 0;
+  case 0xFE:{ /* INC/DEC r/m8 */
+   uint8_t m=MEM8(ip++),sub=(m>>3)&7u;uint32_t ea=0;uint8_t a,r;uint32_t old_cf=eflags&CF;
+   if(sub>1u){cpu_error=0xFE00u|sub;return -59;}
+   if((m>>6)==3)a=reg8_read(m&7u);else{if(!modrm_ea(m,&ip,&ea)){cpu_error=0xFE01u;return -60;}a=MEM8(ea);}
+   if(sub==0u){r=(uint8_t)(a+1u);set_add_flags_width(a,1u,r,8);}else{r=(uint8_t)(a-1u);set_sub_flags_width(a,1u,r,8);}
+   eflags=(eflags&~CF)|old_cf;
+   if((m>>6)==3)reg8_write(m&7u,r);else wr8(ea,r);
+   eip=ip;return 0;
+  }
+  case 0xCC:{ /* INT3: browser-compatible soft breakpoint/no-op */ eip=ip; return 0; }
   case 0x0F: {
    uint8_t op2=MEM8(ip++);
    if(op2==0xAF){uint8_t m=MEM8(ip++);int64_t p=(int64_t)(int32_t)regs[(m>>3)&7]*(int64_t)(int32_t)modrm_read32(m,&ip);uint32_t r=(uint32_t)p;regs[(m>>3)&7]=r;eflags=(eflags&~(CF|OF))|((p!=(int64_t)(int32_t)r)?(CF|OF):0);eip=ip;return 0;}
    if(op2==0x44){uint8_t m=MEM8(ip++);uint32_t v=modrm_read32(m,&ip);if(eflags&ZF)regs[(m>>3)&7]=v;eip=ip;return 0;}
+   if(op2==0x90||op2==0x92){uint8_t m=MEM8(ip++);uint8_t v=(op2==0x90)?((eflags&OF)?1u:0u):((eflags&CF)?1u:0u);if((m>>6)==3)reg8_write(m&7u,v);else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0F00u|op2;return -19;}wr8(ea,v);}eip=ip;return 0;}
    if(op2==0x94){uint8_t m=MEM8(ip++),v=(eflags&ZF)?1u:0u;if((m>>6)==3)reg8_write(m&7u,(uint8_t)v);else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0F94u;return -19;}wr8(ea,(uint8_t)v);}eip=ip;return 0;}
+   if(op2==0xB7){uint8_t m=MEM8(ip++);uint16_t v;if((m>>6)==3)v=reg16_read(m&7u);else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0FB7u;return -17;}v=rd16(ea);}regs[(m>>3)&7u]=(uint32_t)v;eip=ip;return 0;}
    if(op2==0xB6||op2==0xBE){uint8_t m=MEM8(ip++);uint32_t v;if((m>>6)==3){v=regs[m&7]&0xFFu;}else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0F00u|op2;return -17;}v=MEM8(ea);}if(op2==0xBE&&v&0x80u)v|=0xFFFFFF00u;regs[(m>>3)&7]=v;eip=ip;return 0;}
+   if(op2==0xAE){uint8_t m=MEM8(ip++),sub=(m>>3)&7u;uint32_t ea=0;if(sub!=1u||(m>>6)==3){cpu_error=0x0FAEu|sub;return -18;}if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0FAE01u;return -18;}if(!x86_mem_region_find(ea,512u,X86_MEM_READ)){x86_mem_faults++;cpu_error=0xE100u|1u;return -62;}x87_control=rd16(ea);x87_status=rd16(ea+2u);eip=ip;return 0;}
    if(op2==0xA3||op2==0xAB||op2==0xB3||op2==0xBB){uint8_t m=MEM8(ip++),d=(m>>3)&7;int32_t bit=(int32_t)regs[d];uint32_t ea=0,shift=(uint32_t)bit&31u,v;if((m>>6)==3)v=regs[m&7];else{modrm_ea(m,&ip,&ea);ea+=(uint32_t)(bit>>5)*4u;v=rd32(ea);}uint32_t old=(v>>shift)&1u;eflags=(eflags&~CF)|(old?CF:0);if(op2!=0xA3){if(op2==0xAB)v|=1u<<shift;else if(op2==0xB3)v&=~(1u<<shift);else v^=1u<<shift;if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);}eip=ip;return 0;}
    if(op2==0xBA){uint8_t m=MEM8(ip++),sub=(m>>3)&7,bit=MEM8(ip++);if(sub<4||sub>7){cpu_error=0x0FBAu|sub;return -36;}uint32_t ea=0,v,shift=bit&31u;if((m>>6)==3)v=regs[m&7];else{modrm_ea(m,&ip,&ea);v=rd32(ea);}uint32_t old=(v>>shift)&1u;eflags=(eflags&~CF)|(old?CF:0);if(sub!=4){if(sub==5)v|=1u<<shift;else if(sub==6)v&=~(1u<<shift);else v^=1u<<shift;if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);}eip=ip;return 0;}
    if(op2>=0x80&&op2<=0x8F){int32_t d=(int32_t)rd32(ip);ip+=4;uint8_t shortop=(uint8_t)(0x70u+(op2-0x80u));eip=cond(shortop)?ip+(uint32_t)d:ip;return 0;}
