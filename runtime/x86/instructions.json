@@ -45,6 +45,10 @@
         "status": "EXECUTE"
       },
       {
+        "mnemonic": "CMPXCHG",
+        "status": "EXECUTE"
+      },
+      {
         "mnemonic": "DEC",
         "status": "EXECUTE"
       },
