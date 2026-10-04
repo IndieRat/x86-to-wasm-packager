@@ -443,7 +443,11 @@ static int cpu_step(void) {
      * semantics. Keeping it behind a verified decoder lets us migrate each
      * instruction family independently without maintaining two decoders.
      */
-    eip = saved_eip;
+    /* Legacy semantics must begin at the decoded opcode, not at a consumed
+     * FS/GS (or other legacy) prefix. The decoder has already accounted for
+     * the prefix in d.cursor and d.op_pos. Starting at saved_eip would feed
+     * 0x64/0x65 to the legacy switch as if it were an opcode. */
+    eip = d.op_pos ? d.op_pos : saved_eip;
     decoded_prefixes = d.prefixes;
     decoded_operand16 = d.operand16;
     last_decoded_map = d.map;
