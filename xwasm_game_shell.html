@@ -599,7 +599,7 @@ function gapBytes(ex,addr,count=8){
 function runGapTracer(){
  try{
   const ex=state.exports;if(!ex)throw Error("runtime not loaded");
-  if(typeof ex.x86_preflight_scan!=="function")throw Error("runtime lacks x86_preflight_scan; rebuild v0.10+ runtime");
+  if(typeof ex.x86_preflight_scan!=="function")throw Error("runtime lacks x86_preflight_scan; rebuild the runtime with preflight support");
   const start=Number(ex.x86_get_eip?.()||0)>>>0;
   const count=Number(ex.x86_preflight_scan(start,512))||0;
   const mines=Number(ex.x86_get_preflight_mines?.()||0);
