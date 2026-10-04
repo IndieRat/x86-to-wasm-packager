@@ -554,6 +554,33 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
+        if (x86_id_is(d.entry->id,"CMPXCHG_RM32_R32")) {
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u),ea=0;
+            uint8_t m=d.modrm;
+            uint32_t acc=regs[R_EAX];
+            uint32_t dst=(m>>6)==3u ? regs[m&7u] : 0u;
+            if ((m>>6)!=3u) {
+                if(!modrm_ea(m,&op_ip,&ea)){cpu_error=0x0FB101u;return -60;}
+                dst=rd32(ea);
+            }
+            uint32_t r=acc-dst;
+            set_sub_flags(acc,dst,r);
+            if(acc==dst) {
+                uint32_t src=regs[(m>>3)&7u];
+                if((m>>6)==3u) regs[m&7u]=src;
+                else wr32(ea,src);
+                eflags|=ZF;
+            } else {
+                regs[R_EAX]=dst;
+                eflags&=~ZF;
+            }
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_NONE;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"TEST_RM32_IMM32")) {
             uint32_t op_ip=d.cursor-d.imm_size-d.disp_size-(d.has_sib?1u:0u),ea=0;
             uint32_t value;
