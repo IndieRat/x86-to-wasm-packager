@@ -189,6 +189,15 @@ document.querySelector("#files").onchange=async e=>{
       say("XAPI pool loaded: "+registered+" functions, "+aliases+" aliases; duplicate entries skipped="+duplicates+" runtime_dedup="+rd);return registered;
     };
     
+    const xapiMissing=manifest.xapi_unconverted_dlls||[];
+    say("XAPI DLL coverage: "+xapiMissing.length+" bundled DLLs lack direct XAPI conversion.");
+    for(const item of xapiMissing.slice(0,32))say("  XAPI gap: "+item.dll+" ["+item.reason+"]");
+    const xapiPoolPath=manifest.xapi_pool||"";
+    const xapiPoolFile=xapiPoolPath?files.get(xapiPoolPath):null;
+    const strayXapis=[...files.keys()].filter(p=>/\.xapi$/i.test(p)&&p!==xapiPoolPath);
+    if(strayXapis.length)say("Ignoring non-authoritative XAPI artifacts: "+strayXapis.join(", "));
+    await registerXapiPool(xapiPoolFile);
+    
     const emitGdrProvenance=()=>{
       if(!ex.x86_get_gdr_count){
         say("=== GDR PROVENANCE ===");
