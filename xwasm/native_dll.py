@@ -33,7 +33,7 @@ def _u32(data: bytes, off: int) -> int:
 def _cstr(data: bytes, off: int) -> str:
     if off < 0 or off >= len(data):
         raise ValueError("invalid PE string offset")
-    end = data.find(b"\\0", off)
+    end = data.find(b"\0", off)
     if end < 0:
         end = len(data)
     return data[off:end].decode("ascii", "replace")
@@ -88,7 +88,7 @@ def inspect_native_dll(path: Path) -> dict:
         off = section_table + i * 40
         if off + 40 > len(data):
             raise ValueError(f"{path.name}: truncated section table")
-        name = data[off:off + 8].split(b"\\0", 1)[0].decode("ascii", "replace")
+        name = data[off:off + 8].split(b"\0", 1)[0].decode("ascii", "replace")
         sections.append({
             "name": name,
             "virtual_size": _u32(data, off + 8),
