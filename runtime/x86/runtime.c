@@ -163,6 +163,10 @@ enum { X86_DISPATCH_NONE=0, X86_DISPATCH_INC_R32=1, X86_DISPATCH_DEC_R32=2, X86_
 #define GUEST_HEAP_BASE 0x00800000u
 #define GUEST_HEAP_LIMIT 0x01F00000u
 #define API_BASE 0x70000000u
+/* Unresolved-import trap range: one 4-byte slot per GDR record. A call/jmp into it stops the CPU with the exact import named. */
+#define API_UNRESOLVED_BASE (API_BASE+0x00F00000u)
+#define API_UNRESOLVED_ORDINAL (API_UNRESOLVED_BASE+0x0000FFF0u)
+#define API_UNRESOLVED_END (API_UNRESOLVED_BASE+0x00010000u)
 #define API_GETTICKCOUNT (API_BASE+0x00001000u)
 #define API_XWASM_LOG (API_BASE+0x00002000u)
 #define API_VIRTUALALLOC (API_BASE+0x00003000u)
@@ -776,6 +780,7 @@ static uint32_t x86_reg_value_exists_impl(uint32_t handle,const char *name){
 
 static uint32_t guest_heap=GUEST_HEAP_BASE;
 static uint32_t import_resolved=0,import_failed=0;
+static uint32_t last_unresolved_gdr=0xFFFFFFFFu;
 
 /* Guest Dependency Resolution (GDR) provenance.
  * Each named PE import gets one stable record so the browser shell can distinguish:
@@ -1983,6 +1988,12 @@ static int cpu_step_legacy(void){
    uint32_t next=ip;
    last_indirect_slot=ea;last_indirect_target=target;
    if(!target){cpu_error=0xFF10u;return -58;} /* indirect call/jmp through a null pointer (unpatched IAT slot) */
+   if(target>=API_UNRESOLVED_BASE&&target<API_UNRESOLVED_END){
+    /* Unresolved import: stop with a precise diagnosis instead of executing hint/name bytes. */
+    last_unresolved_gdr=(target==API_UNRESOLVED_ORDINAL)?0xFFFFFFFEu:((target-API_UNRESOLVED_BASE)>>2);
+    if(sub==2)x86_gdr_note_call(ea);
+    cpu_error=0xFF20u;return -63;
+   }
    if(sub==2){
     x86_gdr_note_call(ea);
     if(!x86_stack_push32(next))return -57;
@@ -2046,7 +2057,7 @@ static void scan_imports(void){
   for(uint32_t i=0;i<0x100000u;i++){
    uint32_t v=rd32(thunk+i*4u);
    if(!v)break;
-   if(v&0x80000000u){import_failed++;continue;} /* ordinal imports are a later milestone */
+   if(v&0x80000000u){import_failed++;wr32(iat+i*4u,API_UNRESOLVED_ORDINAL);continue;} /* ordinal imports: trap on call */
    if(v+2u>=image_size){import_failed++;break;}
    uint32_t name=image_base+v+2u;
    import_count++;
@@ -2066,6 +2077,7 @@ static void scan_imports(void){
     resolved_this_dll++;
    }else{
     import_failed++;
+    if(gdr_index!=0xFFFFFFFFu){x86_gdr[gdr_index].target=API_UNRESOLVED_BASE+gdr_index*4u;wr32(iat+i*4u,API_UNRESOLVED_BASE+gdr_index*4u);}
     last_failed_import_dll=name_rva;
     last_failed_import_func=v;
     uint32_t dl=0,fn=0;
@@ -2082,7 +2094,7 @@ static void scan_imports(void){
 
 static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
- requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;x86_gdr_reset();mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;surface_width=640;surface_height=360;
+ requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;x86_gdr_reset();last_unresolved_gdr=0xFFFFFFFFu;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;surface_width=640;surface_height=360;
  if(sz<0x40u){load_error=1;return-1;} if(rd16(f)!=0x5a4du){load_error=2;return-1;}
  uint32_t pe=rd32(f+0x3cu); if(pe>sz-4u){load_error=3;return-2;} if(pe+24u>sz){load_error=4;return-2;}
  if(rd32(f+pe)!=0x4550u){load_error=5;return-2;}
@@ -2134,7 +2146,7 @@ static int load_pe(uint32_t f,uint32_t sz){
 /* A PE entrypoint is invoked by the runtime rather than by a guest CALL. Seed a
  * synthetic return address so C fixtures whose entrypoint is main() can RET cleanly. */
 if(!x86_stack_push32(X86_ENTRY_RETURN_SENTINEL)){loaded=0;load_error=16;return-7;}
-guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();x86_profile_clear();
+guest_heap=GUEST_HEAP_BASE;halted=0;cpu_error=0;steps=0;eflags=0x2;decoded_prefixes=0;decoded_operand16=0;last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;last_unresolved_gdr=0xFFFFFFFFu;x86_trace_reset();x86_profile_clear();
  x87_init_state(); xmm_reset();
  legacy_execution_count=0;
  loghex("X86 requested image base=",requested_image_base);
@@ -2148,7 +2160,7 @@ __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  x86_fs_reset();
  x86_reg_reset();
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
- for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;x86_trace_reset();x86_profile_clear(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
+ for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;last_unresolved_gdr=0xFFFFFFFFu;x86_trace_reset();x86_profile_clear(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.9");
 loglit("PE32 + decoder CPU + guest memory regions + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
@@ -2332,6 +2344,9 @@ __attribute__((export_name("x86_get_gdr_iat_rva"))) uint32_t x86_get_gdr_iat_rva
 __attribute__((export_name("x86_get_gdr_target"))) uint32_t x86_get_gdr_target(uint32_t i){return i<x86_gdr_count?x86_gdr[i].target:0;}
 __attribute__((export_name("x86_get_gdr_status"))) uint32_t x86_get_gdr_status(uint32_t i){return i<x86_gdr_count?x86_gdr[i].status:0xFFFFFFFFu;}
 __attribute__((export_name("x86_get_gdr_call_count"))) uint32_t x86_get_gdr_call_count(uint32_t i){return i<x86_gdr_count?x86_gdr[i].call_count:0;}
+__attribute__((export_name("x86_get_last_unresolved_gdr"))) uint32_t x86_get_last_unresolved_gdr(void){return last_unresolved_gdr;}
+__attribute__((export_name("x86_get_gdr_dll_name_byte"))) uint32_t x86_get_gdr_dll_name_byte(uint32_t i,uint32_t j){return (i<x86_gdr_count&&j<255u)?MEM8(image_base+x86_gdr[i].dll_rva+j):0;}
+__attribute__((export_name("x86_get_gdr_func_name_byte"))) uint32_t x86_get_gdr_func_name_byte(uint32_t i,uint32_t j){return (i<x86_gdr_count&&j<255u)?MEM8(image_base+x86_gdr[i].func_rva+2u+j):0;}
 __attribute__((export_name("x86_alloc"))) uint32_t x86_alloc(uint32_t n){return guest_alloc_raw(n);}
 __attribute__((export_name("x86_crt_malloc"))) uint32_t x86_crt_malloc(uint32_t size){return x86_crt_malloc_impl(size);}
 __attribute__((export_name("x86_crt_calloc"))) uint32_t x86_crt_calloc(uint32_t count,uint32_t size){return x86_crt_calloc_impl(count,size);}
