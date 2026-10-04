@@ -2484,6 +2484,46 @@
         }
       ]
     },
+	{
+	  "id": "PUSH_RM32",
+	  "instruction": "PUSH",
+	  "opcode": ["FF"],
+	  "opcode_map": "primary",
+	  "encoding": "M",
+	  "modrm": {
+		"required": true,
+		"reg_extension": 6
+	  },
+	  "operands": [
+		{
+		  "kind": "rm32",
+		  "access": "r",
+		  "source": "modrm.rm"
+		}
+	  ]
+	},
+	{
+	  "id": "INC_RM32",
+	  "instruction": "INC",
+	  "opcode": ["FF"],
+	  "opcode_map": "primary",
+	  "encoding": "M",
+	  "modrm": {
+		"required": true,
+		"reg_extension": 0
+	  }
+	},
+	{
+	  "id": "DEC_RM32",
+	  "instruction": "DEC",
+	  "opcode": ["FF"],
+	  "opcode_map": "primary",
+	  "encoding": "M",
+	  "modrm": {
+		"required": true,
+		"reg_extension": 1
+	  }
+	},
     {
       "id": "PUSH_IMM8",
       "instruction": "PUSH",
