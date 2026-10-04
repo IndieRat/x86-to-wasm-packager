@@ -2521,8 +2521,8 @@ static int x86_dll_load_image(uint32_t f,uint32_t sz){
  if(sz<0x40u||rd16(f)!=0x5A4Du){x86_dll_last_error=1;return 0;}uint32_t pe=rd32(f+0x3Cu);
  if(pe+24u>sz||rd32(f+pe)!=0x4550u){x86_dll_last_error=2;return 0;}uint16_t mach=rd16(f+pe+4u),nsec=rd16(f+pe+6u),optsz=rd16(f+pe+20u),chars=rd16(f+pe+22u);
  if(mach!=0x14Cu||(chars&0x2000u)==0||optsz<224u){x86_dll_last_error=3;return 0;}uint32_t oh=f+pe+24u;if(oh+optsz>f+sz||rd16(oh)!=0x10Bu){x86_dll_last_error=4;return 0;}
- uint32_t isz=rd32(oh+56u),hsz=rd32(oh+60u),entry=rd32(oh+16u),pref=rd32(oh+28u),dirs=rd32(oh+92u),er=0,es=0,ir=0,is=0,rr=0,rs=0,nr=0;
- if(isz<0x1000u||isz>0x02000000u||hsz>sz||hsz>isz){x86_dll_last_error=5;return 0;}if(dirs>0u){er=rd32(oh+96u);es=rd32(oh+100u);nr=er?rd32(f+_rva_dummy):0;}(void)nr;
+ uint32_t isz=rd32(oh+56u),hsz=rd32(oh+60u),entry=rd32(oh+16u),pref=rd32(oh+28u),dirs=rd32(oh+92u),er=0,es=0,ir=0,is=0,rr=0,rs=0;
+ if(isz<0x1000u||isz>0x02000000u||hsz>sz||hsz>isz){x86_dll_last_error=5;return 0;}if(dirs>0u){er=rd32(oh+96u);es=rd32(oh+100u);}
  if(dirs>1u){ir=rd32(oh+104u);is=rd32(oh+108u);}if(dirs>5u){rr=rd32(oh+136u);rs=rd32(oh+140u);}
  uint32_t sh=oh+optsz;if(sh+(uint32_t)nsec*40u>f+sz){x86_dll_last_error=6;return 0;}
  int slot=-1;for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(!x86_dll_modules[i].active){slot=(int)i;break;}if(slot<0){x86_dll_last_error=7;return 0;}
@@ -2630,6 +2630,9 @@ __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;
  x86_fs_reset();
  x86_reg_reset();
+ for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)x86_dll_modules[i]=(x86_dll_module_t){0};
+ for(uint32_t i=0;i<X86_DLL_MAX_RESOURCES;i++)x86_dll_resources[i]=(x86_dll_resource_t){0};
+ x86_dll_last_error=0;x86_dll_last_base=0;
  heap=al4((uint32_t)(uintptr_t)__heap_base);guest_heap=GUEST_HEAP_BASE;x86_mem_reset();guest_vm=0x02000000u;last_virtual_alloc=0;last_virtual_alloc_size=0;virtual_free_count=0;loaded=0;requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=0;import_count=0;steps=0;load_error=0;halted=0;cpu_error=0;eflags=0x2;surface_width=640;surface_height=360;
  for(int i=0;i<8;i++)regs[i]=0; decoded_prefixes=0;decoded_operand16=0; last_decoded_map=0;last_decoded_opcode=0;last_decoded_length=0;last_decoded_modrm=0;last_decoded_has_modrm=0;last_dispatch_id=0;last_dispatch_count=0;last_indirect_slot=0;last_indirect_target=0;last_unresolved_gdr=0xFFFFFFFFu;x86_trace_reset();x86_profile_clear(); message_count=0;message_last=0;message_quit=0;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;
 loglit("XWASM X86 Runtime v0.9");
