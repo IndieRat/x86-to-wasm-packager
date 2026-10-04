@@ -4278,6 +4278,27 @@
       ]
     },
     {
+      "id": "AND_EAX_IMM32",
+      "instruction": "AND",
+      "opcode": [
+        "25"
+      ],
+      "opcode_map": "primary",
+      "encoding": "OI",
+      "operands": [
+        {
+          "kind": "reg32",
+          "access": "rw",
+          "fixed": "EAX"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
       "id": "AND_AL_IMM8",
       "instruction": "AND",
       "opcode": [
