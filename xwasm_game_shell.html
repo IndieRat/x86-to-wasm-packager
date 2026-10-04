@@ -298,6 +298,10 @@ function start(){
   requestAnimationFrame(tick);
  }catch(e){error("start failed",e)}
 }
+function crtTerminationName(kind){
+ const names={1:"exit",2:"_exit",3:"abort",4:"terminate",5:"_cexit",6:"_c_exit",7:"TerminateProcess"};
+ return names[Number(kind)]||"unknown";
+}
 function tick(){
  if(!state.running)return;
  try{
@@ -307,6 +311,33 @@ function tick(){
    const err=state.exports.x86_get_cpu_error?.()||0;
    let why="";if(rc===-63){const g=Number(state.exports.x86_get_last_unresolved_gdr?.());const r=readGdr()[g];why=r?" | unresolved import "+r.dll+"!"+r.fn:" | unresolved import"}
    error("XWASM CPU stopped: rc="+rc+" cpu_error="+hex(err)+" eip="+hex(state.exports.x86_get_eip?.()||0)+why);
+   return;
+  }
+  const crtExited=Number(state.exports.x86_crt_get_exited?.()||0);
+  if(crtExited){
+   state.running=false;
+   const kind=Number(state.exports.x86_crt_get_last_termination_kind?.()||0);
+   const code=Number(state.exports.x86_crt_get_exit_code?.()||0);
+   const caller=Number(state.exports.x86_crt_get_last_termination_caller?.()||0);
+   const ret=Number(state.exports.x86_crt_get_last_termination_return_eip?.()||0);
+   const target=Number(state.exports.x86_crt_get_last_termination_target?.()||0);
+   const arg0=Number(state.exports.x86_crt_get_last_termination_arg0?.()||0);
+   const atexitCount=Number(state.exports.x86_crt_get_atexit_count?.()||0);
+   const atexitOk=Number(state.exports.x86_crt_get_last_atexit_result?.()||0);
+   log("CRT guest exit: "+crtTerminationName(kind)+
+       " code="+code+
+       " arg0="+hex(arg0)+
+       " caller="+hex(caller)+
+       " return="+hex(ret)+
+       " target="+hex(target)+
+       " atexit_result="+atexitOk+
+       " atexit_remaining="+atexitCount);
+   return;
+  }
+  if(Number(state.exports.x86_get_halted?.()||0)){
+   state.running=false;
+   log("XWASM guest halted: eip="+hex(state.exports.x86_get_eip?.()||0)+
+       " steps="+String(state.exports.x86_get_steps?.()||0));
    return;
   }
  }catch(e){state.running=false;error("runtime exception",e);return}
