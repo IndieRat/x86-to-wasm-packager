@@ -2467,7 +2467,8 @@ uint32_t x86_rcr32_self_test(void){
  * byte resynchronization (up to 15 bytes) and marks the result as a POTENTIAL gap. */
 #define X86_PREFLIGHT_DEPTH 512u
 #define X86_PREFLIGHT_SEM_MAX 64u
-static uint32_t preflight_count=0,preflight_mines=0;
+static uint32_t preflight_count=0,preflight_mines=0,preflight_start=0,preflight_start_reason=0;
+/* start_reason: 0=current/requested code, 1=stack return address, 2=recent trace code, 3=PE entry */
 static uint32_t preflight_eip[X86_PREFLIGHT_DEPTH],preflight_next_eip[X86_PREFLIGHT_DEPTH];
 static uint32_t preflight_opcode[X86_PREFLIGHT_DEPTH],preflight_map[X86_PREFLIGHT_DEPTH];
 static uint32_t preflight_modrm[X86_PREFLIGHT_DEPTH],preflight_has_modrm[X86_PREFLIGHT_DEPTH];
