@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 
 from .format import custom_sections, metadata, validate_manifest
-from .container import KIND_XPL, KIND_XWASM, unpack_bytes
+from .container import KIND_XAPI, KIND_XPL, KIND_XWASM, unpack_bytes
+from .xapi import validate_manifest as validate_xapi_manifest
 
 
 def _safe_package_path(root: Path, relative: str, label: str) -> Path:
@@ -90,6 +91,24 @@ def validate_package(root: Path) -> dict:
                 errors.append(str(exc))
         else:
             warnings.append("x86 package has no runtime; it requires an external/host-supplied x86 runtime")
+
+        xapi_pool_name=manifest.get("xapi_pool")
+        if xapi_pool_name:
+            try:
+                xapi_pool_path=_safe_package_path(root,xapi_pool_name,"xapi_pool")
+                if not xapi_pool_path.is_file():
+                    errors.append(f"missing xapi_pool: {xapi_pool_name!r}")
+                else:
+                    try:
+                        _,xapi_raw=unpack_bytes(xapi_pool_path.read_bytes(),expected_kind=KIND_XAPI)
+                        xapi_manifest=json.loads(xapi_raw.decode("utf-8-sig"))
+                        errors.extend(f"xapi_pool: {e}" for e in validate_xapi_manifest(xapi_manifest))
+                    except (ValueError,json.JSONDecodeError) as exc:
+                        errors.append(f"invalid XAPI pool: {exc}")
+            except ValueError as exc:
+                errors.append(str(exc))
+        else:
+            warnings.append("x86 package has no package-local xapi_pool; runtime API registry must be supplied externally")
 
         resource_root = manifest.get("resource_root")
         if isinstance(resource_root, str):

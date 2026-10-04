@@ -108,6 +108,61 @@ document.querySelector("#files").onchange=async e=>{
     const ex=instance.exports;
     say("Runtime WASM instantiated.");
 
+    const XAPI_TYPE={void:0,u32:1,i32:2,ptr:3,f32:4,f64:5};
+    const XAPI_ABI={stdcall:0,cdecl:1};
+    const registerXapiPool=async poolFile=>{
+      if(!poolFile){say("XAPI pool: none (legacy package)");return 0;}
+      if(!ex.x86_xapi_reset||!ex.x86_xapi_scratch||!ex.x86_xapi_register||!ex.x86_xapi_register_alias)
+        throw Error("runtime is missing the XAPI registry exports");
+      const raw=await unpackXWSC(await poolFile.arrayBuffer(),4,"xapi_pool.xapi");
+      const manifest=JSON.parse(td.decode(raw));
+      if(manifest.format!=="xwasm-xapi"||manifest.version!==1)
+        throw Error("invalid xapi_pool.xapi manifest");
+      const mem8=new Uint8Array(mem.buffer);
+      const scratch=ex.x86_xapi_scratch()>>>0;
+      const putAscii=s=>{
+        const bytes=new TextEncoder().encode(s);
+        return bytes;
+      };
+      const clearScratch=()=>{mem8.fill(0,scratch,scratch+512);};
+      ex.x86_xapi_reset();
+      let registered=0,aliases=0;
+      for(const [lib,body] of Object.entries(manifest.libraries||{})){
+        for(const [name,fn] of Object.entries(body.functions||{})){
+          const args=(fn.args||[]).map(t=>XAPI_TYPE[t]);
+          const ret=XAPI_TYPE[fn.return||"void"];
+          if(ret===undefined||args.some(v=>v===undefined)||args.length>16)
+            throw Error("unsupported XAPI type in "+lib+"!"+name);
+          const abi=XAPI_ABI[fn.abi||"stdcall"];
+          if(abi===undefined) throw Error("unsupported XAPI ABI in "+lib+"!"+name);
+          clearScratch();
+          let off=0;
+          for(const s of [lib,name]){
+            const b=putAscii(s);
+            if(off+b.length+1+args.length>511) throw Error("XAPI scratch overflow in "+lib+"!"+name);
+            mem8.set(b,scratch+off);off+=b.length+1;
+          }
+          for(let i=0;i<args.length;i++)mem8[scratch+off++]=args[i];
+          const idx=ex.x86_xapi_register(fn.id>>>0,abi,args.length,ret);
+          if(idx===0xFFFFFFFF) throw Error("runtime rejected XAPI "+lib+"!"+name);
+          registered++;
+        }
+      }
+      for(const [from,to] of Object.entries(manifest.dll_aliases||{})){
+        clearScratch();
+        const a=putAscii(from),b=putAscii(to);
+        if(a.length+b.length+2>512) throw Error("XAPI alias scratch overflow");
+        mem8.set(a,scratch);mem8.set(b,scratch+a.length+1);
+        if(ex.x86_xapi_register_alias()===0xFFFFFFFF) throw Error("runtime rejected XAPI alias "+from);
+        aliases++;
+      }
+      say("XAPI pool loaded: "+registered+" functions, "+aliases+" aliases");
+      return registered;
+    };
+
+    const xapiPoolFile=manifest.xapi_pool?files.get(manifest.xapi_pool):null;
+    await registerXapiPool(xapiPoolFile);
+
     const emitGdrProvenance=()=>{
       if(!ex.x86_get_gdr_count){
         say("=== GDR PROVENANCE ===");

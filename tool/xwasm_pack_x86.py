@@ -7,13 +7,15 @@ import json
 import shutil
 import struct
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from xwasm.container import pack_file, unpack_bytes  # noqa: E402
-from xwasm.dll import convert_dll, pack_xapi_file  # noqa: E402
+from xwasm.dll import convert_dll, pack_xapi_manifest  # noqa: E402
+from tool.xwasm_merge_xapi import merge as merge_xapi_manifests  # noqa: E402
 
 def pe32_info(path: Path) -> dict:
     data=path.read_bytes()
@@ -58,35 +60,37 @@ def main()->int:
     count=copy_tree(game,resources,exe)
     dll_files=[x for x in sorted(game.rglob("*.dll")) if x.resolve()!=exe.resolve()]
     bundled_dlls=[str(x.relative_to(game)).replace("\\","/") for x in dll_files]
-    dll_api_manifests=[]
-    dll_api_dir=out/"dll_apis"
-    dll_api_dir.mkdir(parents=True,exist_ok=True)
-
-    # Every XWASM package carries the canonical host ABI manifests, even when
-    # the original game directory does not ship those Windows DLLs.  Bundled
-    # DLLs are then converted against the same seeds and replace the canonical
-    # copy with their export-aware manifest.
-    canonical_xapis=("kernel32.xapi","user32.xapi","gdi32.xapi","opengl32.xapi","advapi32.xapi")
+    # XAPI is a build-time translation boundary: the repository seeds describe
+    # the compatibility ABI, and bundled PE32 DLLs contribute export-aware
+    # manifests.  Only the merged package-local pool is shipped; the source
+    # runtime/x86/dlls directory is never required by the browser package.
     seed_dir=ROOT/"runtime"/"x86"/"dlls"
-    for api_name in canonical_xapis:
-        seed=seed_dir/api_name
-        if not seed.is_file():
-            raise SystemExit(f"Canonical XAPI seed missing: {seed}")
-        pack_xapi_file(seed, dll_api_dir/api_name)
-        dll_api_manifests.append("dll_apis/"+api_name)
+    seed_xapis=sorted(seed_dir.glob("*.xapi"))
+    if not seed_xapis:
+        raise SystemExit(f"No XAPI seeds found in {seed_dir}")
 
-    for dll in dll_files:
-        try:
-            api_name=dll.stem.lower()+".xapi"
-            json_manifest=dll_api_dir/(api_name+".json")
-            convert_dll(dll,json_manifest)
-            pack_xapi_file(json_manifest,dll_api_dir/api_name)
-            json_manifest.unlink()
-            manifest_name="dll_apis/"+api_name
-            if manifest_name not in dll_api_manifests:
-                dll_api_manifests.append(manifest_name)
-        except (FileNotFoundError,ValueError):
-            pass
+    converted_dlls=[]
+    with tempfile.TemporaryDirectory(prefix="xwasm-xapi-build-") as temp_name:
+        temp_dir=Path(temp_name)
+        xapi_sources=list(seed_xapis)
+        for index,dll in enumerate(dll_files):
+            try:
+                json_manifest=temp_dir/f"{index:04d}-{dll.stem.lower()}.xapi.json"
+                convert_dll(dll,json_manifest)
+                xapi_sources.append(json_manifest)
+                converted_dlls.append(str(dll.relative_to(game)).replace("\\\\","/"))
+            except (FileNotFoundError,ValueError):
+                # An ordinary game DLL without a repository seed is preserved in
+                # resources/, but it does not become an XAPI declaration yet.
+                pass
+
+        merged_xapi,merge_notes=merge_xapi_manifests(xapi_sources)
+        xapi_pool=out/"xapi_pool.xapi"
+        pack_xapi_manifest(merged_xapi,xapi_pool)
+
+    xapi_library_count=len(merged_xapi.get("libraries",{}))
+    xapi_function_count=sum(len(v.get("functions",{})) for v in merged_xapi.get("libraries",{}).values())
+    xapi_source_count=len(xapi_sources)
 
     runtime_source=None
     runtime_raw=None
@@ -111,8 +115,9 @@ def main()->int:
         "payload_format":"XPL","payload_architecture":"i386",
         "entry":{"init":"xwasm_init","tick":"xwasm_tick","shutdown":"xwasm_shutdown"},
         "pe":info,"resource_file_count":count,"bundled_dlls":bundled_dlls,
-        "dll_api_format":"XWSC01/XAPI",
-        "dll_api_manifests":dll_api_manifests,
+        "xapi_pool":"xapi_pool.xapi","xapi_pool_format":"XWSC01/XAPI",
+        "xapi_source_count":xapi_source_count,"xapi_library_count":xapi_library_count,
+        "xapi_function_count":xapi_function_count,"xapi_converted_dlls":converted_dlls,
         "sha256":hashlib.sha256(exe.read_bytes()).hexdigest(),
         "execution_status":"x86_runtime_bundled" if runtime_source else "requires_x86_runtime",
     }
@@ -124,7 +129,10 @@ def main()->int:
     print(f"Created XWASM x86 package: {out}")
     print(f"Payload: {payload.relative_to(out)}")
     print(f"Resources: {count}")
-    print(f"DLL API manifests: {len(dll_api_manifests)} (XWSC01/XAPI)")
+    print(f"XAPI pool: xapi_pool.xapi (sources={xapi_source_count}, libraries={xapi_library_count}, functions={xapi_function_count})")
+    print(f"Converted bundled DLLs: {len(converted_dlls)}")
+    for note in merge_notes:
+        print(f"  XAPI: {note}")
     print(f"Runtime: {'bundled as runtime.xwasm' if runtime_source else 'external/host-supplied'}")
     return 0
 if __name__=="__main__": raise SystemExit(main())
