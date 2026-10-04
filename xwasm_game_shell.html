@@ -56,7 +56,7 @@ input{display:none}
 </div>
 <div id="settings"><span class="small">Host bridges active simultaneously</span><button id="showDiagnostics">Diagnostics</button><button id="copyReport">Copy report</button><button id="showErrors">Errors</button></div>
 <div id="diagnostics" style="position:fixed;right:12px;bottom:52px;width:min(720px,92vw);max-height:62vh;z-index:15;background:#0b0d10ee;border:1px solid #39414b;border-radius:8px;display:none;box-shadow:0 18px 60px #000">
-<div class="termHead"><strong style="color:#8ecae6">XWASM X86 DIAGNOSTICS</strong><span id="diagCount">idle</span><button id="refreshDiagnostics">Refresh</button><button id="closeDiagnostics">Close</button></div>
+<div class="termHead"><strong style="color:#8ecae6">XWASM X86 DIAGNOSTICS</strong><span id="diagCount">idle</span><button id="refreshDiagnostics">Refresh</button><button id="predictGaps">Find gaps</button><button id="closeDiagnostics">Close</button></div>
 <pre id="diagText" style="margin:0;padding:10px;max-height:54vh;overflow:auto;white-space:pre-wrap;font:11px/1.45 Consolas,monospace;color:#c8d1da"></pre>
 </div>
 </div>
@@ -74,7 +74,7 @@ const td=new TextDecoder();
 const state={
  runtime:null,payload:null,bridge:null,manifest:null,files:[],packageName:"",module:null,instance:null,exports:null,memory:null,
  running:false,audio:null,muted:false,events:[],errors:[],xapis:[],
- gl:null,ctx:null,diagnostics:{exportNames:[],last:null},window:{width:1280,height:720,visible:true,title:"XWASM Game"}
+ gl:null,ctx:null,diagnostics:{exportNames:[],last:null,preflightLines:null},window:{width:1280,height:720,visible:true,title:"XWASM Game"}
 };
 const hex=v=>"0x"+(Number(v)>>>0).toString(16).padStart(8,"0");
 function status(s){$("status").textContent=s}
@@ -548,6 +548,8 @@ function buildFullReport(){
  lines.push("Profile is aggregated by map/opcode/ModRM/semantic ID; counts are executions.");
  for(let i=0;i<p.length;i++)lines.push(String(i+1).padStart(4,"0")+" "+profileLine(p[i]));
  lines.push("");
+ if(state.diagnostics.preflightLines){lines.push(...state.diagnostics.preflightLines);}
+ lines.push("");
  lines.push("=== RECENT TRACE ===");
  for(const t of d.__trace||[])lines.push(
   String(t.index).padStart(2,"0")+" EIP="+hex(t.eip)+" NEXT="+hex(t.nextEip)+" OP="+hex(t.opcode)+
@@ -582,6 +584,43 @@ async function copyReport(){
   setTimeout(()=>{if($("copyReport"))$("copyReport").textContent="Copy report"},1200);
   log("full execution report copied");
  }catch(e){error("copy report failed",e)}
+}
+function gapSemantic(ex,i){
+ if(typeof ex.x86_get_preflight_semantic_id_len!=="function")return "MISSING";
+ const n=Number(ex.x86_get_preflight_semantic_id_len(i))||0;let s="";
+ for(let j=0;j<n;j++)s+=String.fromCharCode(Number(ex.x86_get_preflight_semantic_id_char(i,j))||0);
+ return s||"MISSING";
+}
+function gapBytes(ex,addr,count=8){
+ if(typeof ex.x86_guest_read8!=="function")return "";
+ const a=[];for(let j=0;j<count;j++){const v=Number(ex.x86_guest_read8((addr+j)>>>0));if(!Number.isFinite(v))break;a.push(v&255)}
+ return a.map(v=>v.toString(16).padStart(2,"0").toUpperCase()).join(" ");
+}
+function runGapTracer(){
+ try{
+  const ex=state.exports;if(!ex)throw Error("runtime not loaded");
+  if(typeof ex.x86_preflight_scan!=="function")throw Error("runtime lacks x86_preflight_scan; rebuild v0.10+ runtime");
+  const start=Number(ex.x86_get_eip?.()||0)>>>0;
+  const count=Number(ex.x86_preflight_scan(start,512))||0;
+  const mines=Number(ex.x86_get_preflight_mines?.()||0);
+  const L=["=== FORWARD PREFLIGHT / MINESWEEPER ===","Start EIP = "+hex(start),"Scanned = "+count+" instruction candidates","[FOUND POTENTIAL GAPS] = "+mines+" m.i.n.e","M.I.N.E = Missing Instruction / Next Expansion",""];
+  for(let i=0;i<count;i++){
+   const st=Number(ex.x86_get_preflight_status(i));
+   const e=Number(ex.x86_get_preflight_eip(i))>>>0;
+   const nx=Number(ex.x86_get_preflight_next_eip(i))>>>0;
+   const op=Number(ex.x86_get_preflight_opcode(i))&255;
+   const map=Number(ex.x86_get_preflight_map(i));
+   const len=Number(ex.x86_get_preflight_length(i));
+   const modrm=Number(ex.x86_get_preflight_modrm(i))&255;
+   const has=Number(ex.x86_get_preflight_has_modrm(i));
+   const sem=gapSemantic(ex,i);
+   const bytes=gapBytes(ex,e,Math.min(8,Math.max(1,len||1)));
+   const tag=st===1?"MINE":st===0?"OK":"UNKNOWN";
+   const mp=map===0?"":map===1?"0F ":("MAP"+map+" ");
+   L.push(String(i).padStart(3,"0")+" ["+tag+"] "+hex(e)+" "+mp+op.toString(16).padStart(2,"0").toUpperCase()+" "+bytes+" "+sem+(has?" ModRM="+modrm.toString(16).padStart(2,"0").toUpperCase():"")+(st===1&&nx!==e+1?" RESYNC->"+hex(nx):""));
+  }
+  state.diagnostics.preflightLines=L;renderDiagnostics("gap preflight");log("preflight: "+mines+" potential gap"+(mines===1?"":"s"));
+ }catch(e){error("gap preflight failed",e)}
 }
 function renderDiagnostics(reason){
  const d=readDiagnostics();
@@ -622,6 +661,7 @@ function renderDiagnostics(reason){
   }
  }
  s+="\\n=== GDR ===\\n"+gdrReportLines().join("\\n")+"\\n";
+ if(state.diagnostics.preflightLines)s+="\n"+state.diagnostics.preflightLines.join("\n")+"\n";
  $("diagText").textContent=s;
  $("diagCount").textContent=keys.length+" exported + trace/bytes/stack";
  return d;
@@ -649,6 +689,7 @@ $("mute").onclick=()=>{state.muted=!state.muted;$("mute").textContent=state.mute
 $("showDiagnostics").onclick=()=>{$("diagnostics").style.display="block";renderDiagnostics("manual")};
 $("copyReport").onclick=copyReport;
 $("refreshDiagnostics").onclick=()=>renderDiagnostics("manual refresh");
+$("predictGaps").onclick=runGapTracer;
 $("closeDiagnostics").onclick=()=>$("diagnostics").style.display="none";
 $("showErrors").onclick=()=>$("terminal").classList.add("visible");
 $("hideErrors").onclick=()=>$("terminal").classList.remove("visible");
