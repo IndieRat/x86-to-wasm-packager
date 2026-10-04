@@ -239,8 +239,10 @@
       },
       {
         "byte": "28",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SUB_RM8_R8"
+        ]
       },
       {
         "byte": "29",
@@ -251,8 +253,10 @@
       },
       {
         "byte": "2A",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "SUB_R8_RM8"
+        ]
       },
       {
         "byte": "2B",
@@ -811,8 +815,16 @@
       },
       {
         "byte": "80",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "ADD_RM8_IMM8",
+          "ADC_RM8_IMM8",
+          "SBB_RM8_IMM8",
+          "AND_RM8_IMM8",
+          "SUB_RM8_IMM8",
+          "XOR_RM8_IMM8",
+          "CMP_RM8_IMM8"
+        ]
       },
       {
         "byte": "81",
@@ -821,7 +833,9 @@
           "ADD_RM32_IMM32",
           "SUB_RM32_IMM32",
           "CMP_RM32_IMM32",
-          "XOR_RM32_IMM32"
+          "XOR_RM32_IMM32",
+          "ADC_RM32_IMM32",
+          "SBB_RM32_IMM32"
         ]
       },
       {
@@ -836,7 +850,11 @@
           "ADD_RM32_IMM8",
           "SUB_RM32_IMM8",
           "CMP_RM32_IMM8",
-          "AND_RM32_IMM8"
+          "AND_RM32_IMM8",
+          "OR_RM32_IMM8",
+          "ADC_RM32_IMM8",
+          "SBB_RM32_IMM8",
+          "XOR_RM32_IMM8"
         ]
       },
       {
@@ -1466,8 +1484,7 @@
           "FSUBRP_STI_ST0",
           "FSUBP_STI_ST0",
           "FDIVRP_STI_ST0",
-          "FDIVP_STI_ST0",
-          "FCOMPP"
+          "FDIVP_STI_ST0"
         ]
       },
       {
@@ -1657,7 +1674,11 @@
         "byte": "FF",
         "status": "MAPPED",
         "encoding_ids": [
-          "CALL_RM32"
+          "PUSH_RM32",
+          "INC_RM32",
+          "DEC_RM32",
+          "CALL_RM32",
+          "JMP_RM32"
         ]
       }
     ],
@@ -2324,83 +2345,115 @@
       },
       {
         "byte": "80",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JO_REL32"
+        ]
       },
       {
         "byte": "81",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JNO_REL32"
+        ]
       },
       {
         "byte": "82",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JB_REL32"
+        ]
       },
       {
         "byte": "83",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JAE_REL32"
+        ]
       },
       {
         "byte": "84",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JE_REL32"
+        ]
       },
       {
         "byte": "85",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JNE_REL32"
+        ]
       },
       {
         "byte": "86",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JBE_REL32"
+        ]
       },
       {
         "byte": "87",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JA_REL32"
+        ]
       },
       {
         "byte": "88",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JS_REL32"
+        ]
       },
       {
         "byte": "89",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JNS_REL32"
+        ]
       },
       {
         "byte": "8A",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JP_REL32"
+        ]
       },
       {
         "byte": "8B",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JNP_REL32"
+        ]
       },
       {
         "byte": "8C",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JL_REL32"
+        ]
       },
       {
         "byte": "8D",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JGE_REL32"
+        ]
       },
       {
         "byte": "8E",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JLE_REL32"
+        ]
       },
       {
         "byte": "8F",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "JG_REL32"
+        ]
       },
       {
         "byte": "90",
