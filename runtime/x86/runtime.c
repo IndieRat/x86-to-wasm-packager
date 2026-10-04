@@ -2451,6 +2451,98 @@ uint32_t x86_rcr32_self_test(void){
  }
  return failures;
 }
+
+/* Forward-only instruction preflight. This deliberately decodes without executing
+ * guest instructions, so the browser shell can find likely instruction gaps before
+ * a real run reaches them. When a form is missing, the scanner performs a speculative
+ * byte resynchronization (up to 15 bytes) and marks the result as a POTENTIAL gap. */
+#define X86_PREFLIGHT_DEPTH 512u
+#define X86_PREFLIGHT_SEM_MAX 64u
+static uint32_t preflight_count=0,preflight_mines=0;
+static uint32_t preflight_eip[X86_PREFLIGHT_DEPTH],preflight_next_eip[X86_PREFLIGHT_DEPTH];
+static uint32_t preflight_opcode[X86_PREFLIGHT_DEPTH],preflight_map[X86_PREFLIGHT_DEPTH];
+static uint32_t preflight_modrm[X86_PREFLIGHT_DEPTH],preflight_has_modrm[X86_PREFLIGHT_DEPTH];
+static uint32_t preflight_length[X86_PREFLIGHT_DEPTH],preflight_status[X86_PREFLIGHT_DEPTH];
+static char preflight_semantic[X86_PREFLIGHT_DEPTH][X86_PREFLIGHT_SEM_MAX];
+
+static void x86_preflight_semantic_copy(char *dst,const char *src){
+ uint32_t i=0;if(!src)src="MISSING";
+ for(;i+1u<X86_PREFLIGHT_SEM_MAX&&src[i];i++)dst[i]=src[i];
+ dst[i]=0;
+}
+static uint32_t x86_preflight_resync(uint32_t pc){
+ for(uint32_t delta=1u;delta<=15u;delta++){
+  uint32_t candidate=pc+delta;
+  if(!x86_mem_region_find(candidate,1u,X86_MEM_READ))break;
+  x86_decoded_t probe;
+  int rc=x86_decode_instruction(&probe);
+  (void)rc;
+  if(probe.start!=candidate)continue;
+  if(rc==0&&probe.cursor>candidate)return candidate;
+ }
+ return pc+1u;
+}
+__attribute__((export_name("x86_preflight_scan")))
+uint32_t x86_preflight_scan(uint32_t start_eip,uint32_t max_instructions){
+ uint32_t saved_eip=eip,saved_error=cpu_error,saved_halted=halted;
+ preflight_count=0;preflight_mines=0;
+ uint32_t pc=start_eip?start_eip:eip;
+ if(!x86_mem_region_find(pc,1u,X86_MEM_READ)){eip=saved_eip;cpu_error=saved_error;halted=saved_halted;return 0;}
+ if(max_instructions>X86_PREFLIGHT_DEPTH)max_instructions=X86_PREFLIGHT_DEPTH;
+ for(uint32_t n=0;n<max_instructions;n++){
+  if(!x86_mem_region_find(pc,1u,X86_MEM_READ))break;
+  x86_decoded_t d;
+  eip=pc;
+  int rc=x86_decode_instruction(&d);
+  uint32_t idx=preflight_count++;
+  preflight_eip[idx]=d.start;
+  preflight_opcode[idx]=d.opcode;
+  preflight_map[idx]=d.map;
+  preflight_modrm[idx]=d.modrm;
+  preflight_has_modrm[idx]=d.has_modrm;
+  preflight_status[idx]=(rc==0)?0u:((rc==-2)?1u:2u);
+  preflight_length[idx]=(rc==0&&d.cursor>d.start)?d.cursor-d.start:0u;
+  x86_preflight_semantic_copy(preflight_semantic[idx],rc==0&&d.entry?d.entry->id:"MISSING");
+  uint32_t next=(rc==0&&d.cursor>d.start)?d.cursor:x86_preflight_resync(pc);
+  preflight_next_eip[idx]=next;
+  if(rc==-2)preflight_mines++;
+  if(next<=pc)break;
+  pc=next;
+ }
+ eip=saved_eip;cpu_error=saved_error;halted=saved_halted;
+ return preflight_count;
+}
+__attribute__((export_name("x86_get_preflight_count")))
+uint32_t x86_get_preflight_count(void){return preflight_count;}
+__attribute__((export_name("x86_get_preflight_mines")))
+uint32_t x86_get_preflight_mines(void){return preflight_mines;}
+__attribute__((export_name("x86_get_preflight_eip")))
+uint32_t x86_get_preflight_eip(uint32_t i){return i<X86_PREFLIGHT_DEPTH?preflight_eip[i]:0;}
+__attribute__((export_name("x86_get_preflight_next_eip")))
+uint32_t x86_get_preflight_next_eip(uint32_t i){return i<X86_PREFLIGHT_DEPTH?preflight_next_eip[i]:0;}
+__attribute__((export_name("x86_get_preflight_opcode")))
+uint32_t x86_get_preflight_opcode(uint32_t i){return i<X86_PREFLIGHT_DEPTH?preflight_opcode[i]:0;}
+__attribute__((export_name("x86_get_preflight_map")))
+uint32_t x86_get_preflight_map(uint32_t i){return i<X86_PREFLIGHT_DEPTH?preflight_map[i]:0;}
+__attribute__((export_name("x86_get_preflight_modrm")))
+uint32_t x86_get_preflight_modrm(uint32_t i){return i<X86_PREFLIGHT_DEPTH?preflight_modrm[i]:0;}
+__attribute__((export_name("x86_get_preflight_has_modrm")))
+uint32_t x86_get_preflight_has_modrm(uint32_t i){return i<X86_PREFLIGHT_DEPTH?preflight_has_modrm[i]:0;}
+__attribute__((export_name("x86_get_preflight_length")))
+uint32_t x86_get_preflight_length(uint32_t i){return i<X86_PREFLIGHT_DEPTH?preflight_length[i]:0;}
+__attribute__((export_name("x86_get_preflight_status")))
+uint32_t x86_get_preflight_status(uint32_t i){return i<X86_PREFLIGHT_DEPTH?preflight_status[i]:2u;}
+__attribute__((export_name("x86_get_preflight_semantic_id_len")))
+uint32_t x86_get_preflight_semantic_id_len(uint32_t i){
+ uint32_t n=0;if(i>=X86_PREFLIGHT_DEPTH)return 0;
+ while(n<X86_PREFLIGHT_SEM_MAX&&preflight_semantic[i][n])n++;
+ return n;
+}
+__attribute__((export_name("x86_get_preflight_semantic_id_char")))
+uint32_t x86_get_preflight_semantic_id_char(uint32_t i,uint32_t n){
+ return i<X86_PREFLIGHT_DEPTH&&n<X86_PREFLIGHT_SEM_MAX?(uint8_t)preflight_semantic[i][n]:0;
+}
+
 __attribute__((export_name("x86_get_trace_count"))) uint32_t x86_get_trace_count(void){return trace_count;}
 __attribute__((export_name("x86_get_trace_index"))) uint32_t x86_get_trace_index(uint32_t n){if(n>=trace_count)return 0xFFFFFFFFu;return (trace_head+X86_TRACE_DEPTH-trace_count+n)%X86_TRACE_DEPTH;}
 __attribute__((export_name("x86_get_trace_eip"))) uint32_t x86_get_trace_eip(uint32_t i){return i<X86_TRACE_DEPTH?trace_eip[i]:0;}
