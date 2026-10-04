@@ -66,6 +66,9 @@ static uint32_t x87_count=0;
 static uint8_t xmm[8][16];
 static uint32_t halted=0;
 static uint8_t decoded_prefixes=0,decoded_operand16=0;
+#define X86_FS_TEB_BASE 0x01E00000u
+#define X86_GS_TEB_BASE 0x01E01000u
+static uint32_t x86_fs_base=0,x86_gs_base=0;
 static uint32_t last_decoded_map=0,last_decoded_opcode=0,last_decoded_length=0;
 static uint32_t last_decoded_modrm=0,last_decoded_has_modrm=0;
 static uint32_t last_dispatch_id=0,last_dispatch_count=0,legacy_execution_count=0;
@@ -1470,6 +1473,11 @@ static int cond(uint8_t op){
   default:return 0;
  }
 }
+static uint32_t x86_segment_base(void){
+ if(decoded_prefixes&0x40u)return x86_fs_base;
+ if(decoded_prefixes&0x80u)return x86_gs_base;
+ return 0;
+}
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea){
  uint8_t mod=m>>6,rm=m&7;
  if(mod==3)return 0;
@@ -1488,7 +1496,7 @@ static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea){
  }
  if(mod==1){int8_t d=(int8_t)MEM8((*ip)++);base+=(int32_t)d;}
  else if(mod==2){int32_t d=(int32_t)rd32(*ip);*ip+=4;base+=(uint32_t)d;}
- *ea=base+index; return 1;
+ *ea=base+index+x86_segment_base(); return 1;
 }
 static uint32_t modrm_read32(uint8_t m,uint32_t *ip){
  uint32_t ea=0; if(!modrm_ea(m,ip,&ea))return regs[m&7]; return rd32(ea);
@@ -2273,6 +2281,7 @@ static void scan_imports(void){
 
 static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
+ x86_fs_base=X86_FS_TEB_BASE; x86_gs_base=X86_GS_TEB_BASE;
  requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;x86_gdr_reset();last_unresolved_gdr=0xFFFFFFFFu;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;surface_width=640;surface_height=360;
  if(sz<0x40u){load_error=1;return-1;} if(rd16(f)!=0x5a4du){load_error=2;return-1;}
  uint32_t pe=rd32(f+0x3cu); if(pe>sz-4u){load_error=3;return-2;} if(pe+24u>sz){load_error=4;return-2;}
@@ -2318,6 +2327,14 @@ static int load_pe(uint32_t f,uint32_t sz){
  if(ep>=image_size){load_error=15;return-6;}
  if(import_rva&&import_size)scan_imports();
  x86_mem_reset(); x86_mem_register_image();
+ /* Minimal guest TEB/PEB backing for Windows x86 FS/GS references. */
+ if(!x86_mem_ensure_wasm(X86_GS_TEB_BASE+0x1000u)){load_error=16;return-7;}
+ if(!x86_mem_region_add(X86_FS_TEB_BASE,0x1000u,X86_MEM_READ|X86_MEM_WRITE,7u)){load_error=16;return-7;}
+ if(!x86_mem_region_add(X86_GS_TEB_BASE,0x1000u,X86_MEM_READ|X86_MEM_WRITE,7u)){load_error=16;return-7;}
+ for(uint32_t i=0;i<0x1000u;i++){wr8(X86_FS_TEB_BASE+i,0);wr8(X86_GS_TEB_BASE+i,0);}
+ wr32(X86_FS_TEB_BASE+0x18u,X86_FS_TEB_BASE);
+ wr32(X86_FS_TEB_BASE+0x30u,X86_FS_TEB_BASE+0x100u);
+ wr32(X86_GS_TEB_BASE+0x18u,X86_GS_TEB_BASE);
  /* Ensure the guest stack has real WASM backing before the first PUSH. */
  if(!x86_mem_ensure_wasm(0x03F00000u)){load_error=16;return-7;}
  x87_init_state(); xmm_reset();
@@ -2373,6 +2390,8 @@ __attribute__((export_name("x86_get_ebp"))) uint32_t x86_get_ebp(void){return re
 __attribute__((export_name("x86_get_esi"))) uint32_t x86_get_esi(void){return regs[R_ESI];}
 __attribute__((export_name("x86_get_edi"))) uint32_t x86_get_edi(void){return regs[R_EDI];}
 __attribute__((export_name("x86_get_eflags"))) uint32_t x86_get_eflags(void){return eflags;}
+__attribute__((export_name("x86_get_fs_base"))) uint32_t x86_get_fs_base(void){return x86_fs_base;}
+__attribute__((export_name("x86_get_gs_base"))) uint32_t x86_get_gs_base(void){return x86_gs_base;}
 __attribute__((export_name("x86_get_halted"))) uint32_t x86_get_halted(void){return halted;}
 __attribute__((export_name("x86_get_cpu_error"))) uint32_t x86_get_cpu_error(void){return cpu_error;}
 __attribute__((export_name("x86_get_last_decoded_map"))) uint32_t x86_get_last_decoded_map(void){return last_decoded_map;}
