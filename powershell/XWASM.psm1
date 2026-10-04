@@ -65,7 +65,7 @@ function Build-XWASMXAPI {
         $args += @("--json", $JsonOutput)
     }
 
-    Invoke-XWASM "xwasm_xapi_merge.py" $args
+    Invoke-XWASM "xwasm_merge_xapi.py" $args
 }
 
 function xwasm_prep {
