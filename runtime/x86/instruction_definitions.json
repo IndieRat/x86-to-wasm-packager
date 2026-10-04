@@ -1765,19 +1765,6 @@
       }
     },
     {
-      "id": "MOVSW",
-      "mnemonic": "MOVSW",
-      "family": "string",
-      "status": "EXECUTE",
-      "forms": [
-        "MOVSW"
-      ],
-      "flags": {
-        "read": [],
-        "write": []
-      }
-    },
-    {
       "id": "CMPSB",
       "mnemonic": "CMPSB",
       "family": "string",
@@ -1791,51 +1778,12 @@
       }
     },
     {
-      "id": "CMPSW",
-      "mnemonic": "CMPSW",
-      "family": "string",
-      "status": "EXECUTE",
-      "forms": [
-        "CMPSW"
-      ],
-      "flags": {
-        "read": [],
-        "write": []
-      }
-    },
-    {
-      "id": "CMPSD",
-      "mnemonic": "CMPSD",
-      "family": "string",
-      "status": "EXECUTE",
-      "forms": [
-        "CMPSD"
-      ],
-      "flags": {
-        "read": [],
-        "write": []
-      }
-    },
-    {
       "id": "SCASB",
       "mnemonic": "SCASB",
       "family": "string",
       "status": "EXECUTE",
       "forms": [
         "SCASB"
-      ],
-      "flags": {
-        "read": [],
-        "write": []
-      }
-    },
-    {
-      "id": "SCASW",
-      "mnemonic": "SCASW",
-      "family": "string",
-      "status": "EXECUTE",
-      "forms": [
-        "SCASW"
       ],
       "flags": {
         "read": [],
@@ -1869,19 +1817,6 @@
       }
     },
     {
-      "id": "LODSW",
-      "mnemonic": "LODSW",
-      "family": "string",
-      "status": "EXECUTE",
-      "forms": [
-        "LODSW"
-      ],
-      "flags": {
-        "read": [],
-        "write": []
-      }
-    },
-    {
       "id": "LODSD",
       "mnemonic": "LODSD",
       "family": "string",
@@ -1901,19 +1836,6 @@
       "status": "EXECUTE",
       "forms": [
         "STOSB"
-      ],
-      "flags": {
-        "read": [],
-        "write": []
-      }
-    },
-    {
-      "id": "STOSW",
-      "mnemonic": "STOSW",
-      "family": "string",
-      "status": "EXECUTE",
-      "forms": [
-        "STOSW"
       ],
       "flags": {
         "read": [],
