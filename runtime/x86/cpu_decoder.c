@@ -33,6 +33,8 @@ typedef struct {
 #define X86_PREFIX_REP 0x04u
 #define X86_PREFIX_SEG 0x08u
 #define X86_PREFIX_OP16 0x10u
+#define X86_PREFIX_FS 0x40u
+#define X86_PREFIX_GS 0x80u
 #define X86_PREFIX_ADDR16 0x20u
 
 static int x86_is_prefix(uint8_t b) {
@@ -52,6 +54,8 @@ static void x86_record_prefix(x86_decoded_t *d, uint8_t b) {
     else if (b == 0xF3) d->prefixes |= X86_PREFIX_REP;
     else if (b == 0x66) { d->prefixes |= X86_PREFIX_OP16; d->operand16 ^= 1u; }
     else if (b == 0x67) { d->prefixes |= X86_PREFIX_ADDR16; d->address16 ^= 1u; }
+    else if (b == 0x64) { d->prefixes |= X86_PREFIX_SEG | X86_PREFIX_FS; }
+    else if (b == 0x65) { d->prefixes |= X86_PREFIX_SEG | X86_PREFIX_GS; }
     else d->prefixes |= X86_PREFIX_SEG;
 }
 
@@ -240,6 +244,7 @@ static int x86_decode_instruction(x86_decoded_t *d) {
     }
 
     d->opcode = MEM8(d->cursor++);
+    d->op_pos = d->cursor - 1u;
     if (d->opcode == 0x0F) {
         d->map = 1;
         if (MEM8(d->cursor) == 0x38 || MEM8(d->cursor) == 0x3A) {
