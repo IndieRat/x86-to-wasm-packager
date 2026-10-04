@@ -187,7 +187,8 @@
         "AND_R32_RM32",
         "AND_RM32_IMM8",
         "AND_AL_IMM8",
-        "AND_RM8_IMM8"
+        "AND_RM8_IMM8",
+        "AND_EAX_IMM32"
       ],
       "flags": {
         "read": [],
