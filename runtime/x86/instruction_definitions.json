@@ -145,7 +145,8 @@
       "family": "integer_core",
       "status": "EXECUTE",
       "forms": [
-        "INC_R32"
+        "INC_R32",
+        "INC_RM8"
       ],
       "flags": {
         "read": [
@@ -165,7 +166,8 @@
       "family": "integer_core",
       "status": "EXECUTE",
       "forms": [
-        "DEC_R32"
+        "DEC_R32",
+        "DEC_RM8"
       ],
       "flags": {
         "read": [
@@ -214,7 +216,8 @@
         "OR_RM32_R32",
         "OR_R32_RM32",
         "OR_AL_IMM8",
-        "OR_RM32_IMM8"
+        "OR_RM32_IMM8",
+        "OR_EAX_IMM32"
       ],
       "flags": {
         "read": [],
@@ -279,7 +282,9 @@
       "forms": [
         "TEST_RM32_R32",
         "TEST_RM8_R8",
-        "TEST_RM32_IMM32"
+        "TEST_RM32_IMM32",
+        "TEST_AL_IMM8",
+        "TEST_EAX_IMM32"
       ],
       "flags": {
         "read": [],
@@ -379,7 +384,8 @@
       "family": "data_move",
       "status": "EXECUTE",
       "forms": [
-        "MOVZX_R32_RM8"
+        "MOVZX_R32_RM8",
+        "MOVZX_R32_RM16"
       ],
       "flags": {
         "read": [],
@@ -428,7 +434,8 @@
       "forms": [
         "POP_R32",
         "POPAD",
-        "POPFD"
+        "POPFD",
+        "POP_RM32"
       ],
       "flags": {
         "read": [
@@ -765,7 +772,9 @@
         "SBB_RM32_IMM8",
         "SBB_EAX_IMM32",
         "SBB_AL_IMM8",
-        "SBB_RM8_IMM8"
+        "SBB_RM8_IMM8",
+        "SBB_R8_RM8",
+        "SBB_RM8_R8"
       ],
       "flags": {
         "read": [
@@ -1637,6 +1646,287 @@
       "forms": [
         "XCHG_R32_RM32",
         "XCHG_EAX_R32"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "SETO",
+      "mnemonic": "SETO",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "SETO_RM8"
+      ],
+      "flags": {
+        "read": [
+          "OF"
+        ],
+        "write": []
+      }
+    },
+    {
+      "id": "SETB",
+      "mnemonic": "SETB",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "SETB_RM8"
+      ],
+      "flags": {
+        "read": [
+          "CF"
+        ],
+        "write": []
+      }
+    },
+    {
+      "id": "FXRSTOR",
+      "mnemonic": "FXRSTOR",
+      "family": "sse",
+      "status": "EXECUTE",
+      "forms": [
+        "FXRSTOR_RM512"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "CLD",
+      "mnemonic": "CLD",
+      "family": "integer_control",
+      "status": "EXECUTE",
+      "forms": [
+        "CLD"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "DF"
+        ]
+      }
+    },
+    {
+      "id": "STD",
+      "mnemonic": "STD",
+      "family": "integer_control",
+      "status": "EXECUTE",
+      "forms": [
+        "STD"
+      ],
+      "flags": {
+        "read": [],
+        "write": [
+          "DF"
+        ]
+      }
+    },
+    {
+      "id": "INT3",
+      "mnemonic": "INT3",
+      "family": "system",
+      "status": "EXECUTE",
+      "forms": [
+        "INT3"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MOVSB",
+      "mnemonic": "MOVSB",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "MOVSB"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MOVSD_STRING",
+      "mnemonic": "MOVSD",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "MOVSD_STRING"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "MOVSW",
+      "mnemonic": "MOVSW",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "MOVSW"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "CMPSB",
+      "mnemonic": "CMPSB",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "CMPSB"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "CMPSW",
+      "mnemonic": "CMPSW",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "CMPSW"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "CMPSD",
+      "mnemonic": "CMPSD",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "CMPSD"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "SCASB",
+      "mnemonic": "SCASB",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "SCASB"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "SCASW",
+      "mnemonic": "SCASW",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "SCASW"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "SCASD",
+      "mnemonic": "SCASD",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "SCASD"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "LODSB",
+      "mnemonic": "LODSB",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "LODSB"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "LODSW",
+      "mnemonic": "LODSW",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "LODSW"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "LODSD",
+      "mnemonic": "LODSD",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "LODSD"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "STOSB",
+      "mnemonic": "STOSB",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "STOSB"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "STOSW",
+      "mnemonic": "STOSW",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "STOSW"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
+    },
+    {
+      "id": "STOSD",
+      "mnemonic": "STOSD",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "STOSD"
       ],
       "flags": {
         "read": [],
