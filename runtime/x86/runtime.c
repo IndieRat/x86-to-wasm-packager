@@ -2166,11 +2166,17 @@ static int cpu_step_legacy(void){
   }
   case 0xC9:{uint32_t v;regs[R_ESP]=regs[R_EBP];if(!x86_stack_pop32(&v))return -44;regs[R_EBP]=v;eip=ip;return 0;} /* LEAVE */
   case 0xC2:{uint16_t n=rd16(ip);ip+=2;uint32_t v;if(!x86_stack_pop32(&v))return -45;if(!x86_stack_discard(n))return -46;eip=v;return 0;} /* RET imm16 */
-  case 0xFF: { /* CALL/JMP r/m32 subset; v0.4 uses /2 for imported APIs. */
+  case 0xFF: { /* Group 5: INC/DEC/CALL/JMP/PUSH r/m32 subset. */
    uint8_t m=MEM8(ip++);
    uint8_t sub=(m>>3)&7;
-   if(sub!=2&&sub!=4){cpu_error=0xFF00u|sub;return -12;}
    uint32_t ea=0,target;
+   if(sub==6){ /* PUSH r/m32 -- required by FS/GS-prefixed compiler prologues. */
+    uint32_t value=modrm_ea(m,&ip,&ea)?rd32(ea):regs[m&7u];
+    if(!x86_stack_push32(value))return -57;
+    eip=ip;
+    return 0;
+   }
+   if(sub!=2&&sub!=4){cpu_error=0xFF00u|sub;return -12;}
    if(modrm_ea(m,&ip,&ea))target=rd32(ea);else{ea=0;target=regs[m&7u];}
    uint32_t next=ip;
    last_indirect_slot=ea;last_indirect_target=target;
