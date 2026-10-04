@@ -45,7 +45,12 @@ def main()->int:
     a=ap.parse_args()
     game=a.game_folder.resolve(); out=a.output.resolve()
     if not game.is_dir(): raise SystemExit("Input game_folder must be a directory.")
-    out.mkdir(parents=True,exist_ok=True); resources=out/"resources"; resources.mkdir(parents=True,exist_ok=True)
+    out.mkdir(parents=True,exist_ok=True)
+    # Repacking into an existing directory must not leave stale standalone XAPI
+    # artifacts (notably game.xapi) beside the authoritative merged pool.
+    for stale in out.glob("*.xapi"):
+        stale.unlink()
+    resources=out/"resources"; resources.mkdir(parents=True,exist_ok=True)
     exe=(game/a.exe).resolve() if a.exe else None
     if exe is None:
         candidates=sorted(game.glob("*.exe")) or sorted(game.rglob("*.exe"))
