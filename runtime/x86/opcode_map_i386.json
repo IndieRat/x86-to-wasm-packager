@@ -1629,6 +1629,7 @@
         "byte": "F7",
         "status": "MAPPED",
         "encoding_ids": [
+          "TEST_RM32_IMM32",
           "NEG_RM32",
           "NOT_RM32",
           "MUL_RM32",
