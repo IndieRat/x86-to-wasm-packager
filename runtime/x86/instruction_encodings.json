@@ -888,6 +888,30 @@
       }
     },
     {
+      "id": "XOR_R8_RM8",
+      "instruction": "XOR",
+      "opcode": [
+        "32"
+      ],
+      "opcode_map": "primary",
+      "encoding": "RM",
+      "operands": [
+        {
+          "kind": "reg8",
+          "access": "rw",
+          "source": "modrm.reg"
+        },
+        {
+          "kind": "rm8",
+          "access": "r",
+          "source": "modrm.rm"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
+    },
+    {
       "id": "XOR_RM32_IMM32",
       "instruction": "XOR",
       "opcode": [
