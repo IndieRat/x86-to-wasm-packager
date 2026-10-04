@@ -2150,7 +2150,7 @@ static int cpu_step_legacy(void){
    eip=ip;return 0;
   }
   case 0xA8:{uint8_t b=MEM8(ip++),a=reg8_read(0);set_logic_flags_width((uint8_t)(a&b),8);eip=ip;return 0;} /* TEST AL,imm8 */
-  case 0xA9:{uint32_t b=rd32(ip),a=regs[R_EAX];set_logic_flags(a,b,a&b);eip=ip+4;return 0;} /* TEST EAX,imm32 */
+  case 0xA9:{uint32_t b=rd32(ip),a=regs[R_EAX];set_logic_flags(a&b);eip=ip+4;return 0;} /* TEST EAX,imm32 */
   case 0x68:{uint32_t v=rd32(ip);ip+=4;if(!x86_stack_push32(v))return -42;eip=ip;return 0;} /* PUSH imm32 */
   case 0x6A:{int8_t v=(int8_t)MEM8(ip++);if(!x86_stack_push32((uint32_t)(int32_t)v))return -43;eip=ip;return 0;} /* PUSH imm8 */
   case 0x8F:{ /* POP r/m32 */
