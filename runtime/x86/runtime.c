@@ -55,13 +55,17 @@ static int32_t crt_errno=0;
 static uint32_t crt_last_error=0,crt_started=0,crt_exited=0,crt_exit_code=0;
 /* Termination provenance is kept separately from CPU EIP because an exit shim
  * halts the guest after the CALL has advanced EIP to its return site. */
-static uint32_t crt_last_termination_kind=0; /* 1=exit, 2=_exit, 3=abort, 4=terminate, 5=_cexit, 6=_c_exit, 7=TerminateProcess */
+static uint32_t crt_last_termination_kind=0; /* 1=exit, 2=_exit, 3=abort, 4=terminate, 5=_cexit, 6=_c_exit, 7=TerminateProcess, 8=crash report (UnhandledExceptionFilter) */
 static uint32_t crt_last_termination_caller=0;
 static uint32_t crt_last_termination_return_eip=0;
 static uint32_t crt_last_termination_target=0;
 static uint32_t crt_last_termination_arg0=0;
 static uint32_t crt_last_shim_index=0xFFFFFFFFu;
 static uint32_t crt_last_shim_caller=0;
+/* Crash-report capture: the guest CRT reached UnhandledExceptionFilter (abort/fastfail/GS failure path). */
+static uint32_t crash_hit=0,crash_return_eip=0,crash_nframes=0,crash_arg0=0;
+static uint32_t crash_stack[32],crash_frames[16];
+
 static uint32_t crt_last_shim_target=0;
 static uint32_t crt_last_shim_arg0=0;
 static uint32_t crt_last_shim_argc=0;
@@ -112,7 +116,7 @@ static uint32_t last_dispatch_id=0,last_dispatch_count=0,legacy_execution_count=
 static uint32_t last_indirect_slot=0,last_indirect_target=0;
 #define X86_SEMANTIC_ID_MAX 64u
 static char last_decoded_semantic_id[X86_SEMANTIC_ID_MAX];
-#define X86_TRACE_DEPTH 32u
+#define X86_TRACE_DEPTH 256u
 static uint32_t trace_eip[X86_TRACE_DEPTH],trace_next_eip[X86_TRACE_DEPTH];
 static uint32_t trace_opcode[X86_TRACE_DEPTH],trace_flags[X86_TRACE_DEPTH];
 static uint32_t trace_eax[X86_TRACE_DEPTH],trace_ecx[X86_TRACE_DEPTH];
@@ -1013,6 +1017,18 @@ static uint32_t shim_call(uint32_t idx){
   case SHIM_QueryPerformanceFrequency:{uint32_t p=ARG(0);wr32(p,10000000u);wr32(p+4u,0);r=1;break;}
   case SHIM_IsProcessorFeaturePresent:{uint32_t f=ARG(0);r=(f==6u||f==10u||f==13u)?1u:0u;break;} /* SSE, SSE2, SSE3: advertise what the CPU implements */
   case SHIM_InitializeSListHead:{uint32_t p=ARG(0);wr32(p,0);wr32(p+4u,0);break;}
+  case SHIM_UnhandledExceptionFilter:{
+   /* Guest is reporting a fatal condition. Freeze here so the trace/stack still show what led to it. */
+   if(!crash_hit){
+    crash_hit=1u;crash_return_eip=rd32(sp);crash_arg0=ARG(0);
+    for(uint32_t i=0;i<32u;i++)crash_stack[i]=rd32(sp+4u*i);
+    uint32_t bp=regs[R_EBP],last=sp;crash_nframes=0u;
+    while(crash_nframes<16u&&bp>last&&bp-sp<0x100000u){crash_frames[crash_nframes++]=rd32(bp+4u);last=bp;bp=rd32(bp);}
+    crt_last_termination_kind=8u;crt_last_termination_caller=crt_last_shim_caller;
+    crt_last_termination_return_eip=crash_return_eip;crt_last_termination_target=crt_last_shim_target;crt_last_termination_arg0=0xC0000409u;
+    crt_exit_code=0xC0000409u;crt_exited=1u;halted=1;
+   }
+   r=0;break;}
   case SHIM_TerminateProcess:
    crt_last_termination_kind=7u;
    crt_last_termination_caller=crt_last_shim_caller;
@@ -2558,7 +2574,7 @@ static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
  crt_exited=0;crt_exit_code=0;crt_last_termination_kind=0u;crt_last_termination_caller=0u;
  crt_last_termination_return_eip=0u;crt_last_termination_target=0u;crt_last_termination_arg0=0u;
- crt_last_shim_index=0xFFFFFFFFu;crt_last_shim_caller=0u;crt_last_shim_target=0u;crt_last_shim_arg0=0u;crt_last_shim_argc=0u;
+ crt_last_shim_index=0xFFFFFFFFu;crt_last_shim_caller=0u;crt_last_shim_target=0u;crt_last_shim_arg0=0u;crt_last_shim_argc=0u;crash_hit=0u;crash_return_eip=0u;crash_nframes=0u;crash_arg0=0u;
  x86_fs_base=X86_FS_TEB_BASE; x86_gs_base=X86_GS_TEB_BASE;
  requested_image_base=0;reloc_rva=reloc_size=import_rva=import_size=0;relocation_needed=0;dll_count=import_count=0;import_resolved=import_failed=0;last_import_dll=last_import_func=last_import_thunk=last_import_target=0;last_failed_import_dll=last_failed_import_func=0;x86_gdr_reset();last_unresolved_gdr=0xFFFFFFFFu;mouse_clicks=0;mouse_right_clicks=0;mouse_middle_clicks=0;mouse_moves=0;surface_width=640;surface_height=360;
  if(sz<0x40u){load_error=1;return-1;} if(rd16(f)!=0x5a4du){load_error=2;return-1;}
@@ -2633,7 +2649,7 @@ __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
  crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;
  crt_last_termination_kind=0u;crt_last_termination_caller=0u;crt_last_termination_return_eip=0u;
  crt_last_termination_target=0u;crt_last_termination_arg0=0u;
- crt_last_shim_index=0xFFFFFFFFu;crt_last_shim_caller=0u;crt_last_shim_target=0u;crt_last_shim_arg0=0u;crt_last_shim_argc=0u;
+ crt_last_shim_index=0xFFFFFFFFu;crt_last_shim_caller=0u;crt_last_shim_target=0u;crt_last_shim_arg0=0u;crt_last_shim_argc=0u;crash_hit=0u;crash_return_eip=0u;crash_nframes=0u;crash_arg0=0u;
  crt_atexit_count=0;crt_last_atexit_result=0;crt_atexit_running=0;
  x86_fs_reset();
  x86_reg_reset();
@@ -2855,6 +2871,11 @@ uint32_t x86_get_preflight_semantic_id_char(uint32_t i,uint32_t n){
  return i<X86_PREFLIGHT_DEPTH&&n<X86_PREFLIGHT_SEM_MAX?(uint8_t)preflight_semantic[i][n]:0;
 }
 
+__attribute__((export_name("x86_get_crash_hit"))) uint32_t x86_get_crash_hit(void){return crash_hit;}
+__attribute__((export_name("x86_get_crash_return_eip"))) uint32_t x86_get_crash_return_eip(void){return crash_return_eip;}
+__attribute__((export_name("x86_get_crash_frame_count"))) uint32_t x86_get_crash_frame_count(void){return crash_nframes;}
+__attribute__((export_name("x86_get_crash_frame"))) uint32_t x86_get_crash_frame(uint32_t i){return i<16u?crash_frames[i]:0u;}
+__attribute__((export_name("x86_get_crash_stack"))) uint32_t x86_get_crash_stack(uint32_t i){return i<32u?crash_stack[i]:0u;}
 __attribute__((export_name("x86_get_trace_count"))) uint32_t x86_get_trace_count(void){return trace_count;}
 __attribute__((export_name("x86_get_trace_index"))) uint32_t x86_get_trace_index(uint32_t n){if(n>=trace_count)return 0xFFFFFFFFu;return (trace_head+X86_TRACE_DEPTH-trace_count+n)%X86_TRACE_DEPTH;}
 __attribute__((export_name("x86_get_trace_eip"))) uint32_t x86_get_trace_eip(uint32_t i){return i<X86_TRACE_DEPTH?trace_eip[i]:0;}
@@ -3124,7 +3145,7 @@ __attribute__((export_name("x86_crt_startup"))) uint32_t x86_crt_startup(void){
  crt_errno=0;crt_last_error=0;crt_started=1;crt_exited=0;crt_exit_code=0;
  crt_last_termination_kind=0u;crt_last_termination_caller=0u;crt_last_termination_return_eip=0u;
  crt_last_termination_target=0u;crt_last_termination_arg0=0u;
- crt_last_shim_index=0xFFFFFFFFu;crt_last_shim_caller=0u;crt_last_shim_target=0u;crt_last_shim_arg0=0u;crt_last_shim_argc=0u;
+ crt_last_shim_index=0xFFFFFFFFu;crt_last_shim_caller=0u;crt_last_shim_target=0u;crt_last_shim_arg0=0u;crt_last_shim_argc=0u;crash_hit=0u;crash_return_eip=0u;crash_nframes=0u;crash_arg0=0u;
  crt_atexit_count=0;crt_last_atexit_result=0;crt_last_atexit_ok=0;crt_atexit_running=0;return 1;
 }
 __attribute__((export_name("x86_crt_get_errno"))) int32_t x86_crt_get_errno(void){return crt_errno;}
