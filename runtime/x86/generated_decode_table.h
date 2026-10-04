@@ -257,6 +257,7 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {0,0x0C,0,-1,"OR_AL_IMM8",0,0},
   {0,0x14,0,-1,"ADC_AL_IMM8",0,0},
   {0,0x1C,0,-1,"SBB_AL_IMM8",0,0},
+  {0,0x25,0,-1,"AND_EAX_IMM32",0,0},
   {0,0x24,0,-1,"AND_AL_IMM8",0,0},
   {0,0x2C,0,-1,"SUB_AL_IMM8",0,0},
   {0,0x34,0,-1,"XOR_AL_IMM8",0,0},
