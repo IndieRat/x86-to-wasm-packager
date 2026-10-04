@@ -31,7 +31,7 @@ def pe32_info(path: Path) -> dict:
 def copy_tree(source:Path,dest:Path,exe:Path)->int:
     count=0
     for item in source.rglob("*"):
-        if not item.is_file() or item.resolve()==exe.resolve(): continue
+        if not item.is_file() or item.resolve()==exe.resolve() or item.suffix.lower()==".xapi": continue
         rel=item.relative_to(source); target=dest/rel; target.parent.mkdir(parents=True,exist_ok=True)
         shutil.copy2(item,target); count+=1
     return count
