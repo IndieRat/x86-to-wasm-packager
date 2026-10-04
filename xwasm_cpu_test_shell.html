@@ -233,9 +233,12 @@ function findPotentialGaps(){
   if(!exports)throw Error("runtime not loaded");
   if(typeof exports.x86_preflight_scan!=="function")throw Error("runtime lacks x86_preflight_scan; rebuild the runtime with preflight support");
   const start=typeof exports.x86_get_eip==="function"?(Number(exports.x86_get_eip())>>>0):0;
-  const scanned=Number(exports.x86_preflight_scan(start,256))||0;
+  const scanned=Number(exports.x86_preflight_scan(0,256))||0;
   const mines=typeof exports.x86_get_preflight_mines==="function"?Number(exports.x86_get_preflight_mines()):0;
-  const lines=["=== FORWARD PREFLIGHT / MINESWEEPER ===","Start EIP = "+hex(start),"Scanned = "+scanned+" instruction candidates","[FOUND POTENTIAL GAPS] = "+mines+" m.i.n.e","M.I.N.E = Missing Instruction / Next Expansion",""]; 
+  const actualStart=typeof exports.x86_get_preflight_start==="function"?Number(exports.x86_get_preflight_start())>>>0:start;
+  const reason=typeof exports.x86_get_preflight_start_reason==="function"?Number(exports.x86_get_preflight_start_reason()):0;
+  const reasonName=reason===1?"stack return address":reason===2?"recent executable trace":reason===3?"PE entry":"current/requested EIP";
+  const lines=["=== FORWARD PREFLIGHT / MINESWEEPER ===","Requested EIP = "+hex(start),"Actual start = "+hex(actualStart)+" ("+reasonName+")","Scanned = "+scanned+" instruction candidates","[FOUND POTENTIAL GAPS] = "+mines+" m.i.n.e","M.I.N.E = Missing Instruction / Next Expansion",""]; 
   for(let i=0;i<scanned;i++){
    const st=Number(exports.x86_get_preflight_status(i));
    const eip=Number(exports.x86_get_preflight_eip(i))>>>0;
