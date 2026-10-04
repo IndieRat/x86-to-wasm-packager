@@ -70,6 +70,7 @@ def main()->int:
         raise SystemExit(f"No XAPI seeds found in {seed_dir}")
 
     converted_dlls=[]
+    xapi_unconverted_dlls=[]
     with tempfile.TemporaryDirectory(prefix="xwasm-xapi-build-") as temp_name:
         temp_dir=Path(temp_name)
         xapi_sources=list(seed_xapis)
@@ -79,10 +80,21 @@ def main()->int:
                 convert_dll(dll,json_manifest)
                 xapi_sources.append(json_manifest)
                 converted_dlls.append(str(dll.relative_to(game)).replace("\\\\","/"))
-            except (FileNotFoundError,ValueError):
-                # An ordinary game DLL without a repository seed is preserved in
-                # resources/, but it does not become an XAPI declaration yet.
-                pass
+            except FileNotFoundError as exc:
+                # Keep the original DLL in resources/, but make the missing XAPI
+                # seed explicit in the package manifest so DLL coverage is
+                # auditable instead of silently disappearing.
+                xapi_unconverted_dlls.append({
+                    "dll": str(dll.relative_to(game)).replace("\\","/"),
+                    "reason": "missing_xapi_seed",
+                    "detail": str(exc),
+                })
+            except ValueError as exc:
+                xapi_unconverted_dlls.append({
+                    "dll": str(dll.relative_to(game)).replace("\\","/"),
+                    "reason": "xapi_conversion_error",
+                    "detail": str(exc),
+                })
 
         merged_xapi,merge_notes=merge_xapi_manifests(xapi_sources)
         xapi_pool=out/"xapi_pool.xapi"
@@ -131,6 +143,9 @@ def main()->int:
     print(f"Resources: {count}")
     print(f"XAPI pool: xapi_pool.xapi (sources={xapi_source_count}, libraries={xapi_library_count}, functions={xapi_function_count})")
     print(f"Converted bundled DLLs: {len(converted_dlls)}")
+    print(f"Bundled DLLs without usable XAPI manifests: {len(xapi_unconverted_dlls)}")
+    for item in xapi_unconverted_dlls:
+        print(f"  XAPI missing: {item['dll']} [{item['reason']}]")
     for note in merge_notes:
         print(f"  XAPI: {note}")
     print(f"Runtime: {'bundled as runtime.xwasm' if runtime_source else 'external/host-supplied'}")
