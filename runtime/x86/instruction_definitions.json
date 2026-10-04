@@ -235,6 +235,7 @@
       "forms": [
         "XOR_RM32_R32",
         "XOR_R32_RM32",
+        "XOR_R8_RM8",
         "XOR_RM32_IMM32",
         "XOR_AL_IMM8",
         "XOR_RM8_IMM8",
