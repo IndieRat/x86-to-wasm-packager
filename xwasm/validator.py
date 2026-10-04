@@ -58,7 +58,7 @@ def validate_package(root: Path) -> dict:
                             errors.append("x86 payload is too small to be a PE file")
                         else:
                             pe = int.from_bytes(data[0x3C:0x40], "little")
-                            if pe + 24 > len(data) or data[pe:pe + 4] != b"PE\\0\\0":
+                            if pe + 24 > len(data) or data[pe:pe + 4] != b"PE\0\0":
                                 errors.append("x86 payload does not contain a valid PE header")
                             elif int.from_bytes(data[pe + 4:pe + 6], "little") != 0x014C:
                                 errors.append("x86 payload is not i386 PE32")
@@ -81,9 +81,9 @@ def validate_package(root: Path) -> dict:
                         except ValueError as exc:
                             errors.append(f"invalid XWASM runtime container: {exc}")
                             wasm = b""
-                        if wasm and not wasm.startswith(b"\\x00asm"):
+                        if wasm and not wasm.startswith(b"\x00asm"):
                             errors.append("unpacked XWASM runtime does not have a WebAssembly binary header")
-                    elif data.startswith(b"\\x00asm"):
+                    elif data.startswith(b"\x00asm"):
                         warnings.append("x86 package uses legacy raw runtime.wasm; prefer runtime.xwasm")
                     else:
                         errors.append("x86 runtime is neither an XWASM container nor a WebAssembly binary")
@@ -171,7 +171,7 @@ def validate_package(root: Path) -> dict:
         return {"valid": False, "errors": errors, "warnings": warnings, "manifest": manifest, "architecture": "wasm32"}
 
     wasm = module_path.read_bytes()
-    if not wasm.startswith(b"\\x00asm"):
+    if not wasm.startswith(b"\x00asm"):
         errors.append("module does not have a WebAssembly binary header")
     else:
         try:
