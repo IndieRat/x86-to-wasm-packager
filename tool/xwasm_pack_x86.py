@@ -55,7 +55,35 @@ def main()->int:
     if exe is None:
         candidates=sorted(game.glob("*.exe")) or sorted(game.rglob("*.exe"))
         if not candidates: raise SystemExit("No EXE found.")
-        exe=candidates[0]
+        # Do not silently choose the first alphabetic EXE: game directories commonly
+        # contain launchers, installers, updaters, crash tools, and the real game.
+        # Prefer well-known main-game names, then the largest PE32 executable.
+        preferred={"isaac-ng.exe":1000,"isaac.exe":950,"game.exe":900,"main.exe":850}
+        rejected_tokens=("launcher","installer","setup","uninstall","updater","update","crash")
+        ranked=[]
+        for candidate in candidates:
+            try:
+                info=pe32_info(candidate)
+            except ValueError:
+                continue
+            name=candidate.name.lower()
+            stem=candidate.stem.lower()
+            score=preferred.get(name,0)
+            if stem==game.name.lower(): score+=800
+            if any(token in name for token in rejected_tokens): score-=500
+            try:
+                size=candidate.stat().st_size
+            except OSError:
+                size=0
+            ranked.append((score,size,str(candidate).lower(),candidate))
+        if not ranked: raise SystemExit("No 32-bit PE32 EXE found.")
+        ranked.sort(key=lambda item:(item[0],item[1],item[2]),reverse=True)
+        exe=ranked[0][3]
+        if len(ranked)>1:
+            print("Auto-selected EXE:")
+            print(f"  {exe.relative_to(game)} (score={ranked[0][0]}, size={ranked[0][1]})")
+            for score,size,_,candidate in ranked[1:4]:
+                print(f"  candidate: {candidate.relative_to(game)} (score={score}, size={size})")
     if not exe.is_file(): raise SystemExit(f"Executable not found: {exe}")
     info=pe32_info(exe)
 
@@ -136,6 +164,7 @@ def main()->int:
         "xapi_source_count":xapi_source_count,"xapi_library_count":xapi_library_count,
         "xapi_function_count":xapi_function_count,"xapi_converted_dlls":converted_dlls,
         "xapi_unconverted_dlls":xapi_unconverted_dlls,
+        "payload_exe":str(exe.relative_to(game)).replace("\\","/"),
         "sha256":hashlib.sha256(exe.read_bytes()).hexdigest(),
         "execution_status":"x86_runtime_bundled" if runtime_source else "requires_x86_runtime",
     }
