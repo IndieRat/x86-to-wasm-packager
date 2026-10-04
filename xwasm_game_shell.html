@@ -306,7 +306,7 @@ function tick(){
 }
 function isDiagnosticExport(n){
  return /^(x86|cpu|x87|xmm|crt|last_|trace|stress|mem|import|reloc|dll|load_error|halted|steps)/i.test(n)
-   && /(?:get|read|debug|diag|trace|stress|stats|count|error|fault|eip|opcode|dispatch|semantic|indirect|import|mem|halt|step|load|reloc|dll|errno|exit)/i.test(n);
+   && /(?:get|read|debug|diag|trace|stress|stats|count|scan|error|fault|eip|opcode|dispatch|semantic|indirect|import|mem|halt|step|load|reloc|dll|errno|exit)/i.test(n);
 }
 function callDiagnostic(name,...args){
  const fn=state.exports&&state.exports[name];
