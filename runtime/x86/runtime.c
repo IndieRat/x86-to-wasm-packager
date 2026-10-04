@@ -871,6 +871,66 @@ static const struct{const char*name;uint8_t argc,callee_pops;}shim_tab[]={
 static uint32_t shim_tls[64],shim_fls[64],shim_tls_next=0,shim_fls_next=0,shim_handle=0x100u;
 static uint32_t shim_qpc=0,shim_ft_lo=0xD53E8000u,shim_ft_hi=0x01DC0000u;
 static uint32_t shim_initterm=0,shim_initterm_e=0,shim_argc_p=0,shim_argv_p=0,shim_env_p=0,shim_commode_p=0,shim_errno_p=0,shim_onexit_dummy=0;
+static int x87_push(double v);
+/* ---- XAPI registry: functions described by .xapi manifests ----------------
+ * The shell parses the merged game .xapi and registers each function here
+ * (x86_xapi_register). resolve_builtin() binds matching PE imports to
+ * API_XAPI_BASE+index*4; xapi_call() marshals stack args per the declared
+ * signature into xapi_slots[] (all as doubles) and calls the host bridge.
+ * Type codes: 0 void, 1 u32, 2 i32, 3 ptr, 4 f32, 5 f64. ABI: 0 stdcall, 1 cdecl. */
+#define API_XAPI_BASE (API_BASE+0x00030000u)
+#define XAPI_MAX_FUNCS 2048u
+#define XAPI_MAX_ALIASES 128u
+#define XAPI_POOL_SIZE 98304u
+#define XAPI_SLOT_RET 15u
+extern int32_t xwasm_xapi_call(int32_t id,int32_t argc);
+typedef struct{uint32_t id,lib_off,name_off,calls;uint8_t abi,nargs,ret,args[16];}x86_xapi_fn_t;
+static x86_xapi_fn_t xapi_fn[XAPI_MAX_FUNCS];
+static uint32_t xapi_count=0,xapi_pool_used=0,xapi_alias_count=0,xapi_alias_from[XAPI_MAX_ALIASES],xapi_alias_to[XAPI_MAX_ALIASES];
+static uint32_t xapi_last_id=0,xapi_last_idx=0xFFFFFFFFu;
+static char xapi_pool[XAPI_POOL_SIZE];
+static uint8_t xapi_scratch[512];
+static double xapi_slots[16];
+static uint32_t xapi_pool_add(const uint8_t*s,uint32_t n){
+ if(xapi_pool_used+n+1u>XAPI_POOL_SIZE)return 0xFFFFFFFFu;
+ uint32_t o=xapi_pool_used;for(uint32_t i=0;i<n;i++)xapi_pool[o+i]=(char)s[i];xapi_pool[o+n]=0;xapi_pool_used+=n+1u;return o;
+}
+static uint32_t xapi_len(const uint8_t*s,uint32_t max){uint32_t n=0;while(n<max&&s[n])n++;return n;}
+static char xapi_lc(char c){return (c>='A'&&c<='Z')?(char)(c+32):c;}
+static int xapi_streqi_guest(uint32_t p,const char*s){
+ uint32_t i=0;for(;s[i];i++)if(xapi_lc((char)MEM8(p+i))!=xapi_lc(s[i]))return 0;
+ return MEM8(p+i)==0;
+}
+static int xapi_streq_guest(uint32_t p,const char*s){return streq_ascii(p,s);}
+static int xapi_cstreq(const char*a,const char*b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
+static int32_t xapi_lookup(uint32_t dll,uint32_t name){
+ for(uint32_t i=0;i<xapi_count;i++){
+  const char*lib=xapi_pool+xapi_fn[i].lib_off,*fn=xapi_pool+xapi_fn[i].name_off;
+  if(!xapi_streq_guest(name,fn))continue;
+  if(xapi_streqi_guest(dll,lib))return (int32_t)i;
+  for(uint32_t a=0;a<xapi_alias_count;a++)
+   if(xapi_streqi_guest(dll,xapi_pool+xapi_alias_from[a])&&xapi_cstreq(xapi_pool+xapi_alias_to[a],lib))return (int32_t)i;
+ }
+ return -1;
+}
+static uint32_t xapi_call(uint32_t idx){
+ x86_xapi_fn_t*f=&xapi_fn[idx];
+ uint32_t sp=regs[R_ESP]+4u,off=0;
+ for(uint32_t k=0;k<f->nargs&&k<16u;k++){
+  uint8_t t=f->args[k];
+  if(t==5){union{uint64_t u;double d;}c;c.u=(uint64_t)rd32(sp+off)|((uint64_t)rd32(sp+off+4u)<<32);xapi_slots[k]=c.d;off+=8u;}
+  else if(t==4){union{uint32_t u;float f;}c;c.u=rd32(sp+off);xapi_slots[k]=(double)c.f;off+=4u;}
+  else if(t==2){xapi_slots[k]=(double)(int32_t)rd32(sp+off);off+=4u;}
+  else{xapi_slots[k]=(double)rd32(sp+off);off+=4u;}
+ }
+ xapi_slots[XAPI_SLOT_RET]=0.0;
+ xapi_last_id=f->id;xapi_last_idx=idx;f->calls++;
+ int32_t r=xwasm_xapi_call((int32_t)f->id,(int32_t)f->nargs);
+ if(f->ret==4||f->ret==5){if(!x87_push(xapi_slots[XAPI_SLOT_RET]))return 0;}
+ else regs[R_EAX]=(uint32_t)r;
+ if(f->abi==0)regs[R_ESP]+=off;
+ return 1;
+}
 static uint32_t shim_emit(const uint8_t*b,uint32_t n){uint32_t a=guest_alloc_raw(n);if(!a)return 0;for(uint32_t i=0;i<n;i++)MEM8(a+i)=b[i];return a;}
 static uint32_t shim_resolve(uint32_t name){
  /* _initterm/_initterm_e call guest function pointers, so they are real guest code rather than host shims. */
@@ -1041,6 +1101,7 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"RegCloseKey"))return API_KERNEL32_REGCLOSEKEY;
   if(streq_ascii(name,"RegDeleteValueA"))return API_KERNEL32_REGDELETEVALUEA;
  }
+ {int32_t xi=xapi_lookup(dll,name);if(xi>=0)return API_XAPI_BASE+(uint32_t)xi*4u;}
  return 0;
 }
 static uint32_t gl_color_u32(void){
@@ -1086,6 +1147,7 @@ static void gl_draw_triangle(void){
 
 static uint32_t x86_crt_strlen(uint32_t s);
 static uint32_t call_builtin(uint32_t target){
+ if(target>=API_XAPI_BASE&&target<API_XAPI_BASE+xapi_count*4u)return xapi_call((target-API_XAPI_BASE)>>2);
  if(target>=API_SHIM_BASE&&target<API_SHIM_BASE+SHIM_COUNT*4u)return shim_call((target-API_SHIM_BASE)>>2);
  if(target==API_C5_MALLOC){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_malloc_impl(rd32(sp+4u));return 1;}
  if(target==API_C5_FREE){uint32_t sp=regs[R_ESP];regs[R_EAX]=x86_crt_free_impl(rd32(sp+4u));return 1;}
@@ -2459,6 +2521,36 @@ __attribute__((export_name("x86_get_gdr_iat_rva"))) uint32_t x86_get_gdr_iat_rva
 __attribute__((export_name("x86_get_gdr_target"))) uint32_t x86_get_gdr_target(uint32_t i){return i<x86_gdr_count?x86_gdr[i].target:0;}
 __attribute__((export_name("x86_get_gdr_status"))) uint32_t x86_get_gdr_status(uint32_t i){return i<x86_gdr_count?x86_gdr[i].status:0xFFFFFFFFu;}
 __attribute__((export_name("x86_get_gdr_call_count"))) uint32_t x86_get_gdr_call_count(uint32_t i){return i<x86_gdr_count?x86_gdr[i].call_count:0;}
+__attribute__((export_name("x86_xapi_scratch"))) uint32_t x86_xapi_scratch(void){return (uint32_t)(uintptr_t)xapi_scratch;}
+__attribute__((export_name("x86_xapi_slots"))) uint32_t x86_xapi_slots(void){return (uint32_t)(uintptr_t)xapi_slots;}
+__attribute__((export_name("x86_xapi_reset"))) void x86_xapi_reset(void){xapi_count=0;xapi_pool_used=0;xapi_alias_count=0;xapi_last_idx=0xFFFFFFFFu;}
+/* scratch layout: "lib\0name\0" then nargs type-code bytes. Returns index, or 0xFFFFFFFF on error. */
+__attribute__((export_name("x86_xapi_register"))) uint32_t x86_xapi_register(uint32_t id,uint32_t abi,uint32_t nargs,uint32_t ret){
+ if(xapi_count>=XAPI_MAX_FUNCS||nargs>16u)return 0xFFFFFFFFu;
+ uint32_t ll=xapi_len(xapi_scratch,200u),nl2=xapi_len(xapi_scratch+ll+1u,200u);
+ uint32_t lo=xapi_pool_add(xapi_scratch,ll),no=xapi_pool_add(xapi_scratch+ll+1u,nl2);
+ if(lo==0xFFFFFFFFu||no==0xFFFFFFFFu)return 0xFFFFFFFFu;
+ x86_xapi_fn_t*f=&xapi_fn[xapi_count];
+ f->id=id;f->lib_off=lo;f->name_off=no;f->calls=0;f->abi=(uint8_t)abi;f->nargs=(uint8_t)nargs;f->ret=(uint8_t)ret;
+ for(uint32_t i=0;i<nargs;i++)f->args[i]=xapi_scratch[ll+nl2+2u+i];
+ return xapi_count++;
+}
+/* scratch layout: "alias.dll\0target.dll\0" */
+__attribute__((export_name("x86_xapi_register_alias"))) uint32_t x86_xapi_register_alias(void){
+ if(xapi_alias_count>=XAPI_MAX_ALIASES)return 0xFFFFFFFFu;
+ uint32_t al=xapi_len(xapi_scratch,200u),tl=xapi_len(xapi_scratch+al+1u,200u);
+ uint32_t a=xapi_pool_add(xapi_scratch,al),t=xapi_pool_add(xapi_scratch+al+1u,tl);
+ if(a==0xFFFFFFFFu||t==0xFFFFFFFFu)return 0xFFFFFFFFu;
+ xapi_alias_from[xapi_alias_count]=a;xapi_alias_to[xapi_alias_count]=t;return xapi_alias_count++;
+}
+__attribute__((export_name("x86_get_xapi_count"))) uint32_t x86_get_xapi_count(void){return xapi_count;}
+__attribute__((export_name("x86_get_xapi_id"))) uint32_t x86_get_xapi_id(uint32_t i){return i<xapi_count?xapi_fn[i].id:0;}
+__attribute__((export_name("x86_get_xapi_call_count"))) uint32_t x86_get_xapi_call_count(uint32_t i){return i<xapi_count?xapi_fn[i].calls:0;}
+__attribute__((export_name("x86_get_last_xapi_id"))) uint32_t x86_get_last_xapi_id(void){return xapi_last_id;}
+__attribute__((export_name("x86_guest_read8"))) uint32_t x86_guest_read8(uint32_t a){return MEM8(a);}
+__attribute__((export_name("x86_guest_write8"))) void x86_guest_write8(uint32_t a,uint32_t v){MEM8(a)=(uint8_t)v;}
+__attribute__((export_name("x86_guest_read32"))) uint32_t x86_guest_read32(uint32_t a){return rd32(a);}
+__attribute__((export_name("x86_guest_write32"))) void x86_guest_write32(uint32_t a,uint32_t v){wr32(a,v);}
 __attribute__((export_name("x86_get_last_unresolved_gdr"))) uint32_t x86_get_last_unresolved_gdr(void){return last_unresolved_gdr;}
 __attribute__((export_name("x86_get_gdr_dll_name_byte"))) uint32_t x86_get_gdr_dll_name_byte(uint32_t i,uint32_t j){return (i<x86_gdr_count&&j<255u)?MEM8(image_base+x86_gdr[i].dll_rva+j):0;}
 __attribute__((export_name("x86_get_gdr_func_name_byte"))) uint32_t x86_get_gdr_func_name_byte(uint32_t i,uint32_t j){return (i<x86_gdr_count&&j<255u)?MEM8(image_base+x86_gdr[i].func_rva+2u+j):0;}
