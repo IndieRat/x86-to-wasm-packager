@@ -2194,6 +2194,15 @@ static int cpu_step_legacy(void){
     if(call_builtin(target)){eip=next;regs[R_ESP]+=4u;return 0;}
     eip=target;return 0;
    }
+   /* FF /4 JMP is frequently used by PE import thunks. If the destination is
+    * one of our resolved host/API shims, execute it as the imported target and
+    * then return through the thunk's existing caller return address. */
+   if(call_builtin(target)){
+    uint32_t ret;
+    if(!x86_stack_pop32(&ret))return -57;
+    eip=ret;
+    return 0;
+   }
    eip=target;return 0;
   }
   case 0xC3:{uint32_t v;if(!x86_stack_pop32(&v))return -49;eip=v;return 0;} /* RET */
