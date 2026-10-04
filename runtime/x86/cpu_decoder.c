@@ -133,6 +133,7 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
         x86_id_is(id, "SBB_RM32_IMM32") ||
         x86_id_is(id, "IMUL_R32_RM32_IMM32") ||
         x86_id_is(id, "AND_EAX_IMM32") ||
+        x86_id_is(id, "TEST_RM32_IMM32") ||
         x86_id_is(id, "ADD_EAX_IMM32") ||
         x86_id_is(id, "SUB_EAX_IMM32") ||
         x86_id_is(id, "CMP_EAX_IMM32") ||
@@ -543,6 +544,20 @@ static int cpu_step(void) {
             int32_t rel=(d.rel_size==1)?(int8_t)MEM8(d.cursor-1u):(int32_t)rd32(d.cursor-4u);
             eip=take?(uint32_t)((int32_t)d.cursor+rel):d.cursor;
             last_dispatch_id=X86_DISPATCH_JCC;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"TEST_RM32_IMM32")) {
+            uint32_t op_ip=d.cursor-d.imm_size-d.disp_size-(d.has_sib?1u:0u),ea=0;
+            uint32_t value;
+            if ((d.modrm>>6)==3) value=regs[d.modrm&7u];
+            else { modrm_ea(d.modrm,&op_ip,&ea); value=rd32(ea); }
+            uint32_t imm=rd32(d.cursor-4u);
+            set_logic_flags(value & imm);
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_TEST;
             last_dispatch_count++;
             x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
                              before_opcode,last_dispatch_id);
