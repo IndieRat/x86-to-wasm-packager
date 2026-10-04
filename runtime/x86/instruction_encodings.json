@@ -5465,7 +5465,7 @@
       "operands": [
         {
           "kind": "rm512",
-          "access": "w",
+          "access": "r",
           "source": "modrm.rm"
         }
       ],
