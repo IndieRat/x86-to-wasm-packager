@@ -2483,7 +2483,7 @@ static void x86_preflight_semantic_copy(char *dst,const char *src){
 static uint32_t x86_preflight_resync(uint32_t pc){
  for(uint32_t delta=1u;delta<=15u;delta++){
   uint32_t candidate=pc+delta;
-  if(!x86_mem_region_find(candidate,1u,X86_MEM_READ))break;
+  if(!x86_mem_region_find(candidate,1u,X86_MEM_READ|X86_MEM_EXEC))break;
   x86_decoded_t probe;
   eip=candidate;
   int rc=x86_decode_instruction(&probe);
