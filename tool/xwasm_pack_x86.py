@@ -115,7 +115,7 @@ def main()->int:
             # optional: it describes host APIs, while XDLL preserves guest code.
             try:
                 native_manifest=convert_native_dll(dll)
-                native_rel=Path("native_dlls") / (dll.stem + ".xdll")
+                native_rel=Path("native_dlls") / f"{index:04d}-{dll.stem.lower()}.xdll"
                 pack_native_dll(dll, out / native_rel)
                 native_dll_modules.append({
                     "dll": rel_dll,
