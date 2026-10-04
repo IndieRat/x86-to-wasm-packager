@@ -1056,7 +1056,7 @@
       "id": "MOV_SREG_RM16",
       "instruction": "MOV",
       "opcode": [
-        "8C"
+        "8E"
       ],
       "opcode_map": "primary",
       "encoding": "MR",

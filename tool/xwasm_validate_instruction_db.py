@@ -191,6 +191,22 @@ def main() -> int:
 
     map_counts = {}
     map_references = set()
+    decode_keys = set()
+    for item in encodings["encodings"]:
+        prefix = item.get("prefix_required")
+        prefix_mask = 0x02 if prefix == "F2" else 0x04 if prefix == "F3" else 0
+        prefix_value = prefix_mask
+        needs_modrm = 1 if item.get("modrm", {}).get("required") else 0
+        ext = item.get("modrm", {}).get("reg_extension", -1)
+        key_base = (item["opcode_map"], needs_modrm, ext, prefix_mask, prefix_value)
+        for opcode in item["opcode"]:
+            key = key_base + (opcode.upper(),)
+            if key in decode_keys:
+                raise ValueError(
+                    "ambiguous decode encoding for " + item["opcode_map"] +
+                    " opcode 0x" + opcode.upper() + ": duplicate ModR/M/prefix slot involving " + item["id"]
+                )
+            decode_keys.add(key)
     for map_name, slots in opcode_map["maps"].items():
         mapped = 0
         for slot in slots:
