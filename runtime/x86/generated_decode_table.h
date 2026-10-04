@@ -79,6 +79,7 @@ static const x86_decode_entry_t x86_decode_table[] = {
   {0,0x33,1,-1,"XOR_R32_RM32",0,0},
   {1,0x94,1,-1,"SETE_RM8",0,0},
   {0,0x85,1,-1,"TEST_RM32_R32",0,0},
+  {0,0xF7,1,0,"TEST_RM32_IMM32",0,0},
   {1,0xAF,1,-1,"IMUL_R32_RM32",0,0},
   {1,0x44,1,-1,"CMOVE_R32_RM32",0,0},
   {1,0xB6,1,-1,"MOVZX_R32_RM8",0,0},
