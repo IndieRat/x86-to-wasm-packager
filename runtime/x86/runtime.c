@@ -2496,12 +2496,30 @@ static uint32_t x86_preflight_resync(uint32_t pc){
 __attribute__((export_name("x86_preflight_scan")))
 uint32_t x86_preflight_scan(uint32_t start_eip,uint32_t max_instructions){
  uint32_t saved_eip=eip,saved_error=cpu_error,saved_halted=halted;
- preflight_count=0;preflight_mines=0;
+ preflight_count=0;preflight_mines=0;preflight_start=0;preflight_start_reason=0;
  uint32_t pc=start_eip?start_eip:eip;
- if(!x86_mem_region_find(pc,1u,X86_MEM_READ)){eip=saved_eip;cpu_error=saved_error;halted=saved_halted;return 0;}
+ if(!x86_mem_region_find(pc,1u,X86_MEM_READ|X86_MEM_EXEC)){
+  if(x86_mem_region_find(regs[R_ESP],4u,X86_MEM_READ)){
+   uint32_t ret=rd32(regs[R_ESP]);
+   if(x86_mem_region_find(ret,1u,X86_MEM_READ|X86_MEM_EXEC)){pc=ret;preflight_start_reason=1u;}
+  }
+  if(preflight_start_reason==0u){
+   for(uint32_t back=0;back<trace_count;back++){
+    uint32_t ti=(trace_head+X86_TRACE_DEPTH-1u-back)%X86_TRACE_DEPTH;
+    uint32_t cand=trace_eip[ti];
+    if(x86_mem_region_find(cand,1u,X86_MEM_READ|X86_MEM_EXEC)){pc=cand;preflight_start_reason=2u;break;}
+   }
+  }
+  if(preflight_start_reason==0u){
+   uint32_t cand=image_base+entry;
+   if(x86_mem_region_find(cand,1u,X86_MEM_READ|X86_MEM_EXEC)){pc=cand;preflight_start_reason=3u;}
+  }
+ }
+ if(!x86_mem_region_find(pc,1u,X86_MEM_READ|X86_MEM_EXEC)){eip=saved_eip;cpu_error=saved_error;halted=saved_halted;return 0;}
+ preflight_start=pc;
  if(max_instructions>X86_PREFLIGHT_DEPTH)max_instructions=X86_PREFLIGHT_DEPTH;
  for(uint32_t n=0;n<max_instructions;n++){
-  if(!x86_mem_region_find(pc,1u,X86_MEM_READ))break;
+  if(!x86_mem_region_find(pc,1u,X86_MEM_READ|X86_MEM_EXEC))break;
   x86_decoded_t d;
   eip=pc;
   int rc=x86_decode_instruction(&d);
@@ -2527,6 +2545,10 @@ __attribute__((export_name("x86_get_preflight_count")))
 uint32_t x86_get_preflight_count(void){return preflight_count;}
 __attribute__((export_name("x86_get_preflight_mines")))
 uint32_t x86_get_preflight_mines(void){return preflight_mines;}
+__attribute__((export_name("x86_get_preflight_start")))
+uint32_t x86_get_preflight_start(void){return preflight_start;}
+__attribute__((export_name("x86_get_preflight_start_reason")))
+uint32_t x86_get_preflight_start_reason(void){return preflight_start_reason;}
 __attribute__((export_name("x86_get_preflight_eip")))
 uint32_t x86_get_preflight_eip(uint32_t i){return i<X86_PREFLIGHT_DEPTH?preflight_eip[i]:0;}
 __attribute__((export_name("x86_get_preflight_next_eip")))
