@@ -132,6 +132,7 @@ static void x86_decode_payload_size(x86_decoded_t *d) {
         x86_id_is(id, "ADC_RM32_IMM32") ||
         x86_id_is(id, "SBB_RM32_IMM32") ||
         x86_id_is(id, "IMUL_R32_RM32_IMM32") ||
+        x86_id_is(id, "AND_EAX_IMM32") ||
         x86_id_is(id, "ADD_EAX_IMM32") ||
         x86_id_is(id, "SUB_EAX_IMM32") ||
         x86_id_is(id, "CMP_EAX_IMM32") ||
