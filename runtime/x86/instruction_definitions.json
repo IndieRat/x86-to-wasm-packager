@@ -1854,6 +1854,19 @@
         "read": [],
         "write": []
       }
+    },
+    {
+      "id": "CMPSD",
+      "mnemonic": "CMPSD",
+      "family": "string",
+      "status": "EXECUTE",
+      "forms": [
+        "CMPSD"
+      ],
+      "flags": {
+        "read": [],
+        "write": []
+      }
     }
   ]
 }
