@@ -5646,6 +5646,30 @@
       "modrm": {
         "required": true
       }
+    },
+    {
+      "id": "CMPXCHG_RM32_R32",
+      "instruction": "CMPXCHG",
+      "opcode": [
+        "B1"
+      ],
+      "opcode_map": "escape_0f",
+      "encoding": "MR",
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "rw",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "reg32",
+          "access": "r",
+          "source": "modrm.reg"
+        }
+      ],
+      "modrm": {
+        "required": true
+      }
     }
   ]
 }
