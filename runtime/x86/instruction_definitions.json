@@ -140,6 +140,28 @@
       }
     },
     {
+      "id": "CMPXCHG",
+      "mnemonic": "CMPXCHG",
+      "family": "integer_core",
+      "status": "EXECUTE",
+      "forms": [
+        "CMPXCHG_RM32_R32"
+      ],
+      "flags": {
+        "read": [
+          "EAX"
+        ],
+        "write": [
+          "ZF",
+          "CF",
+          "PF",
+          "AF",
+          "SF",
+          "OF"
+        ]
+      }
+    },
+    {
       "id": "INC",
       "mnemonic": "INC",
       "family": "integer_core",
