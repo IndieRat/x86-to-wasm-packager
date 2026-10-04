@@ -1302,6 +1302,7 @@ static void gl_draw_triangle(void){
 
 static uint32_t x86_dll_get_proc(uint32_t module,uint32_t name);
 static uint32_t x86_dll_module_for_name(uint32_t name);
+static void x86_dll_rebind_all(void);
 static uint32_t x86_crt_strlen(uint32_t s);
 static uint32_t call_builtin(uint32_t target){
  if(target>=API_XAPI_BASE&&target<API_XAPI_BASE+xapi_count*4u)return xapi_call((target-API_XAPI_BASE)>>2);
@@ -2641,7 +2642,7 @@ __attribute__((export_name("xwasm_init"))) int xwasm_init(void){
 loglit("XWASM X86 Runtime v0.9");
 loglit("PE32 + decoder CPU + guest memory regions + USER32/GDI32 + browser window/message/input + audio bridge");return 0;
 }
-__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00090000u;}
+__attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00090001u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
 __attribute__((export_name("x86_dll_register_image"))) int x86_dll_register_image(int32_t name,int32_t data,int32_t size){return x86_dll_register((uint32_t)name,(uint32_t)data,(uint32_t)size);}
