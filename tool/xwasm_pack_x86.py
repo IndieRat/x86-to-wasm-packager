@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT))
 
 from xwasm.container import pack_file, unpack_bytes  # noqa: E402
 from xwasm.dll import convert_dll, pack_xapi_manifest  # noqa: E402
+from xwasm.native_dll import convert_native_dll, pack_native_dll  # noqa: E402
 from tool.xwasm_merge_xapi import merge as merge_xapi_manifests  # noqa: E402
 
 def pe32_info(path: Path) -> dict:
@@ -103,28 +104,47 @@ def main()->int:
         raise SystemExit(f"No XAPI seeds found in {seed_dir}")
 
     converted_dlls=[]
+    native_dll_modules=[]
     xapi_unconverted_dlls=[]
     with tempfile.TemporaryDirectory(prefix="xwasm-xapi-build-") as temp_name:
         temp_dir=Path(temp_name)
         xapi_sources=list(seed_xapis)
         for index,dll in enumerate(dll_files):
+            rel_dll=str(dll.relative_to(game)).replace("\\","/")
+            # Every PE32 DLL becomes a first-class native guest module. XAPI is
+            # optional: it describes host APIs, while XDLL preserves guest code.
+            try:
+                native_manifest=convert_native_dll(dll)
+                native_rel=Path("native_dlls") / (dll.stem + ".xdll")
+                pack_native_dll(dll, out / native_rel)
+                native_dll_modules.append({
+                    "dll": rel_dll,
+                    "module": str(native_rel).replace("\\","/"),
+                    "image_base": native_manifest["image_base"],
+                    "size_of_image": native_manifest["size_of_image"],
+                    "entry_rva": native_manifest["entry_rva"],
+                    "relocatable": native_manifest["relocatable"],
+                    "export_count": native_manifest["export_count"],
+                    "export_names": native_manifest["export_names"],
+                    "sha256": native_manifest["sha256"],
+                })
+            except ValueError as exc:
+                raise SystemExit(f"Native DLL conversion failed for {rel_dll}: {exc}") from exc
+
             try:
                 json_manifest=temp_dir/f"{index:04d}-{dll.stem.lower()}.xapi.json"
                 convert_dll(dll,json_manifest)
                 xapi_sources.append(json_manifest)
-                converted_dlls.append(str(dll.relative_to(game)).replace("\\\\","/"))
+                converted_dlls.append(rel_dll)
             except FileNotFoundError as exc:
-                # Keep the original DLL in resources/, but make the missing XAPI
-                # seed explicit in the package manifest so DLL coverage is
-                # auditable instead of silently disappearing.
                 xapi_unconverted_dlls.append({
-                    "dll": str(dll.relative_to(game)).replace("\\","/"),
+                    "dll": rel_dll,
                     "reason": "missing_xapi_seed",
                     "detail": str(exc),
                 })
             except ValueError as exc:
                 xapi_unconverted_dlls.append({
-                    "dll": str(dll.relative_to(game)).replace("\\","/"),
+                    "dll": rel_dll,
                     "reason": "xapi_conversion_error",
                     "detail": str(exc),
                 })
@@ -160,6 +180,8 @@ def main()->int:
         "payload_format":"XPL","payload_architecture":"i386",
         "entry":{"init":"xwasm_init","tick":"xwasm_tick","shutdown":"xwasm_shutdown"},
         "pe":info,"resource_file_count":count,"bundled_dlls":bundled_dlls,
+        "native_dll_modules":native_dll_modules,
+        "native_dll_format":"XWSC01/XDLL",
         "xapi_pool":"xapi_pool.xapi","xapi_pool_format":"XWSC01/XAPI",
         "xapi_source_count":xapi_source_count,"xapi_library_count":xapi_library_count,
         "xapi_function_count":xapi_function_count,"xapi_converted_dlls":converted_dlls,
@@ -177,7 +199,8 @@ def main()->int:
     print(f"Payload: {payload.relative_to(out)}")
     print(f"Resources: {count}")
     print(f"XAPI pool: xapi_pool.xapi (sources={xapi_source_count}, libraries={xapi_library_count}, functions={xapi_function_count})")
-    print(f"Converted bundled DLLs: {len(converted_dlls)}")
+    print(f"Native guest DLL modules: {len(native_dll_modules)}")
+    print(f"XAPI-mapped bundled DLLs: {len(converted_dlls)}")
     print(f"Bundled DLLs without usable XAPI manifests: {len(xapi_unconverted_dlls)}")
     for item in xapi_unconverted_dlls:
         print(f"  XAPI missing: {item['dll']} [{item['reason']}]")
