@@ -1015,7 +1015,7 @@ static uint32_t shim_call(uint32_t idx){
    crt_last_termination_arg0=ARG(1);
    crt_exit_code=crt_last_termination_arg0;
    crt_exited=1u; halted=1; r=1; break;
-  case SHIM_GetModuleHandleA:case SHIM_GetModuleHandleW:r=ARG(0)?0u:image_base;break;
+  case SHIM_GetModuleHandleA:case SHIM_GetModuleHandleW:r=ARG(0)?x86_dll_module_for_name(ARG(0)):image_base;break;
   case SHIM_InitializeCriticalSectionAndSpinCount:case SHIM_TryEnterCriticalSection:r=1;break;
   case SHIM_TlsAlloc:r=(shim_tls_next<64u)?shim_tls_next++:0xFFFFFFFFu;break;
   case SHIM_TlsFree:case SHIM_FlsFree:r=1;break;
@@ -1033,7 +1033,10 @@ static uint32_t shim_call(uint32_t idx){
   case SHIM_GlobalUnlock:r=1;break;
   case SHIM_WriteConsoleA:r=1;break;
   case SHIM_CreateEventW:r=shim_handle++;break;
-  case SHIM_SetEvent:case SHIM_ResetEvent:case SHIM_SetThreadPriority:case SHIM_FreeLibrary:case SHIM_timeBeginPeriod:case SHIM_timeEndPeriod:r=1;break;
+  case SHIM_GetProcAddress:r=x86_dll_get_proc(ARG(0),ARG(1));break;
+  case SHIM_LoadLibraryA:r=x86_dll_load_registered(ARG(0));break;
+  case SHIM_FreeLibrary:r=1;break;
+  case SHIM_SetEvent:case SHIM_ResetEvent:case SHIM_SetThreadPriority:case SHIM_timeBeginPeriod:case SHIM_timeEndPeriod:r=1;break;
   case SHIM_timeGetTime:shim_qpc+=16u;r=shim_qpc/10000u*16u+1234u;break;
   case SHIM_GetFileAttributesA:r=0xFFFFFFFFu;break;
   case SHIM___p___argc:if(!shim_argc_p){shim_argc_p=guest_alloc_raw(4);wr32(shim_argc_p,0);}r=shim_argc_p;break;
@@ -1215,6 +1218,7 @@ static uint32_t resolve_builtin(uint32_t dll,uint32_t name){
   if(streq_ascii(name,"RegCloseKey"))return API_KERNEL32_REGCLOSEKEY;
   if(streq_ascii(name,"RegDeleteValueA"))return API_KERNEL32_REGDELETEVALUEA;
  }
+ {uint32_t md=x86_dll_module_for_name(dll);if(md){uint32_t t=x86_dll_get_proc(md,name);if(t)return t;}}
  {int32_t xi=xapi_lookup(dll,name);if(xi>=0)return API_XAPI_BASE+(uint32_t)xi*4u;}
  return 0;
 }
@@ -1296,6 +1300,7 @@ static void gl_draw_triangle(void){
  }
 }
 
+static uint32_t x86_dll_get_proc(uint32_t module,uint32_t name);
 static uint32_t x86_crt_strlen(uint32_t s);
 static uint32_t call_builtin(uint32_t target){
  if(target>=API_XAPI_BASE&&target<API_XAPI_BASE+xapi_count*4u)return xapi_call((target-API_XAPI_BASE)>>2);
@@ -2473,6 +2478,74 @@ static void scan_imports(void){
  }
 }
 
+#define X86_DLL_MAX_MODULES 32u
+#define X86_DLL_MAX_RESOURCES 64u
+#define X86_DLL_BASE 0x05000000u
+#define X86_DLL_STRIDE 0x00800000u
+typedef struct{uint32_t active,base,size,preferred,entry,reloc_rva,reloc_size,export_rva,export_size,imports_resolved,imports_failed,refcount;char name[96];}x86_dll_module_t;
+typedef struct{uint32_t active,data,size;char name[96];}x86_dll_resource_t;
+static x86_dll_module_t x86_dll_modules[X86_DLL_MAX_MODULES];
+static x86_dll_resource_t x86_dll_resources[X86_DLL_MAX_RESOURCES];
+static uint32_t x86_dll_last_error=0,x86_dll_last_base=0;
+static int x86_dll_cname_equal(const char*a,const char*b){uint32_t i=0;if(!a||!b)return 0;while(a[i]&&b[i]){char x=a[i],y=b[i];if(x>='A'&&x<='Z')x=(char)(x-'A'+'a');if(y>='A'&&y<='Z')y=(char)(y-'A'+'a');if(x!=y)return 0;i++;}return a[i]==0&&b[i]==0;}
+static int x86_dll_name_equal(uint32_t p,const char*n){uint32_t i=0;if(!p||!n)return 0;while(n[i]){char a=(char)MEM8(p+i),b=n[i];if(a>='A'&&a<='Z')a=(char)(a-'A'+'a');if(b>='A'&&b<='Z')b=(char)(b-'A'+'a');if(a!=b)return 0;i++;}return MEM8(p+i)==0;}
+static uint32_t x86_dll_basename_ptr(uint32_t p){uint32_t last=p;if(!p)return 0;for(uint32_t i=0;i<256u&&MEM8(p+i);i++)if(MEM8(p+i)=='/'||MEM8(p+i)=='\\')last=p+i+1u;return last;}
+static int x86_dll_find_loaded(uint32_t p){for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active&&x86_dll_name_equal(p,x86_dll_modules[i].name))return (int)i;return -1;}
+static int x86_dll_apply_relocs(uint32_t base,uint32_t size,uint32_t preferred,uint32_t rva,uint32_t rsz){
+ if(base==preferred)return 1;if(!rva||!rsz||rva>size||rsz>size-rva)return 0;
+ int32_t delta=(int32_t)(base-preferred);uint32_t p=base+rva,end=p+rsz;
+ while(p+8u<=end){uint32_t page=rd32(p),block=rd32(p+4u);if(block<8u||p+block>end)return 0;
+  uint32_t count=(block-8u)/2u;for(uint32_t i=0;i<count;i++){uint16_t raw=rd16(p+8u+i*2u),type=raw>>12,off=raw&0xFFFu;if(type==0)continue;if(type!=3u)return 0;uint32_t at=base+page+off;if(at<base||at+4u>base+size)return 0;wr32(at,rd32(at)+(uint32_t)delta);}p+=block;
+ }return p==end;
+}
+static uint32_t x86_dll_get_proc(uint32_t module,uint32_t name){
+ for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active&&x86_dll_modules[i].base==module){
+  x86_dll_module_t*m=&x86_dll_modules[i];if(!m->export_rva||m->export_rva+40u>m->size)return 0;
+  uint32_t ed=m->base+m->export_rva,nn=rd32(ed+24u),names=rd32(ed+32u),ords=rd32(ed+36u),funcs=rd32(ed+28u);
+  for(uint32_t n=0;n<nn&&n<65536u;n++){uint32_t np=m->base+rd32(m->base+names+n*4u);if(!streq_ascii(name,(const char*)(uintptr_t)np))continue;uint16_t oi=rd16(m->base+ords+n*2u);uint32_t fr=rd32(m->base+funcs+(uint32_t)oi*4u);if(fr>=m->export_rva&&fr<m->export_rva+m->export_size)return 0;return fr<m->size?m->base+fr:0;}
+ }return 0;
+}
+static uint32_t x86_dll_resolve_import(uint32_t dll,uint32_t name){
+ uint32_t t=resolve_builtin(dll,name);if(t)return t;
+ for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active&&x86_dll_name_equal(dll,x86_dll_modules[i].name)){t=x86_dll_get_proc(x86_dll_modules[i].base,name);if(t)return t;}
+ return 0;
+}
+static void x86_dll_resolve_imports(uint32_t base,uint32_t size,uint32_t rva,uint32_t rsz,uint32_t*ok,uint32_t*bad){
+ if(ok)*ok=0;if(bad)*bad=0;if(!rva||!rsz||rva>size||rsz>size-rva)return;
+ uint32_t p=base+rva,end=p+rsz;
+ for(uint32_t d=0;p+20u<=end&&d<256u;d++,p+=20u){uint32_t oft=rd32(p),nr=rd32(p+12u),ft=rd32(p+16u);if(!oft&&!nr&&!ft)break;if(!nr||nr>=size||!ft||ft>=size){if(bad)(*bad)++;continue;}uint32_t th=base+(oft?oft:ft),iat=base+ft;
+  for(uint32_t j=0;j<0x100000u;j++){uint32_t v=rd32(th+j*4u);if(!v)break;if(v&0x80000000u){wr32(iat+j*4u,API_UNRESOLVED_ORDINAL);if(bad)(*bad)++;continue;}if(v+2u>=size){if(bad)(*bad)++;break;}uint32_t t=x86_dll_resolve_import(base+nr,base+v+2u);if(t){wr32(iat+j*4u,t);if(ok)(*ok)++;}else{wr32(iat+j*4u,API_UNRESOLVED_BASE);if(bad)(*bad)++;}}
+ }
+}
+static int x86_dll_load_image(uint32_t f,uint32_t sz){
+ if(sz<0x40u||rd16(f)!=0x5A4Du){x86_dll_last_error=1;return 0;}uint32_t pe=rd32(f+0x3Cu);
+ if(pe+24u>sz||rd32(f+pe)!=0x4550u){x86_dll_last_error=2;return 0;}uint16_t mach=rd16(f+pe+4u),nsec=rd16(f+pe+6u),optsz=rd16(f+pe+20u),chars=rd16(f+pe+22u);
+ if(mach!=0x14Cu||(chars&0x2000u)==0||optsz<224u){x86_dll_last_error=3;return 0;}uint32_t oh=f+pe+24u;if(oh+optsz>f+sz||rd16(oh)!=0x10Bu){x86_dll_last_error=4;return 0;}
+ uint32_t isz=rd32(oh+56u),hsz=rd32(oh+60u),entry=rd32(oh+16u),pref=rd32(oh+28u),dirs=rd32(oh+92u),er=0,es=0,ir=0,is=0,rr=0,rs=0,nr=0;
+ if(isz<0x1000u||isz>0x02000000u||hsz>sz||hsz>isz){x86_dll_last_error=5;return 0;}if(dirs>0u){er=rd32(oh+96u);es=rd32(oh+100u);nr=er?rd32(f+_rva_dummy):0;}(void)nr;
+ if(dirs>1u){ir=rd32(oh+104u);is=rd32(oh+108u);}if(dirs>5u){rr=rd32(oh+136u);rs=rd32(oh+140u);}
+ uint32_t sh=oh+optsz;if(sh+(uint32_t)nsec*40u>f+sz){x86_dll_last_error=6;return 0;}
+ int slot=-1;for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(!x86_dll_modules[i].active){slot=(int)i;break;}if(slot<0){x86_dll_last_error=7;return 0;}
+ uint32_t base=X86_DLL_BASE+(uint32_t)slot*X86_DLL_STRIDE;if(base+isz<base||base+isz>guest_vm_limit||!x86_mem_ensure_wasm(base+isz)||!x86_mem_region_add(base,isz,X86_MEM_READ|X86_MEM_WRITE|X86_MEM_EXEC,8u)){x86_dll_last_error=8;return 0;}
+ for(uint32_t i=0;i<isz;i++)wr8(base+i,0);copy_bytes(base,f,hsz);
+ for(uint16_t i=0;i<nsec;i++,sh+=40u){uint32_t va=rd32(sh+12u),vsz=rd32(sh+8u),raw=rd32(sh+20u),rawsz=rd32(sh+16u),mapped=vsz>rawsz?vsz:rawsz;if(va+mapped<va||va+mapped>isz||raw>sz||rawsz>sz-raw){x86_dll_last_error=9;return 0;}if(rawsz)copy_bytes(base+va,f+raw,rawsz);}
+ if(!x86_dll_apply_relocs(base,isz,pref,rr,rs)){x86_dll_last_error=10;return 0;}
+ uint32_t ok=0,bad=0; x86_dll_modules[slot]=(x86_dll_module_t){1u,base,isz,pref,entry,rr,rs,er,es,0,0,1u};
+ if(er&&er+40u<=isz){uint32_t modrva=rd32(base+er+12u);if(modrva<isz){uint32_t p=base+modrva,j=0;for(;j<95u&&j<sizeof(x86_dll_modules[slot].name)-1u&&MEM8(p+j);j++)x86_dll_modules[slot].name[j]=(char)MEM8(p+j);x86_dll_modules[slot].name[j]=0;}}
+ x86_dll_resolve_imports(base,isz,ir,is,&ok,&bad);x86_dll_modules[slot].imports_resolved=ok;x86_dll_modules[slot].imports_failed=bad;x86_dll_last_base=base;x86_dll_last_error=0;return slot+1;
+}
+static int x86_dll_register(uint32_t name,uint32_t data,uint32_t size){
+ uint32_t np=x86_dll_basename_ptr(name);if(!np||!size||!x86_mem_region_find(data,size,X86_MEM_READ)){x86_dll_last_error=11;return 0;}
+ for(uint32_t i=0;i<X86_DLL_MAX_RESOURCES;i++)if(x86_dll_resources[i].active&&x86_dll_name_equal(np,x86_dll_resources[i].name)){x86_dll_resources[i].data=data;x86_dll_resources[i].size=size;return 1;}
+ for(uint32_t i=0;i<X86_DLL_MAX_RESOURCES;i++)if(!x86_dll_resources[i].active){x86_dll_resources[i].active=1;x86_dll_resources[i].data=data;x86_dll_resources[i].size=size;uint32_t j=0;for(;j<95u&&j<sizeof(x86_dll_resources[i].name)-1u&&MEM8(np+j);j++)x86_dll_resources[i].name[j]=(char)MEM8(np+j);x86_dll_resources[i].name[j]=0;return 1;}
+ x86_dll_last_error=12;return 0;
+}
+static uint32_t x86_dll_load_registered(uint32_t name){
+ uint32_t np=x86_dll_basename_ptr(name);int li=x86_dll_find_loaded(np);if(li>=0){x86_dll_modules[li].refcount++;return x86_dll_modules[li].base;}
+ for(uint32_t i=0;i<X86_DLL_MAX_RESOURCES;i++)if(x86_dll_resources[i].active&&x86_dll_name_equal(np,x86_dll_resources[i].name)){int slot=x86_dll_load_image(x86_dll_resources[i].data,x86_dll_resources[i].size);return slot>0?x86_dll_modules[slot-1].base:0;}
+ x86_dll_last_error=13;return 0;
+}
+static uint32_t x86_dll_module_for_name(uint32_t name){int i=x86_dll_find_loaded(x86_dll_basename_ptr(name));return i>=0?x86_dll_modules[i].base:0;}
 
 static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
@@ -2565,6 +2638,16 @@ loglit("PE32 + decoder CPU + guest memory regions + USER32/GDI32 + browser windo
 __attribute__((export_name("x86_get_runtime_version"))) uint32_t x86_get_runtime_version(void){return 0x00090000u;}
 __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t p){return rd16((uint32_t)p);}
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
+__attribute__((export_name("x86_dll_register_image"))) int x86_dll_register_image(int32_t name,int32_t data,int32_t size){return x86_dll_register((uint32_t)name,(uint32_t)data,(uint32_t)size);}
+__attribute__((export_name("x86_dll_load_registered"))) uint32_t x86_dll_load_registered_export(int32_t name){return x86_dll_load_registered((uint32_t)name);}
+__attribute__((export_name("x86_dll_rebind_imports"))) int x86_dll_rebind_imports(void){if(!loaded)return 0;scan_imports();return (int)import_failed;}
+__attribute__((export_name("x86_dll_get_last_error"))) uint32_t x86_dll_get_last_error(void){return x86_dll_last_error;}
+__attribute__((export_name("x86_dll_get_count"))) uint32_t x86_dll_get_count(void){uint32_t n=0;for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active)n++;return n;}
+__attribute__((export_name("x86_dll_get_base"))) uint32_t x86_dll_get_base(uint32_t index){uint32_t n=0;for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active){if(n++==index)return x86_dll_modules[i].base;}return 0;}
+__attribute__((export_name("x86_dll_get_size"))) uint32_t x86_dll_get_size(uint32_t index){uint32_t n=0;for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active){if(n++==index)return x86_dll_modules[i].size;}return 0;}
+__attribute__((export_name("x86_dll_get_entry"))) uint32_t x86_dll_get_entry(uint32_t index){uint32_t n=0;for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active){if(n++==index)return x86_dll_modules[i].base+x86_dll_modules[i].entry;}return 0;}
+__attribute__((export_name("x86_dll_get_import_failed"))) uint32_t x86_dll_get_import_failed(uint32_t index){uint32_t n=0;for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active){if(n++==index)return x86_dll_modules[i].imports_failed;}return 0;}
+
 __attribute__((export_name("x86_run"))) int x86_run(int32_t max_steps){
  if(!loaded)return -20; if(halted)return 1; if(max_steps<1)max_steps=1;
  for(int32_t i=0;i<max_steps&&!halted;i++){
