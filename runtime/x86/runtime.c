@@ -2544,10 +2544,11 @@ static int x86_dll_register(uint32_t name,uint32_t data,uint32_t size){
 }
 static uint32_t x86_dll_load_registered(uint32_t name){
  uint32_t np=x86_dll_basename_ptr(name);int li=x86_dll_find_loaded(np);if(li>=0){x86_dll_modules[li].refcount++;return x86_dll_modules[li].base;}
- for(uint32_t i=0;i<X86_DLL_MAX_RESOURCES;i++)if(x86_dll_resources[i].active&&x86_dll_name_equal(np,x86_dll_resources[i].name)){int slot=x86_dll_load_image(x86_dll_resources[i].data,x86_dll_resources[i].size);return slot>0?x86_dll_modules[slot-1].base:0;}
+ for(uint32_t i=0;i<X86_DLL_MAX_RESOURCES;i++)if(x86_dll_resources[i].active&&x86_dll_name_equal(np,x86_dll_resources[i].name)){int slot=x86_dll_load_image(x86_dll_resources[i].data,x86_dll_resources[i].size);if(slot>0){x86_dll_rebind_all();return x86_dll_modules[slot-1].base;}return 0;}
  x86_dll_last_error=13;return 0;
 }
 static uint32_t x86_dll_module_for_name(uint32_t name){int i=x86_dll_find_loaded(x86_dll_basename_ptr(name));return i>=0?x86_dll_modules[i].base:0;}
+static void x86_dll_rebind_all(void){if(loaded)scan_imports();}
 
 static int load_pe(uint32_t f,uint32_t sz){
  load_error=0;loaded=0;last_load_ptr=f;last_load_size=sz;
@@ -2645,7 +2646,7 @@ __attribute__((export_name("x86_debug_probe"))) uint32_t x86_debug_probe(int32_t
 __attribute__((export_name("x86_load_pe"))) int x86_load_pe(int32_t p,int32_t n){return load_pe((uint32_t)p,(uint32_t)n);}
 __attribute__((export_name("x86_dll_register_image"))) int x86_dll_register_image(int32_t name,int32_t data,int32_t size){return x86_dll_register((uint32_t)name,(uint32_t)data,(uint32_t)size);}
 __attribute__((export_name("x86_dll_load_registered"))) uint32_t x86_dll_load_registered_export(int32_t name){return x86_dll_load_registered((uint32_t)name);}
-__attribute__((export_name("x86_dll_rebind_imports"))) int x86_dll_rebind_imports(void){if(!loaded)return 0;scan_imports();return (int)import_failed;}
+__attribute__((export_name("x86_dll_rebind_imports"))) int x86_dll_rebind_imports(void){x86_dll_rebind_all();return (int)import_failed;}
 __attribute__((export_name("x86_dll_get_last_error"))) uint32_t x86_dll_get_last_error(void){return x86_dll_last_error;}
 __attribute__((export_name("x86_dll_get_count"))) uint32_t x86_dll_get_count(void){uint32_t n=0;for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active)n++;return n;}
 __attribute__((export_name("x86_dll_get_base"))) uint32_t x86_dll_get_base(uint32_t index){uint32_t n=0;for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active){if(n++==index)return x86_dll_modules[i].base;}return 0;}
