@@ -173,6 +173,10 @@
         "status": "EXECUTE"
       },
       {
+        "mnemonic": "SETNE",
+        "status": "EXECUTE"
+      },
+      {
         "mnemonic": "JNE/JNZ",
         "status": "EXECUTE"
       },
