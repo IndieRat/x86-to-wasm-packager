@@ -224,8 +224,10 @@
       },
       {
         "byte": "25",
-        "status": "RESERVED",
-        "encoding_ids": []
+        "status": "MAPPED",
+        "encoding_ids": [
+          "AND_EAX_IMM32"
+        ]
       },
       {
         "byte": "26",
