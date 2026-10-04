@@ -856,6 +856,31 @@ static int cpu_step(void) {
                              before_opcode,last_dispatch_id);
             return 0;
         }
+        if (x86_id_is(d.entry->id,"MOV_SREG_RM16")) {
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+            uint32_t seg=(uint32_t)((d.modrm>>3)&7u);
+            if(seg>=6u){cpu_error=0x8C00u|d.modrm;return -48;}
+            modrm_write16(d.modrm,&op_ip,x86_seg_selectors[seg]);
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_MOV_SREG_RM16;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
+        if (x86_id_is(d.entry->id,"MOV_RM16_SREG")) {
+            uint32_t op_ip=d.cursor-d.disp_size-(d.has_sib?1u:0u);
+            uint32_t seg=(uint32_t)((d.modrm>>3)&7u);
+            uint16_t selector=modrm_read16(d.modrm,&op_ip);
+            if(seg==X86_SEG_CS||seg>=6u){cpu_error=0x8E00u|d.modrm;return -48;}
+            x86_set_segment_selector(seg,selector);
+            eip=d.cursor;
+            last_dispatch_id=X86_DISPATCH_MOV_RM16_SREG;
+            last_dispatch_count++;
+            x86_trace_record(saved_eip,before_flags,before_eax,before_ecx,before_edx,before_ebx,
+                             before_opcode,last_dispatch_id);
+            return 0;
+        }
         if (x86_id_is(d.entry->id,"MOV_RM8_IMM8")) {
             uint32_t op_ip=d.cursor-d.imm_size-d.disp_size-(d.has_sib?1u:0u);
             uint8_t value=MEM8(d.cursor-1u);
