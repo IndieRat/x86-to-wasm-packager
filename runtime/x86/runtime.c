@@ -2136,7 +2136,7 @@ static int cpu_step_legacy(void){
    uint8_t m=MEM8(ip++),d=(m>>3)&7;uint8_t a,b,r;uint32_t ea=0;
    if((m>>6)==3)a=reg8_read(m&7);else{modrm_ea(m,&ip,&ea);a=MEM8(ea);}
    b=reg8_read(d);
-   switch(op&0xF8u){case 0x00:r=(uint8_t)(a+b);set_add_flags_width(a,b,r,8);break;case 0x08:r=(uint8_t)(a|b);set_logic_flags_width(r,8);break;case 0x10:{uint32_t c=(eflags&CF)?1u:0u;r=(uint8_t)(a+b+c);set_adc_flags_width(a,b,c,r,8);break;}case 0x18:{uint32_t c=(eflags&CF)?1u:0u;r=(uint8_t)(a-b-c);set_sbb_flags_width(a,b,c,r,8);break;}case 0x20:r=(uint8_t)(a&b);set_logic_flags_width(r,8);break;case 0x28:r=(uint8_t)(a-b);set_sub_flags_width(a,b,r,8);break;case 0x30:r=(uint8_t)(a^b);set_logic_flags_width(r,8);break;default:set_sub_flags_width(a,b,(uint8_t)(a-b),8);eip=ip;return 0;}
+   switch(op&0xF8u){case 0x00:r=(uint8_t)(a+b);set_add_flags_width(a,b,r,8);break;case 0x08:r=(uint8_t)(a|b);set_logic_flags_width(r,8);break;case 0x10:{uint32_t c=(eflags&CF)?1u:0u;r=(uint8_t)(a+b+c);set_adc_flags_width(a,b,c,r,8);break;}case 0x18:{uint32_t c=(eflags&CF)?1u:0u;r=(uint8_t)(a-b-c);set_sbb_flags_width(a,b,c,r,8);break;}case 0x20:r=(uint8_t)(a&b);set_logic_flags_width(r,8);break;case 0x28:r=(uint8_t)(a-b);set_sub_flags_width(a,b,r,8);break;case 0x30:r=(uint8_t)(a^b);set_logic_flags_width(r,8);break;default:if(op==0x84)set_logic_flags_width((uint8_t)(a&b),8);else set_sub_flags_width(a,b,(uint8_t)(a-b),8);eip=ip;return 0;}
    if(op==0x02||op==0x0A||op==0x12||op==0x1A||op==0x22||op==0x2A||op==0x32||op==0x3A)reg8_write(d,r);else if(op==0x84){set_logic_flags_width((uint8_t)(a&b),8);eip=ip;return 0;}else if((m>>6)==3)reg8_write(m&7,r);else wr8(ea,r);
    eip=ip;return 0;
   }
