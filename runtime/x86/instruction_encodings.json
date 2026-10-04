@@ -980,6 +980,31 @@
       }
     },
     {
+      "id": "TEST_RM32_IMM32",
+      "instruction": "TEST",
+      "opcode": [
+        "F7"
+      ],
+      "opcode_map": "primary",
+      "encoding": "MI",
+      "modrm": {
+        "required": true,
+        "reg_extension": 0
+      },
+      "operands": [
+        {
+          "kind": "rm32",
+          "access": "r",
+          "source": "modrm.rm"
+        },
+        {
+          "kind": "imm32",
+          "access": "r",
+          "source": "next4"
+        }
+      ]
+    },
+    {
       "id": "IMUL_R32_RM32",
       "instruction": "IMUL",
       "opcode": [
