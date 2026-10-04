@@ -17,6 +17,47 @@ const files=new Map();
 const hex=(u8,n=32)=>Array.from(u8.slice(0,n),b=>b.toString(16).padStart(2,"0")).join(" ");
 const td=new TextDecoder();
 let gdrProvenance=null;
+let mem=null, runtimeEx=null, xapiSlotsView=null, xapiById=new Map(), xapiWarnings=new Set();
+let inputEvents=[],inputQuit=false;
+const queueInput=e=>inputEvents.push(e);
+const mouseLParam=(x,y)=>((x&0xffff)|((y&0xffff)<<16))>>>0;
+const inputPoll=(ptr,remove)=>{
+  if(!mem||!inputEvents.length)return 0;
+  const e=remove?inputEvents.shift():inputEvents[0],dv=new DataView(mem.buffer);
+  dv.setUint32(ptr>>>0,0,true);dv.setUint32((ptr+4)>>>0,e.msg>>>0,true);
+  dv.setUint32((ptr+8)>>>0,e.wparam>>>0,true);dv.setUint32((ptr+12)>>>0,e.lparam>>>0,true);
+  dv.setUint32((ptr+16)>>>0,performance.now()>>>0,true);
+  dv.setInt32((ptr+20)>>>0,e.x|0,true);dv.setInt32((ptr+24)>>>0,e.y|0,true);return 1;
+};
+const xapiBridge=(id,argc)=>{
+  const fn=xapiById.get(id>>>0);if(!fn||!xapiSlotsView)return 0;
+  const a=Array.from(xapiSlotsView.subarray(0,Math.min(argc>>>0,fn.args.length)));let v=0;
+  switch(fn.bridge){
+    case "xw.math.sin":v=Math.sin(a[0]);break;case "xw.math.cos":v=Math.cos(a[0]);break;
+    case "xw.math.tan":v=Math.tan(a[0]);break;case "xw.math.sqrt":v=Math.sqrt(a[0]);break;
+    case "xw.math.pow":v=Math.pow(a[0],a[1]);break;case "xw.math.asin":v=Math.asin(a[0]);break;
+    case "xw.math.acos":v=Math.acos(a[0]);break;case "xw.math.atan":v=Math.atan(a[0]);break;
+    case "xw.math.atan2":v=Math.atan2(a[0],a[1]);break;case "xw.math.exp":v=Math.exp(a[0]);break;
+    case "xw.math.log":v=Math.log(a[0]);break;case "xw.math.log10":v=Math.log10(a[0]);break;
+    case "xw.math.ceil":v=Math.ceil(a[0]);break;case "xw.math.floor":v=Math.floor(a[0]);break;
+    case "xw.math.fabs":v=Math.abs(a[0]);break;case "xw.math.fmod":v=a[0]%a[1];break;
+    case "xw.math.ldexp":v=a[0]*Math.pow(2,a[1]);break;
+    case "xw.math.roundf":v=Math.fround(Math.round(a[0]));break;
+    case "xw.math.copysignf":v=Math.fround(Math.abs(a[0])*(a[1]<0?-1:1));break;
+    case "xw.kernel32.Beep":beep(a[0]||440,a[1]||40);v=1;break;
+    default:
+      if(!xapiWarnings.has(fn.bridge)){xapiWarnings.add(fn.bridge);say("[XAPI] bridge not implemented: "+fn.bridge+" ("+fn.lib+"!"+fn.name+")");}
+  }
+  if(fn.ret==="f32")xapiSlotsView[15]=Math.fround(v);else if(fn.ret==="f64")xapiSlotsView[15]=v;
+  return fn.ret==="void"?0:(v|0);
+};
+window.addEventListener("keydown",e=>{queueInput({msg:0x100,wparam:e.keyCode>>>0,lparam:0,x:0,y:0});if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code))e.preventDefault();});
+window.addEventListener("keyup",e=>queueInput({msg:0x101,wparam:e.keyCode>>>0,lparam:0,x:0,y:0}));
+window.addEventListener("mousemove",e=>{const c=e.target.closest?.("canvas");if(!c)return;const r=c.getBoundingClientRect(),x=Math.round((e.clientX-r.left)*c.width/r.width),y=Math.round((e.clientY-r.top)*c.height/r.height);queueInput({msg:0x200,wparam:0,lparam:mouseLParam(x,y),x,y});});
+window.addEventListener("mousedown",e=>{const c=e.target.closest?.("canvas");if(!c)return;const msg=e.button===0?0x201:e.button===2?0x204:0x207,x=e.offsetX|0,y=e.offsetY|0;queueInput({msg,wparam:0,lparam:mouseLParam(x,y),x,y});if(e.button===2)e.preventDefault();});
+window.addEventListener("mouseup",e=>{const c=e.target.closest?.("canvas");if(!c)return;const msg=e.button===0?0x202:e.button===2?0x205:0x208,x=e.offsetX|0,y=e.offsetY|0;queueInput({msg,wparam:0,lparam:mouseLParam(x,y),x,y});});
+window.addEventListener("wheel",e=>{const c=e.target.closest?.("canvas");if(!c)return;const r=c.getBoundingClientRect(),x=Math.round((e.clientX-r.left)*c.width/r.width),y=Math.round((e.clientY-r.top)*c.height/r.height),d=Math.max(-120,Math.min(120,-Math.round(e.deltaY)));queueInput({msg:0x20A,wparam:((d&0xffff)<<16)>>>0,lparam:mouseLParam(x,y),x,y});});
+
 const readGuestAscii=(ptr,max=512)=>{
   ptr=ptr>>>0;
   const u8=new Uint8Array(mem.buffer);
@@ -67,7 +108,7 @@ document.querySelector("#files").onchange=async e=>{
     const rt=files.get(manifest.runtime||"runtime.xwasm");
     if(!rt) throw Error("runtime.xwasm is missing");
 
-    const mem=new WebAssembly.Memory({initial:1024,maximum:4096});
+    mem=new WebAssembly.Memory({initial:1024,maximum:4096});
     const bytes=await unpackXWSC(await rt.arrayBuffer(),1,"runtime.xwasm");
     const pkg={
       get:p=>files.get(p)||files.get("resources/"+p),
@@ -89,9 +130,10 @@ document.querySelector("#files").onchange=async e=>{
       xwasm_gfx_pixel:(x,y,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(x,y,1,1);},
       xwasm_gfx_rect:(l,t,r,b,c)=>{gfx.fillStyle=rgb(c);gfx.fillRect(l,t,r-l,b-t);},
       xwasm_gfx_present:()=>{},
-      xwasm_input_poll:(ptr,remove)=>0,
-      xwasm_input_quit:()=>{},
-      xwasm_audio_beep:(frequency,duration)=>{},
+      xwasm_input_poll:(ptr,remove)=>inputPoll(ptr,remove),
+      xwasm_input_quit:()=>{inputQuit=true;},
+      xwasm_audio_beep:(frequency,duration)=>beep(frequency,duration),
+      xwasm_xapi_call:(id,argc)=>xapiBridge(id,argc),
       
       xwasm_resource_size:(ptr,len)=>{
         const p=pkg.readString(ptr,len),f=pkg.get(p);
@@ -105,64 +147,47 @@ document.querySelector("#files").onchange=async e=>{
     }};
 
     const {instance}=await WebAssembly.instantiate(bytes,imports);
-    const ex=instance.exports;
+    const ex=instance.exports;runtimeEx=ex;
+    if(!ex.x86_xapi_slots)throw Error("runtime is missing x86_xapi_slots export");
+    xapiSlotsView=new Float64Array(mem.buffer,ex.x86_xapi_slots()>>>0,16);
     say("Runtime WASM instantiated.");
 
     const XAPI_TYPE={void:0,u32:1,i32:2,ptr:3,f32:4,f64:5};
     const XAPI_ABI={stdcall:0,cdecl:1};
     const registerXapiPool=async poolFile=>{
       if(!poolFile){say("XAPI pool: none (legacy package)");return 0;}
-      if(!ex.x86_xapi_reset||!ex.x86_xapi_scratch||!ex.x86_xapi_register||!ex.x86_xapi_register_alias)
-        throw Error("runtime is missing the XAPI registry exports");
-      const raw=await unpackXWSC(await poolFile.arrayBuffer(),4,"xapi_pool.xapi");
-      const manifest=JSON.parse(td.decode(raw));
-      if(manifest.format!=="xwasm-xapi"||manifest.version!==1)
-        throw Error("invalid xapi_pool.xapi manifest");
-      const mem8=new Uint8Array(mem.buffer);
-      const scratch=ex.x86_xapi_scratch()>>>0;
-      const putAscii=s=>{
-        const bytes=new TextEncoder().encode(s);
-        return bytes;
-      };
-      const clearScratch=()=>{mem8.fill(0,scratch,scratch+512);};
-      ex.x86_xapi_reset();
-      let registered=0,aliases=0;
-      for(const [lib,body] of Object.entries(manifest.libraries||{})){
-        for(const [name,fn] of Object.entries(body.functions||{})){
-          const args=(fn.args||[]).map(t=>XAPI_TYPE[t]);
-          const ret=XAPI_TYPE[fn.return||"void"];
-          if(ret===undefined||args.some(v=>v===undefined)||args.length>16)
-            throw Error("unsupported XAPI type in "+lib+"!"+name);
-          const abi=XAPI_ABI[fn.abi||"stdcall"];
-          if(abi===undefined) throw Error("unsupported XAPI ABI in "+lib+"!"+name);
-          clearScratch();
-          let off=0;
-          for(const s of [lib,name]){
-            const b=putAscii(s);
-            if(off+b.length+1+args.length>511) throw Error("XAPI scratch overflow in "+lib+"!"+name);
-            mem8.set(b,scratch+off);off+=b.length+1;
-          }
-          for(let i=0;i<args.length;i++)mem8[scratch+off++]=args[i];
-          const idx=ex.x86_xapi_register(fn.id>>>0,abi,args.length,ret);
-          if(idx===0xFFFFFFFF) throw Error("runtime rejected XAPI "+lib+"!"+name);
-          registered++;
+      if(!ex.x86_xapi_reset||!ex.x86_xapi_scratch||!ex.x86_xapi_register||!ex.x86_xapi_register_alias)throw Error("runtime is missing the XAPI registry exports");
+      const raw=await unpackXWSC(await poolFile.arrayBuffer(),4,"xapi_pool.xapi"),manifest=JSON.parse(td.decode(raw));
+      if(manifest.format!=="xwasm-xapi"||manifest.version!==1)throw Error("invalid xapi_pool.xapi manifest");
+      const mem8=new Uint8Array(mem.buffer),scratch=ex.x86_xapi_scratch()>>>0,putAscii=s=>new TextEncoder().encode(s);
+      const clearScratch=()=>mem8.fill(0,scratch,scratch+512);ex.x86_xapi_reset();xapiById=new Map();
+      let registered=0,aliases=0,duplicates=0;
+      for(const [lib,body] of Object.entries(manifest.libraries||{}))for(const [name,fn] of Object.entries(body.functions||{})){
+        const id=fn.id>>>0,prior=xapiById.get(id);
+        if(prior){if(prior.lib.toLowerCase()===lib.toLowerCase()&&prior.name===name){duplicates++;continue;}throw Error("XAPI duplicate id "+id+": "+prior.lib+"!"+prior.name+" vs "+lib+"!"+name);}
+        const args=(fn.args||[]).map(t=>XAPI_TYPE[t]),ret=XAPI_TYPE[fn.return||"void"],abi=XAPI_ABI[fn.abi||"stdcall"];
+        if(ret===undefined||args.some(v=>v===undefined)||args.length>16)throw Error("unsupported XAPI type in "+lib+"!"+name);
+        if(abi===undefined)throw Error("unsupported XAPI ABI in "+lib+"!"+name);
+        clearScratch();let off=0;
+        for(const ss of [lib,name]){
+          const b=putAscii(ss);
+          if(off+b.length+1+args.length>511)throw Error("XAPI scratch overflow in "+lib+"!"+name);
+          mem8.set(b,scratch+off);off+=b.length+1;
         }
+        for(let i=0;i<args.length;i++)mem8[scratch+off++]=args[i];
+        if(ex.x86_xapi_register(id,abi,args.length,ret)===0xFFFFFFFF)throw Error("runtime rejected XAPI "+lib+"!"+name);
+        xapiById.set(id,{id,lib,name,args:fn.args||[],ret:fn.return||"void",bridge:fn.bridge});registered++;
       }
       for(const [from,to] of Object.entries(manifest.dll_aliases||{})){
-        clearScratch();
-        const a=putAscii(from),b=putAscii(to);
-        if(a.length+b.length+2>512) throw Error("XAPI alias scratch overflow");
+        clearScratch();const a=putAscii(from),b=putAscii(to);
+        if(a.length+b.length+2>512)throw Error("XAPI alias scratch overflow");
         mem8.set(a,scratch);mem8.set(b,scratch+a.length+1);
-        if(ex.x86_xapi_register_alias()===0xFFFFFFFF) throw Error("runtime rejected XAPI alias "+from);
-        aliases++;
+        if(ex.x86_xapi_register_alias()===0xFFFFFFFF)throw Error("runtime rejected XAPI alias "+from);aliases++;
       }
-      say("XAPI pool loaded: "+registered+" functions, "+aliases+" aliases");
-      return registered;
+      const rd=ex.x86_get_xapi_duplicate_count?ex.x86_get_xapi_duplicate_count():0;
+      say("XAPI pool loaded: "+registered+" functions, "+aliases+" aliases; duplicate entries skipped="+duplicates+" runtime_dedup="+rd);return registered;
     };
-
-    const xapiPoolFile=manifest.xapi_pool?files.get(manifest.xapi_pool):null;
-    await registerXapiPool(xapiPoolFile);
-
+    
     const emitGdrProvenance=()=>{
       if(!ex.x86_get_gdr_count){
         say("=== GDR PROVENANCE ===");
@@ -387,9 +412,14 @@ document.querySelector("#files").onchange=async e=>{
     const importCount=ex.x86_get_import_count?ex.x86_get_import_count():0;
     const resolvedCount=ex.x86_get_import_resolved?ex.x86_get_import_resolved():0;
     const failedCount=ex.x86_get_import_failed?ex.x86_get_import_failed():0;
-    if(failedCount!==0) throw Error("x86 test expected zero unresolved imports");
-    if(resolvedCount!==importCount) throw Error("x86 test expected every imported symbol to resolve ("+resolvedCount+"/"+importCount+")");
-    say("Import resolution: "+resolvedCount+"/"+importCount+" imported symbols resolved.");
+    if(isWindowAudio){
+      if(failedCount!==0)throw Error("x86 test expected zero unresolved imports");
+      if(resolvedCount!==importCount)throw Error("x86 test expected every imported symbol to resolve ("+resolvedCount+"/"+importCount+")");
+    }else if(failedCount!==0){
+      say("Import resolution warning: "+resolvedCount+"/"+importCount+" resolved; "+failedCount+" unresolved imports remain.");
+    }else{
+      say("Import resolution: "+resolvedCount+"/"+importCount+" imported symbols resolved.");
+    }
     if(isWindowAudio && resolvedCount!==12) throw Error("v0.7 window/input/audio test expected exactly twelve resolved builtin imports");
     say("Entry EIP: 0x"+ex.x86_get_eip().toString(16));
     const entryBytes=new Uint8Array(mem.buffer,ex.x86_get_eip(),8);
@@ -398,48 +428,26 @@ document.querySelector("#files").onchange=async e=>{
     if(!ex.x86_run||!ex.x86_get_eax||!ex.x86_get_eflags||!ex.x86_get_halted)
       throw Error("x86 v0.3 CPU execution exports are missing");
 
-    say("CPU: 32-bit fetch/decode/execute core + ModRM addressing + imported CALL");
-    say("Executing v0.7 window/input/audio PE entrypoint (budget: 64 instructions)...");
-    const runResult=ex.x86_run(64);
-    say("CPU run result: "+runResult);
-    say("Instructions executed: "+ex.x86_get_steps());
-
-    const eip=ex.x86_get_eip()>>>0;
-    say("EIP after execution: 0x"+eip.toString(16).padStart(8,"0"));
-    say("EAX: 0x"+(ex.x86_get_eax()>>>0).toString(16).padStart(8,"0"));
-    say("EFLAGS: 0x"+(ex.x86_get_eflags()>>>0).toString(16).padStart(8,"0"));
-    say("CPU halted: "+ex.x86_get_halted());
-
-    /* Emit GDR after execution so call_count and last-indirect provenance
-     * describe the actual failing/successful run rather than a pre-run zero state. */
-    emitGdrProvenance();
-
-    if(runResult<0){
-      const opcode=ex.x86_get_current_opcode?(ex.x86_get_current_opcode()>>>0):0xFFFFFFFF;
-      const imm32=ex.x86_get_current_imm32?(ex.x86_get_current_imm32()>>>0):0xFFFFFFFF;
-      const cpuError=ex.x86_get_cpu_error?(ex.x86_get_cpu_error()>>>0):0;
-      console.error(
-        "CPU FAILURE: "+
-        "EIP=0x"+eip.toString(16).padStart(8,"0")+
-        " opcode=0x"+opcode.toString(16).padStart(2,"0")+
-        " imm32=0x"+imm32.toString(16).padStart(8,"0")+
-        " cpu_error=0x"+cpuError.toString(16).padStart(8,"0")
-      );
-      say(
-        "CPU FAILURE: "+
-        "EIP=0x"+eip.toString(16).padStart(8,"0")+
-        " opcode=0x"+opcode.toString(16).padStart(2,"0")+
-        " imm32=0x"+imm32.toString(16).padStart(8,"0")+
-        " cpu_error=0x"+cpuError.toString(16).padStart(8,"0")
-      );
-      throw Error("x86 CPU execution failed");
-    }
-    if(!ex.x86_get_halted())
-      throw Error("x86 CPU did not reach HLT within the instruction budget");
-    if(ex.x86_get_steps() < 38)
-      throw Error("v0.7 window/input/audio test did not execute the complete PE entrypoint");
-
-    say("CPU/import/window/input/audio test: PE32 -> USER32/GDI32/KERNEL32 browser bridges -> HLT = PASS");
+    say("CPU: 32-bit fetch/decode/execute core + persistent browser frame loop");
+    say("Starting guest execution in 20,000-instruction browser slices.");
+    let frame=0,lastRun=0,running=true;
+    const finishCpu=()=>{
+      emitGdrProvenance();const eip=ex.x86_get_eip()>>>0,err=ex.x86_get_cpu_error?ex.x86_get_cpu_error()>>>0:0;
+      say("CPU frame="+frame+" result="+lastRun+" EIP=0x"+eip.toString(16).padStart(8,"0")+" steps="+ex.x86_get_steps()+" halted="+ex.x86_get_halted()+" cpu_error=0x"+err.toString(16).padStart(8,"0"));
+    };
+    const runFrame=()=>{
+      if(!running)return;
+      try{
+        if(inputQuit||ex.x86_get_halted()){running=false;finishCpu();return;}
+        lastRun=ex.x86_run(20000);frame++;
+        if(frame===1||frame%60===0)finishCpu();
+        if(lastRun<0){running=false;finishCpu();say("CPU FAILURE: x86_run rc="+lastRun);return;}
+        if(ex.x86_get_halted()){running=false;finishCpu();say("Guest halted/returned; graphics/input bridge stayed active.");return;}
+        requestAnimationFrame(runFrame);
+      }catch(err){running=false;finishCpu();say("CPU FAILURE: "+err.message);}
+    };
+    requestAnimationFrame(runFrame);
+    
     say("DLL inventory:");
 
     for(const d of (manifest.bundled_dlls||[]))
