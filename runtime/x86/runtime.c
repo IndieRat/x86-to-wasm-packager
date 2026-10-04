@@ -2185,7 +2185,7 @@ static int cpu_step_legacy(void){
    if(target>=API_UNRESOLVED_BASE&&target<API_UNRESOLVED_END){
     /* Unresolved import: stop with a precise diagnosis instead of executing hint/name bytes. */
     last_unresolved_gdr=(target==API_UNRESOLVED_ORDINAL)?0xFFFFFFFEu:((target-API_UNRESOLVED_BASE)>>2);
-    if(sub==2)x86_gdr_note_call(ea);
+    x86_gdr_note_call(ea);
     cpu_error=0xFF20u;return -63;
    }
    if(sub==2){
@@ -2194,9 +2194,10 @@ static int cpu_step_legacy(void){
     if(call_builtin(target)){eip=next;regs[R_ESP]+=4u;return 0;}
     eip=target;return 0;
    }
-   /* FF /4 JMP is frequently used by PE import thunks. If the destination is
-    * one of our resolved host/API shims, execute it as the imported target and
-    * then return through the thunk's existing caller return address. */
+   /* FF /4 JMP is frequently used by PE import thunks. Record the import
+    * call and, if resolved to a host/API shim, execute it before returning
+    * through the thunk's existing caller return address. */
+   x86_gdr_note_call(ea);
    if(call_builtin(target)){
     uint32_t ret;
     if(!x86_stack_pop32(&ret))return -57;
