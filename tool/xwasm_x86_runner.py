@@ -17,7 +17,7 @@ const files=new Map();
 const hex=(u8,n=32)=>Array.from(u8.slice(0,n),b=>b.toString(16).padStart(2,"0")).join(" ");
 const td=new TextDecoder();
 let gdrProvenance=null;
-let mem=null, runtimeEx=null, xapiSlotsView=null, xapiById=new Map(), xapiWarnings=new Set();
+let mem=null, runtimeEx=null, xapiById=new Map(), xapiWarnings=new Set();
 let inputEvents=[],inputQuit=false;
 const queueInput=e=>inputEvents.push(e);
 const mouseLParam=(x,y)=>((x&0xffff)|((y&0xffff)<<16))>>>0;
@@ -30,8 +30,9 @@ const inputPoll=(ptr,remove)=>{
   dv.setInt32((ptr+20)>>>0,e.x|0,true);dv.setInt32((ptr+24)>>>0,e.y|0,true);return 1;
 };
 const xapiBridge=(id,argc)=>{
-  const fn=xapiById.get(id>>>0);if(!fn||!xapiSlotsView)return 0;
-  const a=Array.from(xapiSlotsView.subarray(0,Math.min(argc>>>0,fn.args.length)));let v=0;
+  const fn=xapiById.get(id>>>0);if(!fn||!runtimeEx||!mem)return 0;
+  const slots=new Float64Array(mem.buffer,runtimeEx.x86_xapi_slots()>>>0,16);
+  const a=Array.from(slots.subarray(0,Math.min(argc>>>0,fn.args.length)));let v=0;
   switch(fn.bridge){
     case "xw.math.sin":v=Math.sin(a[0]);break;case "xw.math.cos":v=Math.cos(a[0]);break;
     case "xw.math.tan":v=Math.tan(a[0]);break;case "xw.math.sqrt":v=Math.sqrt(a[0]);break;
@@ -48,7 +49,8 @@ const xapiBridge=(id,argc)=>{
     default:
       if(!xapiWarnings.has(fn.bridge)){xapiWarnings.add(fn.bridge);say("[XAPI] bridge not implemented: "+fn.bridge+" ("+fn.lib+"!"+fn.name+")");}
   }
-  if(fn.ret==="f32")xapiSlotsView[15]=Math.fround(v);else if(fn.ret==="f64")xapiSlotsView[15]=v;
+  if(fn.ret==="f32"){const slots=new Float64Array(mem.buffer,runtimeEx.x86_xapi_slots()>>>0,16);slots[15]=Math.fround(v);}
+  else if(fn.ret==="f64"){const slots=new Float64Array(mem.buffer,runtimeEx.x86_xapi_slots()>>>0,16);slots[15]=v;}
   return fn.ret==="void"?0:(v|0);
 };
 window.addEventListener("keydown",e=>{queueInput({msg:0x100,wparam:e.keyCode>>>0,lparam:0,x:0,y:0});if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code))e.preventDefault();});
@@ -149,7 +151,6 @@ document.querySelector("#files").onchange=async e=>{
     const {instance}=await WebAssembly.instantiate(bytes,imports);
     const ex=instance.exports;runtimeEx=ex;
     if(!ex.x86_xapi_slots)throw Error("runtime is missing x86_xapi_slots export");
-    xapiSlotsView=new Float64Array(mem.buffer,ex.x86_xapi_slots()>>>0,16);
     say("Runtime WASM instantiated.");
 
     const XAPI_TYPE={void:0,u32:1,i32:2,ptr:3,f32:4,f64:5};
