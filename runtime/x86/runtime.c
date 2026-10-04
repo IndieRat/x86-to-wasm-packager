@@ -82,7 +82,7 @@ static uint16_t x86_seg_selectors[6]={0x0023u,0x001Bu,0x0023u,0x0023u,0x003Bu,0x
 static void x86_reset_segment_selectors(void){
  x86_seg_selectors[0]=0x0023u; x86_seg_selectors[1]=0x001Bu; x86_seg_selectors[2]=0x0023u;
  x86_seg_selectors[3]=0x0023u; x86_seg_selectors[4]=0x003Bu; x86_seg_selectors[5]=0x0053u;
- x86_reset_segment_selectors();
+ x86_fs_base=0u; x86_gs_base=0u;
 }
 static void x86_set_segment_selector(uint32_t seg,uint16_t sel){
  if(seg>=6u)return;
@@ -2185,7 +2185,7 @@ static int cpu_step_legacy(void){
    if(op2==0x44){uint8_t m=MEM8(ip++);uint32_t v=modrm_read32(m,&ip);if(eflags&ZF)regs[(m>>3)&7]=v;eip=ip;return 0;}
    if(op2==0x90||op2==0x92){uint8_t m=MEM8(ip++);uint8_t v=(op2==0x90)?((eflags&OF)?1u:0u):((eflags&CF)?1u:0u);if((m>>6)==3)reg8_write(m&7u,v);else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0F00u|op2;return -19;}wr8(ea,v);}eip=ip;return 0;}
    if(op2==0x94){uint8_t m=MEM8(ip++),v=(eflags&ZF)?1u:0u;if((m>>6)==3)reg8_write(m&7u,(uint8_t)v);else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0F94u;return -19;}wr8(ea,(uint8_t)v);}eip=ip;return 0;}
-   if(op2==0xB7){uint8_t m=MEM8(ip++);uint16_t v;if((m>>6)==3)v=reg16_read(m&7u);else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0FB7u;return -17;}v=rd16(ea);}regs[(m>>3)&7u]=(uint32_t)v;eip=ip;return 0;}
+   if(op2==0xB7){uint8_t m=MEM8(ip++);uint16_t v;if((m>>6)==3)v=reg16_read(m&7u);else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0FB7u;return -17;}v=rd16(ea);}if(decoded_operand16)reg16_write((m>>3)&7u,v);else regs[(m>>3)&7u]=(uint32_t)v;eip=ip;return 0;}
    if(op2==0xB6||op2==0xBE){uint8_t m=MEM8(ip++);uint32_t v;if((m>>6)==3){v=regs[m&7]&0xFFu;}else{uint32_t ea=0;if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0F00u|op2;return -17;}v=MEM8(ea);}if(op2==0xBE&&v&0x80u)v|=0xFFFFFF00u;regs[(m>>3)&7]=v;eip=ip;return 0;}
    if(op2==0xAE){uint8_t m=MEM8(ip++),sub=(m>>3)&7u;uint32_t ea=0;if(sub!=1u||(m>>6)==3){cpu_error=0x0FAEu|sub;return -18;}if(!modrm_ea(m,&ip,&ea)){cpu_error=0x0FAE01u;return -18;}if(!x86_mem_region_find(ea,512u,X86_MEM_READ)){x86_mem_faults++;cpu_error=0xE100u|1u;return -62;}x87_control=rd16(ea);x87_status=rd16(ea+2u);eip=ip;return 0;}
    if(op2==0xA3||op2==0xAB||op2==0xB3||op2==0xBB){uint8_t m=MEM8(ip++),d=(m>>3)&7;int32_t bit=(int32_t)regs[d];uint32_t ea=0,shift=(uint32_t)bit&31u,v;if((m>>6)==3)v=regs[m&7];else{modrm_ea(m,&ip,&ea);ea+=(uint32_t)(bit>>5)*4u;v=rd32(ea);}uint32_t old=(v>>shift)&1u;eflags=(eflags&~CF)|(old?CF:0);if(op2!=0xA3){if(op2==0xAB)v|=1u<<shift;else if(op2==0xB3)v&=~(1u<<shift);else v^=1u<<shift;if((m>>6)==3)regs[m&7]=v;else wr32(ea,v);}eip=ip;return 0;}

@@ -353,7 +353,10 @@ static int x86_decode_instruction(x86_decoded_t *d) {
             !x86_id_is(d->entry->id, "MOV_R32_IMM32") &&
             !x86_id_is(d->entry->id, "ADD_EAX_IMM32") &&
             !x86_id_is(d->entry->id, "SUB_EAX_IMM32") &&
-            !x86_id_is(d->entry->id, "CMP_EAX_IMM32")) {
+            !x86_id_is(d->entry->id, "CMP_EAX_IMM32") &&
+            !x86_id_is(d->entry->id, "MOV_RM16_SREG") &&
+            !x86_id_is(d->entry->id, "MOV_SREG_RM16") &&
+            !x86_id_is(d->entry->id, "MOVZX_R32_RM16")) {
             cpu_error = 0xD100u | d->opcode;
             return -3;
         }
