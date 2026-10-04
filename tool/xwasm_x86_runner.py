@@ -319,7 +319,6 @@ document.querySelector("#files").onchange=async e=>{
     if(ex.x86_get_import_resolved) say("Resolved imports: "+ex.x86_get_import_resolved());
     if(ex.x86_get_import_failed) say("Unresolved imports: "+ex.x86_get_import_failed());
     if(ex.x86_get_last_import_target) say("Last resolved API during import scan: 0x"+ex.x86_get_last_import_target().toString(16));
-    emitGdrProvenance();
     if(ex.x86_alloc){
       const probeAlloc=ex.x86_alloc(64);
       say("Guest allocation probe: 64 bytes at 0x"+probeAlloc.toString(16));
@@ -355,6 +354,10 @@ document.querySelector("#files").onchange=async e=>{
     say("EAX: 0x"+(ex.x86_get_eax()>>>0).toString(16).padStart(8,"0"));
     say("EFLAGS: 0x"+(ex.x86_get_eflags()>>>0).toString(16).padStart(8,"0"));
     say("CPU halted: "+ex.x86_get_halted());
+
+    /* Emit GDR after execution so call_count and last-indirect provenance
+     * describe the actual failing/successful run rather than a pre-run zero state. */
+    emitGdrProvenance();
 
     if(runResult<0){
       const opcode=ex.x86_get_current_opcode?(ex.x86_get_current_opcode()>>>0):0xFFFFFFFF;
