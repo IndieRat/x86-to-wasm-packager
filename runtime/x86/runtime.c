@@ -990,6 +990,12 @@ static uint32_t shim_resolve(uint32_t name){
  for(uint32_t i=0;i<SHIM_COUNT;i++)if(streq_ascii(name,shim_tab[i].name))return API_SHIM_BASE+i*4u;
  return 0;
 }
+static uint32_t x86_dll_get_proc(uint32_t module,uint32_t name);
+static uint32_t x86_dll_module_for_name(uint32_t name);
+static uint32_t x86_dll_load_registered(uint32_t name);
+static void x86_dll_rebind_all(void);
+static uint32_t x86_crt_strlen(uint32_t s);
+
 static uint32_t shim_call(uint32_t idx){
  uint32_t sp=regs[R_ESP];
  #define ARG(n) rd32(sp+4u+4u*(n))
@@ -1300,10 +1306,7 @@ static void gl_draw_triangle(void){
  }
 }
 
-static uint32_t x86_dll_get_proc(uint32_t module,uint32_t name);
-static uint32_t x86_dll_module_for_name(uint32_t name);
-static void x86_dll_rebind_all(void);
-static uint32_t x86_crt_strlen(uint32_t s);
+
 static uint32_t call_builtin(uint32_t target){
  if(target>=API_XAPI_BASE&&target<API_XAPI_BASE+xapi_count*4u)return xapi_call((target-API_XAPI_BASE)>>2);
  if(target>=API_SHIM_BASE&&target<API_SHIM_BASE+SHIM_COUNT*4u){
