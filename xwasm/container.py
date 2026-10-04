@@ -35,12 +35,14 @@ KIND_XWASM = 1
 KIND_XPL = 2
 KIND_XPAK = 3
 KIND_XAPI = 4
+KIND_XDLL = 5
 
 KIND_NAMES = {
     KIND_XWASM: "xwasm",
     KIND_XPL: "xpl",
     KIND_XPAK: "xpak",
     KIND_XAPI: "xapi",
+    KIND_XDLL: "xdll",
 }
 NAME_KINDS = {v: k for k, v in KIND_NAMES.items()}
 
