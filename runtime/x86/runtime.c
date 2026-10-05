@@ -145,6 +145,7 @@ static uint32_t trace_count=0,trace_head=0,trace_failure_index=0;
 static int modrm_ea(uint8_t m,uint32_t *ip,uint32_t *ea);
 static int cpu_step_x87(uint8_t op,uint32_t *ip);
 static void x86_gdr_note_call(uint32_t slot);
+static int x86_gdr_rebind_slot(uint32_t slot);
 static uint32_t xmm_get_u32(uint8_t r){return (uint32_t)xmm[r][0]|((uint32_t)xmm[r][1]<<8)|((uint32_t)xmm[r][2]<<16)|((uint32_t)xmm[r][3]<<24);}
 static void xmm_set_u32(uint8_t r,uint32_t v){xmm[r][0]=(uint8_t)v;xmm[r][1]=(uint8_t)(v>>8);xmm[r][2]=(uint8_t)(v>>16);xmm[r][3]=(uint8_t)(v>>24);}
 static uint64_t xmm_get_u64(uint8_t r){uint64_t lo=xmm_get_u32(r);uint32_t hi=(uint32_t)xmm[r][4]|((uint32_t)xmm[r][5]<<8)|((uint32_t)xmm[r][6]<<16)|((uint32_t)xmm[r][7]<<24);return lo|((uint64_t)hi<<32);}
@@ -2410,6 +2411,30 @@ static int cpu_step_legacy(void){
     x86_gdr_note_call(ea);
     cpu_error=0xFF20u;return -63;
    }
+   /*
+    * A PE import thunk is normally an FF /4 or FF /2 through an IAT slot.
+    * If that slot was overwritten by guest code, do not jump to the foreign
+    * value. Re-resolve the slot from its immutable GDR metadata instead.
+    * This is especially important for the browser runtime because an invalid
+    * host-looking pointer here would otherwise become a guest EIP and turn a
+    * simple IAT corruption into an opaque 0xD001/0xE101 failure.
+    */
+   if(target<image_base || target>=image_base+image_size){
+    int rebound=x86_gdr_rebind_slot(ea);
+    if(rebound>0)target=rd32(ea);
+    else if(rebound<0){
+     target=rd32(ea);
+     last_unresolved_gdr=(target>=API_UNRESOLVED_BASE&&target<API_UNRESOLVED_END)?
+       ((target-API_UNRESOLVED_BASE)>>2):0xFFFFFFFFu;
+     x86_control_fault_kind=2u;x86_control_fault_eip=eip;x86_control_fault_next_eip=next;
+     x86_control_fault_target=target;x86_control_fault_slot=ea;x86_control_fault_opcode=0xFFu;x86_control_fault_modrm=m;
+     x86_gdr_note_call(ea);
+     cpu_error=0xFF20u;return -63;
+    }else{
+     x86_control_fault_kind=3u;x86_control_fault_eip=eip;x86_control_fault_next_eip=next;
+     x86_control_fault_target=target;x86_control_fault_slot=ea;x86_control_fault_opcode=0xFFu;x86_control_fault_modrm=m;
+    }
+   }
    if(sub==2){
     x86_gdr_note_call(ea);
     if(!x86_stack_push32(next))return -57;
@@ -2419,10 +2444,6 @@ static int cpu_step_legacy(void){
    /* FF /4 JMP is frequently used by PE import thunks. Record the import
     * call and, if resolved to a host/API shim, execute it before returning
     * through the thunk's existing caller return address. */
-   if(target<image_base || target>=image_base+image_size){
-    x86_control_fault_kind=3u;x86_control_fault_eip=eip;x86_control_fault_next_eip=next;
-    x86_control_fault_target=target;x86_control_fault_slot=ea;x86_control_fault_opcode=0xFFu;x86_control_fault_modrm=m;
-   }
    x86_gdr_note_call(ea);
    if(call_builtin(target)){
     uint32_t ret;
@@ -2552,6 +2573,31 @@ static uint32_t x86_dll_get_proc(uint32_t module,uint32_t name){
 static uint32_t x86_dll_resolve_import(uint32_t dll,uint32_t name){
  uint32_t t=resolve_builtin(dll,name);if(t)return t;
  for(uint32_t i=0;i<X86_DLL_MAX_MODULES;i++)if(x86_dll_modules[i].active&&x86_dll_name_equal(dll,x86_dll_modules[i].name)){t=x86_dll_get_proc(x86_dll_modules[i].base,name);if(t)return t;}
+ return 0;
+}
+static int x86_gdr_rebind_slot(uint32_t slot){
+ if(slot<image_base)return 0;
+ uint32_t rva=slot-image_base;
+ for(uint32_t i=0;i<x86_gdr_count;i++){
+  x86_gdr_record_t *g=&x86_gdr[i];
+  if(g->iat_rva!=rva)continue;
+  uint32_t dll=image_base+g->dll_rva;
+  uint32_t name=image_base+g->func_rva+2u;
+  uint32_t target=resolve_builtin(dll,name);
+  if(!target)target=x86_dll_resolve_import(dll,name);
+  if(target){
+   wr32(slot,target);
+   g->target=target;
+   g->status=X86_GDR_RESOLVED;
+   return 1;
+  }
+  uint32_t trap=API_UNRESOLVED_BASE+i*4u;
+  wr32(slot,trap);
+  g->target=trap;
+  g->status=X86_GDR_UNRESOLVED;
+  last_unresolved_gdr=i;
+  return -1;
+ }
  return 0;
 }
 static void x86_dll_resolve_imports(uint32_t base,uint32_t size,uint32_t rva,uint32_t rsz,uint32_t*ok,uint32_t*bad){
