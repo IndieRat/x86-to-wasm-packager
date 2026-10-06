@@ -29,6 +29,18 @@ def main() -> int:
         module = args.package / manifest["module"]
         print(f"Module bytes: {module.stat().st_size}")
         print(f"xwasm.meta sections: {len(metadata(module.read_bytes()))}")
+    elif architecture == "x86-recompiled":
+        module = args.package / manifest["module"]
+        image = args.package / manifest["image"]
+        print(f"Translated module bytes: {module.stat().st_size if module.is_file() else 'MISSING'}")
+        print(f"Guest image bytes: {image.stat().st_size if image.is_file() else 'MISSING'}")
+        if module.is_file():
+            print(f"xwasm.meta sections: {len(metadata(module.read_bytes()))}")
+        recomp = manifest.get("recompilation", {})
+        source = recomp.get("source", {})
+        if source:
+            print(f"Source PE: {recomp.get('source_executable', 'unknown')}")
+            print(f"Source SHA256: {source.get('sha256', 'unknown')}")
     elif architecture == "x86":
         payload = args.package / manifest["payload"] if manifest.get("payload") else None
         if payload and payload.is_file():
