@@ -180,6 +180,29 @@ The migration plan is:
 
 The existing x86/v86 package tools remain available during this migration. They are not treated as the XWASM ABI itself.
 
+## XWASM static recompilation
+
+The repository now also supports a second XWASM execution model modeled on static browser recompilation:
+
+- `tool/xwasm_recomp.py` — backend-driven build/orchestration entry point.
+- `tool/xwasm_recomp_pack.py` — packages translated `boot.wasm`, a guest image, and game resources.
+- `tool/xwasm_recomp_image.py` — builds the deterministic `XWGI01` guest-image container from a PE32.
+- `tool/xwasm_recomp_runner.py` — generates a CDN-free local browser shell.
+- `XWASM_RECOMP.md` — format and backend contract.
+
+The new manifest architecture is `x86-recompiled`. Unlike the existing `x86` package, the browser does not execute the PE through the XWASM CPU runtime; the PE is input to a static-recompilation backend that emits ordinary WASM plus the guest image.
+
+For an existing translated build:
+
+    python3 tool/xwasm_recomp_pack.py ./MyGame --exe Game.exe --module ./build/boot.wasm --image ./build/guest.segs.bin --output ./dist/MyGame.xwasm
+    python3 tool/xwasm_recomp_runner.py ./dist/MyGame.xwasm
+
+For a future translator backend:
+
+    python3 tool/xwasm_recomp.py ./MyGame --exe Game.exe --output ./dist/MyGame.xwasm --backend-command "python C:/my-recompiler/build.py"
+
+The backend receives `XWASM_GAME_DIR`, `XWASM_EXE`, `XWASM_WORK_DIR`, `XWASM_OUTPUT_WASM`, and `XWASM_OUTPUT_IMAGE` and must emit the final two artifacts.
+
 ## XWASM x86 runtime v0.1
 
 The repository includes the first x86 compatibility-runtime foundation:
