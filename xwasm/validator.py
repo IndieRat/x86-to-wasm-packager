@@ -142,6 +142,62 @@ def validate_package(root: Path) -> dict:
             ),
         }
 
+    # Static-recompilation packages contain translated WASM plus a
+    # guest image/data blob. The source PE is build provenance only.
+    if architecture == "x86-recompiled":
+        module_name = manifest.get("module")
+        image_name = manifest.get("image")
+        for label, name in (("module", module_name), ("image", image_name)):
+            if not isinstance(name, str) or not name:
+                errors.append(f"{label} must be a non-empty string for x86-recompiled packages")
+                continue
+            try:
+                path = _safe_package_path(root, name, label)
+                if not path.is_file():
+                    errors.append(f"missing {label}: {name!r}")
+            except ValueError as exc:
+                errors.append(str(exc))
+
+        if isinstance(module_name, str) and module_name:
+            try:
+                module_path = _safe_package_path(root, module_name, "module")
+                if module_path.is_file():
+                    wasm = module_path.read_bytes()
+                    if not wasm.startswith(b"\\x00asm"):
+                        errors.append("recompiled module does not have a WebAssembly binary header")
+                    else:
+                        try:
+                            metas = metadata(wasm)
+                            if not metas:
+                                warnings.append("recompiled module has no xwasm.meta custom section")
+                        except ValueError as exc:
+                            errors.append(f"invalid recompiled module metadata: {exc}")
+            except ValueError as exc:
+                errors.append(str(exc))
+
+        resource_root = manifest.get("resource_root")
+        if isinstance(resource_root, str):
+            try:
+                resource_path = _safe_package_path(root, resource_root, "resource_root")
+                if not resource_path.is_dir():
+                    errors.append(f"missing resource_root: {resource_root!r}")
+            except ValueError as exc:
+                errors.append(str(exc))
+        else:
+            errors.append("resource_root must be a string")
+
+        return {
+            "valid": not errors,
+            "errors": errors,
+            "warnings": warnings,
+            "manifest": manifest,
+            "architecture": "x86-recompiled",
+            "module_bytes": ((root / module_name).stat().st_size
+                             if isinstance(module_name, str) and (root / module_name).is_file() else 0),
+            "image_bytes": ((root / image_name).stat().st_size
+                            if isinstance(image_name, str) and (root / image_name).is_file() else 0),
+        }
+
     # Native WASM package validation.
     module_name = manifest.get("module")
     if not isinstance(module_name, str) or not module_name:
