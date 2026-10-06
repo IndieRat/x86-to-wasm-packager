@@ -35,12 +35,12 @@ def validate_manifest(manifest: dict) -> list[str]:
         errors.append("name must be a non-empty string")
 
     architecture = manifest.get("architecture")
-    if architecture not in {"wasm32", "x86"}:
-        errors.append("architecture must be 'wasm32' or 'x86'")
+    if architecture not in {"wasm32", "x86", "x86-recompiled"}:
+        errors.append("architecture must be 'wasm32', 'x86', or 'x86-recompiled'")
 
-    if architecture == "wasm32":
+    if architecture in {"wasm32", "x86-recompiled"}:
         if not isinstance(manifest.get("module"), str) or not manifest["module"]:
-            errors.append("module must be a non-empty string for wasm32 packages")
+            errors.append("module must be a non-empty string for wasm32/x86-recompiled packages")
     elif architecture == "x86":
         payload = manifest.get("payload")
         if not isinstance(payload, str) or not payload:
