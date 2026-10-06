@@ -38,8 +38,11 @@ def main()->int:
     ap=argparse.ArgumentParser(description="Build an XWASM XWGI01 guest image from PE32.")
     ap.add_argument("exe",type=Path)
     ap.add_argument("--output",type=Path,required=True)
+    ap.add_argument("--keep-reloc",action="store_true",help="Keep the PE .reloc section; omitted by default for preferred-base images.")
     args=ap.parse_args()
     data,image_base,image_size,rows=parse_pe(args.exe.resolve())
+    if not args.keep_reloc:
+        rows=[row for row in rows if row[0].lower() != ".reloc"]
     entries=[]; payload=bytearray()
     header_size=HEADER.size+ENTRY.size*len(rows)
     cursor=header_size
